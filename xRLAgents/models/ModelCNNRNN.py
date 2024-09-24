@@ -89,6 +89,7 @@ class GRULayerNorm(torch.nn.Module):
 
 '''
     CNN layers for visual information extraction
+    GRU layer for temporal information storing
     FC layers for actor + critic
 '''
 class ModelCNNRNN(torch.nn.Module):

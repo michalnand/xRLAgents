@@ -5,28 +5,31 @@ from .TrajectoryBuffer  import *
 from ..training.ValuesLogger           import *
   
 class AgentPPO():
-    def __init__(self, envs, Model, gamma = 0.998, entropy_beta = 0.001, n_steps = 128, batch_size = 256):
+    def __init__(self, envs, Config, Model):
         self.envs = envs
  
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+        config = Config()
+
         # agent hyperparameters
-        self.gamma              = gamma
-        self.entropy_beta       = entropy_beta
-        self.eps_clip           = 0.1 
-        self.adv_coeff          = 1.0
-        self.val_coeff          = 0.5
+        self.gamma              = config.gamma
+        self.entropy_beta       = config.entropy_beta
+        self.eps_clip           = config.eps_clip
+        self.adv_coeff          = config.adv_coeff
+        self.val_coeff          = config.val_coeff
 
-        self.steps              = n_steps
-        self.batch_size         = batch_size
+        self.steps              = config.steps
+        self.batch_size         = config.batch_size
         
-        self.training_epochs    = 4
+        self.training_epochs    = config.training_epochs
+        
+        self.learning_rate      = config.learning_rate
+
+
         self.envs_count         = len(envs)
-        self.learning_rate      = 0.0001
-
-
-        self.state_shape    = self.envs.observation_space.shape
-        self.actions_count  = self.envs.action_space.n
+        self.state_shape        = self.envs.observation_space.shape
+        self.actions_count      = self.envs.action_space.n
 
         # create mdoel
         self.model = Model(self.state_shape, self.actions_count)

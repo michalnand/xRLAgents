@@ -1,15 +1,15 @@
 import time
 import xRLAgents
-from WrapperRobotics import *
+from WrapperAtari import *
 from agent_config import *
 
 
 if __name__ == "__main__":
     # num of paralel environments
-    n_envs   = 32
+    n_envs   = 128
 
     # environment name
-    env_name = "CartPole-v1"
+    env_name = "MsPacmanNoFrameskip-v4"
 
     # create result path
     result_path = "result/"
@@ -19,25 +19,25 @@ if __name__ == "__main__":
 
     # create environments
     print("creating envs")
-    envs = xRLAgents.EnvsListParallel(env_name, n_envs, Wrapper=WrapperRobotics)
+    envs = xRLAgents.EnvsListParallel(env_name, n_envs, Wrapper=WrapperAtari)
 
     print("creating agent")
     # create agent
-    agent = xRLAgents.AgentPPO(envs, xRLAgents.ModelFC, gamma = 0.99, entropy_beta = 0.001, n_steps = 128, batch_size = 256)
+    agent = xRLAgents.AgentPPO(envs, Config, xRLAgents.ModelCNN)
 
     # run training
     print("starting training")
     trainer = xRLAgents.RLTrainer(envs, agent, result_path)
-    trainer.run(100000)
+    trainer.run(500000)
     '''
-    
+
 
     
     # inference part
-    envs = xRLAgents.EnvsList(env_name, 1, render_mode='human')
+    envs = xRLAgents.EnvsList(env_name, 1, 'human', WrapperAtari)
     states, _ = envs.reset()
 
-    agent = xRLAgents.AgentPPO(envs, Config, xRLAgents.ModelFC)
+    agent = xRLAgents.AgentPPO(envs, Config, xRLAgents.ModelCNN)
     agent.load(result_path)
 
     while True:

@@ -1,5 +1,8 @@
-import rl_libs
+import time
+import xRLAgents
 from WrapperAtari import *
+from agent_config import *
+
 
 if __name__ == "__main__":
     # num of paralel environments
@@ -9,31 +12,33 @@ if __name__ == "__main__":
     env_name = "MsPacmanNoFrameskip-v4"
 
     # create result path
-    result_path = "results/" + env_name + "/"
+    result_path = "result/"
     
-    
+    '''
+    # agent training
+
     # create environments
     print("creating envs")
-    envs = rl_libs.EnvsListParallel(env_name, n_envs, Wrapper=WrapperAtari)
+    envs = xRLAgents.EnvsListParallel(env_name, n_envs, Wrapper=WrapperAtari)
 
     print("creating agent")
     # create agent
-    agent = rl_libs.AgentPPO(envs, rl_libs.ModelCNN, gamma = 0.99, entropy_beta = 0.001, n_steps = 128, batch_size = 256)
+    agent = xRLAgents.AgentPPORNN(envs, Config, xRLAgents.ModelCNNRNN)
 
     # run training
     print("starting training")
-    trainer = rl_libs.RLTrainer(envs, agent, result_path)
+    trainer = xRLAgents.RLTrainer(envs, agent, result_path)
     trainer.run(500000)
-   
-
-
     '''
+
+
+    
     # inference part
-    envs = rl_libs.EnvsList(env_name, 1, 'human')
+    envs = xRLAgents.EnvsList(env_name, 1, 'human', WrapperAtari)
     states, _ = envs.reset()
 
-    agent = rl_libs.AgentPPO(envs, rl_libs.ModelFC, result_path=result_path)
-    agent.load()
+    agent = xRLAgents.AgentPPORNN(envs, Config, xRLAgents.ModelCNNRNN)
+    agent.load(result_path)
 
     while True:
         states, rewards, dones, infos = agent.step(states, False)
@@ -43,4 +48,4 @@ if __name__ == "__main__":
             states[e], _ = envs[e].reset()
 
         time.sleep(0.01)
-    '''
+    
