@@ -47,6 +47,8 @@ class AgentPPOSND():
 
         self.trajectory_buffer = TrajectoryBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
 
+        self.episode_steps     = numpy.zeros(self.envs_count, dtype=int)
+
         self.log_rewards_int = ValuesLogger("rewards_int")
         self.log_loss_ppo    = ValuesLogger("loss_ppo")
         self.log_loss_im     = ValuesLogger("loss_im")
@@ -76,13 +78,19 @@ class AgentPPOSND():
         if training_enabled:
             
             # put trajectory into policy buffer
-            self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext, rewards_int_scaled, dones)
+            self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext, rewards_int_scaled, dones, self.episode_steps)
 
             # if buffer is full, run training loop
             if self.trajectory_buffer.is_full():
                 self.trajectory_buffer.compute_returns(self.gamma_ext, self.gamma_int)
                 self.train()
                 self.trajectory_buffer.clear()
+
+        self.episode_steps+= 1 
+
+        dones_idx = numpy.where(dones)[0]
+        for i in dones_idx:
+            self.episode_steps[i] = 0
 
 
         self.log_rewards_int.add("mean", rewards_int.mean())
