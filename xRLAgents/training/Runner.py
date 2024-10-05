@@ -9,7 +9,7 @@ import os
 class Runner:
 
     # devices = [cuda:0, cuda:1 ... ]
-    def __init__(self, experiments_path, devices, delay_s = 5.0):
+    def __init__(self, source_path, experiments_path, devices, delay_s = 5.0):
         multiprocessing.set_start_method('spawn')
         #multiprocessing.set_start_method('fork')
 
@@ -21,9 +21,7 @@ class Runner:
             #with multiprocessing.Pool(1) as p:
             #    p.map(module.run, [])
 
-            abs_path = os.path.abspath(__file__)
-
-            params = [abs_path + experiments_path[i], i, device]
+            params = [source_path + experiments_path[i], i, device]
             p = multiprocessing.Process(target=self._run, args=params)
             process.append(p)
 
