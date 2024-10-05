@@ -21,7 +21,9 @@ class Runner:
             #with multiprocessing.Pool(1) as p:
             #    p.map(module.run, [])
 
-            params = [experiments_path[i], i, device]
+            abs_path = os.path.abspath(__file__)
+
+            params = [abs_path + experiments_path[i], i, device]
             p = multiprocessing.Process(target=self._run, args=params)
             process.append(p)
 
@@ -74,7 +76,7 @@ class Runner:
         if not os.path.exists(main_py_path):
             raise FileNotFoundError(f"{main_py_path} does not exist")
         
-        
+
         # Change working directory to the experiment path
         os.chdir(experiment_path)
         
