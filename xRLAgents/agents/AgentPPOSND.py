@@ -4,7 +4,7 @@ import numpy
 from .TrajectoryBufferIM  import *
 from ..training.ValuesLogger           import *
   
-class AgentPPO():
+class AgentPPOSND():
     def __init__(self, envs, Config, Model):
         self.envs = envs
  
