@@ -21,7 +21,7 @@ class Runner:
             #with multiprocessing.Pool(1) as p:
             #    p.map(module.run, [])
 
-            params = [source_path + experiments_path[i], i, device]
+            params = [source_path + "/" + experiments_path[i], i, device]
             p = multiprocessing.Process(target=self._run, args=params)
             process.append(p)
 
