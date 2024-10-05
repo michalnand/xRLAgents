@@ -50,7 +50,7 @@ class AgentPPOSND():
         self.log_loss_ppo    = ValuesLogger("loss_ppo")
         self.log_rewards_int = ValuesLogger("rewards_int")
      
-        
+
        
   
     def step(self, states, training_enabled):        
@@ -66,7 +66,8 @@ class AgentPPOSND():
         # environment step  
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
-        rewards_int        = self._internal_motivation(states).detach().cpu().numpy()
+        rewards_int        = self._internal_motivation(states_t)
+        rewards_int        = rewards_int.detach().cpu().numpy()
         rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
 
         # top PPO training part
