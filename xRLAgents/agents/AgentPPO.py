@@ -39,12 +39,12 @@ class AgentPPO():
         # initialise optimizer and trajectory buffer
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
 
-        self.trajctory_buffer = TrajectoryBuffer(self.steps, self.state_shape, self.actions_count, self.envs_count)
+        self.trajectory_buffer = TrajectoryBuffer(self.steps, self.state_shape, self.actions_count, self.envs_count)
 
         self.log_loss_ppo = ValuesLogger("loss_ppo")
      
      
-       
+        
   
     def step(self, states, training_enabled):        
         states_t = torch.tensor(states, dtype=torch.float).to(self.device)
@@ -65,13 +65,13 @@ class AgentPPO():
         if training_enabled:
             
             # put trajectory into policy buffer
-            self.trajctory_buffer.add(states_t, logits_t, values_t, actions, rewards, dones)
+            self.trajectory_buffer.add(states_t, logits_t, values_t, actions, rewards, dones)
 
             # if buffer is full, run training loop
-            if self.trajctory_buffer.is_full():
-                self.trajctory_buffer.compute_returns(self.gamma)
+            if self.trajectory_buffer.is_full():
+                self.trajectory_buffer.compute_returns(self.gamma)
                 self.train()
-                self.trajctory_buffer.clear()
+                self.trajectory_buffer.clear()
 
            
         return states_new, rewards, dones, infos
@@ -94,7 +94,7 @@ class AgentPPO():
             for batch_idx in range(batch_count):
                 
                 # sample batch
-                states, logits, actions, returns, advantages = self.trajctory_buffer.sample_batch(self.batch_size, self.device)
+                states, logits, actions, returns, advantages = self.trajectory_buffer.sample_batch(self.batch_size, self.device)
                 
                 # compute main PPO loss
                 loss_ppo = self.loss_ppo(states, logits, actions, returns, advantages)

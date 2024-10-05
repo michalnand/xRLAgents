@@ -36,7 +36,7 @@ class AgentPPOContinuous():
         # initialise optimizer and trajectory buffer
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
 
-        self.trajctory_buffer = TrajectoryBufferContinuous(self.steps, self.state_shape, self.actions_count, self.envs_count)
+        self.trajectory_buffer = TrajectoryBufferContinuous(self.steps, self.state_shape, self.actions_count, self.envs_count)
 
         # logger for results
         self.result_path = result_path
@@ -80,13 +80,13 @@ class AgentPPOContinuous():
 
             # top PPO training part
             # store trajecotry
-            self.trajctory_buffer.add(states_t, mu_t, var_t, values_t, actions, rewards, dones)
+            self.trajectory_buffer.add(states_t, mu_t, var_t, values_t, actions, rewards, dones)
 
             # if buffer is full, run training loop
-            if self.trajctory_buffer.is_full():
-                self.trajctory_buffer.compute_returns(self.gamma)
+            if self.trajectory_buffer.is_full():
+                self.trajectory_buffer.compute_returns(self.gamma)
                 self.train()
-                self.trajctory_buffer.clear()  
+                self.trajectory_buffer.clear()  
 
             # save log
             if iterations%128 == 0:
@@ -116,7 +116,7 @@ class AgentPPOContinuous():
             for batch_idx in range(batch_count):
                 
                 # sample batch
-                states, actions_mu, actions_var, actions, returns, advantages = self.trajctory_buffer.sample_batch(self.batch_size, self.device)
+                states, actions_mu, actions_var, actions, returns, advantages = self.trajectory_buffer.sample_batch(self.batch_size, self.device)
                 
                 # compute main PPO loss
                 loss_ppo = self.loss_ppo(states, actions_mu, actions_var, actions, returns, advantages)

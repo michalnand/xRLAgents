@@ -42,7 +42,7 @@ class AgentPPORNN():
         # initialise optimizer and trajectory buffer
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
 
-        self.trajctory_buffer = TrajectoryBufferRNN(self.steps, self.state_shape, rnn_shape, self.actions_count, self.envs_count)
+        self.trajectory_buffer = TrajectoryBufferRNN(self.steps, self.state_shape, rnn_shape, self.actions_count, self.envs_count)
 
         self.hidden_state_t = torch.zeros((self.envs_count, ) + rnn_shape, dtype=torch.float32, device=self.device)
 
@@ -72,13 +72,13 @@ class AgentPPORNN():
         if training_enabled:
             
             # put trajectory into policy buffer
-            self.trajctory_buffer.add(states_t, logits_t, values_t, actions, rewards, dones, self.hidden_state_t)
+            self.trajectory_buffer.add(states_t, logits_t, values_t, actions, rewards, dones, self.hidden_state_t)
 
             # if buffer is full, run training loop
-            if self.trajctory_buffer.is_full():
-                self.trajctory_buffer.compute_returns(self.gamma)
+            if self.trajectory_buffer.is_full():
+                self.trajectory_buffer.compute_returns(self.gamma)
                 self.train()
-                self.trajctory_buffer.clear()
+                self.trajectory_buffer.clear()
 
         # update hidden state for next step
         self.hidden_state_t = hidden_state_new_t.detach().clone()
@@ -122,7 +122,7 @@ class AgentPPORNN():
             for batch_idx in range(batch_count):
                 
                 # sample batch
-                states, logits, actions, returns, advantages, hidden_states = self.trajctory_buffer.sample_batch(self.seq_length, self.batch_size, self.device)
+                states, logits, actions, returns, advantages, hidden_states = self.trajectory_buffer.sample_batch(self.seq_length, self.batch_size, self.device)
                 
                 # compute main PPO loss
                 loss_ppo = self.loss_ppo(states, logits, actions, returns, advantages, hidden_states)

@@ -189,7 +189,7 @@ class AgentPPOSND():
 
 
     #MSE critic loss
-    def _ppo_critic_loss(values_ext_new, returns_ext, values_int_new, returns_int):
+    def _ppo_critic_loss(self, values_ext_new, returns_ext, values_int_new, returns_int):
         ''' 
         compute external critic loss, as MSE
         L = (T - V(s))^2 
@@ -211,7 +211,7 @@ class AgentPPOSND():
 
 
     #PPO actor loss
-    def _ppo_actor_loss(logits, logits_new, advantages, actions, eps_clip, entropy_beta):
+    def _ppo_actor_loss(self, logits, logits_new, advantages, actions, eps_clip, entropy_beta):
         log_probs_old = torch.nn.functional.log_softmax(logits, dim = 1).detach()
 
         probs_new     = torch.nn.functional.softmax(logits_new, dim = 1)
