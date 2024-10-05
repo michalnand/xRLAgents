@@ -75,11 +75,9 @@ class GRULayerNorm(torch.nn.Module):
         self.gru        = torch.nn.GRUCell(n_inputs, n_hidden) 
         self.layer_norm = torch.nn.LayerNorm(n_hidden)  
 
-        torch.nn.init.xavier_uniform_(self.gru.weight_hh)
-        torch.nn.init.xavier_uniform_(self.gru.weight_ih)
-        torch.nn.init.zeros_(self.gru.bias_hh)
-        torch.nn.init.zeros_(self.gru.bias_ih)  
-        
+        torch.nn.init.orthogonal_(self.gru.weight_hh, 0.5)
+        torch.nn.init.orthogonal_(self.gru.weight_ih, 0.5)
+
 
     def forward(self, x, h):
         h_new = self.gru(x, h)
@@ -108,9 +106,12 @@ class ModelCNNRNN(torch.nn.Module):
         self.rnn_shape = (n_rnn, )
 
 
-    def forward(self, state, hidden_state):
+    def forward(self, state, hidden_state, detach_cnn_features = False):
         # obtain features
         z = self.model_features(state)
+
+        if detach_cnn_features:
+            z = z.detach()
 
         # concatenate state features with rnn features
         zh = torch.concatenate([z, hidden_state], dim=-1)
@@ -131,7 +132,7 @@ class ModelCNNRNN(torch.nn.Module):
         hidden_state_curr = hidden_states[0].detach().clone()
 
         # process whole sequence
-        for n in range(seq_length):
-            logits, value, hidden_state_curr = self.forward(states[n], hidden_state_curr)
+        for n in range(seq_length): 
+            logits, value, hidden_state_curr = self.forward(states[n], hidden_state_curr, n < (seq_length-2))
 
         return logits, value, hidden_state_curr

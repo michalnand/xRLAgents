@@ -1,6 +1,6 @@
 import time
-import xRLAgents    
-from WrapperAtari import *
+import xRLAgents
+from WrapperAtariRam import *
 from agent_config import *
 
 
@@ -19,11 +19,11 @@ if __name__ == "__main__":
 
     # create environments
     print("creating envs")
-    envs = xRLAgents.EnvsListParallel(env_name, n_envs, Wrapper=WrapperAtari)
+    envs = xRLAgents.EnvsListParallel(env_name, n_envs, Wrapper=WrapperAtariRam)
 
     print("creating agent")
     # create agent
-    agent = xRLAgents.AgentPPO(envs, Config, xRLAgents.ModelCNN)
+    agent = xRLAgents.AgentPPO(envs, Config, xRLAgents.ModelRLTransformer)
 
     # run training
     print("starting training")
@@ -34,10 +34,10 @@ if __name__ == "__main__":
 
     
     # inference part
-    envs = xRLAgents.EnvsList(env_name, 1, 'human', WrapperAtari)
+    envs = xRLAgents.EnvsList(env_name, 1, 'human', WrapperAtariRam)
     states, _ = envs.reset()
 
-    agent = xRLAgents.AgentPPO(envs, Config, xRLAgents.ModelCNN)
+    agent = xRLAgents.AgentPPO(envs, Config, xRLAgents.ModelRLTransformer)
     agent.load(result_path)
 
     while True:

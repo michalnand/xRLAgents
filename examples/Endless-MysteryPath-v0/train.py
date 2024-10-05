@@ -1,6 +1,6 @@
 import time
 import xRLAgents    
-from WrapperAtari import *
+from WrapperMemoryGym import *
 from agent_config import *
 
 
@@ -9,35 +9,35 @@ if __name__ == "__main__":
     n_envs   = 128
 
     # environment name
-    env_name = "MsPacmanNoFrameskip-v4"
+    env_name = "Endless-MysteryPath-v0"
 
     # create result path
     result_path = "result/"
     
-    '''
+    
     # agent training
 
     # create environments
     print("creating envs")
-    envs = xRLAgents.EnvsListParallel(env_name, n_envs, Wrapper=WrapperAtari)
+    envs = xRLAgents.EnvsListParallel(env_name, n_envs, Wrapper=WrapperMemoryGym)
 
     print("creating agent")
     # create agent
-    agent = xRLAgents.AgentPPO(envs, Config, xRLAgents.ModelCNN)
+    agent = xRLAgents.AgentPPORNN(envs, Config, xRLAgents.ModelCNNRNN)
 
     # run training
     print("starting training")
     trainer = xRLAgents.RLTrainer(envs, agent, result_path)
-    trainer.run(500000)
-    '''
-
-
+    trainer.run(1000000)
     
+
+
+    '''
     # inference part
-    envs = xRLAgents.EnvsList(env_name, 1, 'human', WrapperAtari)
+    envs = xRLAgents.EnvsList(env_name, 1, 'human', WrapperMemoryGym)
     states, _ = envs.reset()
 
-    agent = xRLAgents.AgentPPO(envs, Config, xRLAgents.ModelCNN)
+    agent = xRLAgents.AgentPPORNN(envs, Config, xRLAgents.ModelCNNRNN)
     agent.load(result_path)
 
     while True:
@@ -48,4 +48,4 @@ if __name__ == "__main__":
             states[e], _ = envs[e].reset()
 
         time.sleep(0.01)
-    
+    '''
