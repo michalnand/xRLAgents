@@ -124,13 +124,14 @@ class AgentPPO():
         
         #main IM training loop
         for batch_idx in range(batch_count):    
+            pass
             #internal motivation loss, MSE distillation    
             #states, _ = self.trajectory_buffer.sample_states(self.ss_batch_size, self.device)
             #loss_im   = self._internal_motivation(states).mean()
 
             
         
-    
+
     # sample action, probs computed from logits
     def _sample_actions(self, logits):
         action_probs_t        = torch.nn.functional.softmax(logits, dim = 1)
