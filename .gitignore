@@ -29,6 +29,8 @@ MANIFEST
 
 #videos  
 *.avi
+*.png
+*.mp4
 
 #trained models
 *.pt
