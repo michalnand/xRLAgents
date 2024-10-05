@@ -68,6 +68,8 @@ class Runner:
         
     
         module_name = os.path.basename(experiment_path) + ".main"
+
+        print("module_name = ", module_name, "\n\n")
         sys.path.insert(0, experiment_path)
 
         module = __import__(module_name)
