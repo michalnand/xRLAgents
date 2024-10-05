@@ -55,10 +55,6 @@ class Runner:
         print("Runner : ending ", i, experiment)
     '''
 
-
-    
-
-
     def _run(self, experiment_path, i, device):
         print("Runner : starting ", i, experiment_path, device)
 
@@ -69,20 +65,14 @@ class Runner:
         except:
             pass
         
-        main_py_path = os.path.join(experiment_path, 'main.py')
-
-        if not os.path.exists(main_py_path):
-            raise FileNotFoundError(f"{main_py_path} does not exist")
         
-
-        # Change working directory to the experiment path
-        os.chdir(experiment_path)
-        
-        # Temporarily add the experiment directory to sys.path to ensure imports work
+    
+        module_name = os.path.basename(experiment_path)
         sys.path.insert(0, experiment_path)
-        
-        with open(main_py_path) as f:
-            exec(f.read(), {'__name__': '__main__'})
+
+        module = __import__(module_name)
+        module.run()
 
         print("Runner : ending ", i, experiment_path)
 
+   
