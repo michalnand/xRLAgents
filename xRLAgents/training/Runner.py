@@ -59,24 +59,27 @@ class Runner:
     
 
 
-    def _run(self, experiment, i, device):
-        print("Runner : starting ", i, experiment)
-
-        module_dir = os.path.dirname(experiment)
-
-        if module_dir not in sys.path:
-            sys.path.insert(0, module_dir)
-
+    def _run(self, experiment_path, i, device):
+        print("Runner : starting ", i, experiment_path)
 
         try:
             if "cuda" in device:
                 torch.cuda.set_device(device)
-                print("Runner : device   ", device)
+                print("Runner : setting device   ", device)
         except:
             pass
 
-        module = __import__(experiment + ".main")
+        # Change working directory to the experiment path
+        os.chdir(experiment_path)
+        
+        # Temporarily add the experiment directory to sys.path to ensure imports work
+        sys.path.insert(0, experiment_path)
+        
+        # Import the main module dynamically and run it
+        module_name = 'main'
+        module = __import__(module_name)
+        
         module.run()
 
-        print("Runner : ending ", i, experiment)
+        print("Runner : ending ", i, experiment_path)
 
