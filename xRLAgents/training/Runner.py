@@ -82,10 +82,12 @@ class Runner:
         sys.path.insert(0, experiment_path)
         
         # Import the main module dynamically and run it
-        module_name = 'main'
-        module = __import__(module_name)
-        
-        module.run()
+        #module_name = 'main'
+        #module = __import__(module_name)
+        #module.run()
+
+        with open(main_py_path) as f:
+            exec(f.read(), {'__name__': '__main__'})
 
         print("Runner : ending ", i, experiment_path)
 
