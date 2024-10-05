@@ -51,10 +51,22 @@ class Runner:
 
         module = __import__(experiment)
         module.run()
+
+        print("Runner : ending ", i, experiment)
     '''
+
+
+    
+
 
     def _run(self, experiment, i, device):
         print("Runner : starting ", i, experiment)
+
+        module_dir = os.path.dirname(experiment)
+
+        if module_dir not in sys.path:
+            sys.path.insert(0, module_dir)
+
 
         try:
             if "cuda" in device:
@@ -62,20 +74,9 @@ class Runner:
                 print("Runner : device   ", device)
         except:
             pass
-    
-        module_name = "main"
 
-        module_dir = os.path.dirname(experiment)
-        sys.path.append(module_dir)
-
-        
-
-        spec = importlib.util.spec_from_file_location(module_name, experiment + "/main")
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-
+        module = __import__(experiment + ".main")
         module.run()
 
-
         print("Runner : ending ", i, experiment)
-            
+
