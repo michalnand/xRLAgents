@@ -104,7 +104,7 @@ class TrajectoryBufferIM:
 
         indices_a   = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size, ))
 
-        dif         = torch.randint(0, max_distance, (batch_size, ))
+        dif         = torch.randint(0, max_distance + 1, (batch_size, ))
         indices_b   = torch.clip(indices_a + self.envs_count*dif, 0, count-1)
 
 
