@@ -23,3 +23,39 @@ def loss_cov_func(x):
     
     loss = _off_diagonal(cov_x).pow_(2).sum()/x.shape[1] 
     return loss
+
+
+def loss_vicreg_func(za, zb):
+    # invariance loss
+    inv_loss = loss_mse_func(za, zb)
+
+    # variance loss
+    std_loss = loss_std_func(za)
+    std_loss+= loss_std_func(zb)
+   
+    # covariance loss 
+    cov_loss = loss_cov_func(za)
+    cov_loss+= loss_cov_func(zb)
+   
+    # total vicreg loss
+    loss = 1.0*inv_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
+
+    #info for log
+    z_mag     = ((za**2).mean()).detach().cpu().numpy().item()
+    z_mag_std = ((za**2).std()).detach().cpu().numpy().item()
+
+    inv_loss  = inv_loss.detach().cpu().numpy().item()
+    std_loss  = std_loss.detach().cpu().numpy().item()
+    cov_loss  = cov_loss.detach().cpu().numpy().item()
+    
+    info = {}
+    info["mag_mean"] = z_mag
+    info["mag_std"]  = z_mag_std
+
+    info["inv"] = inv_loss
+    info["std"] = std_loss
+    info["cov"] = cov_loss
+
+    return loss, info
+
+

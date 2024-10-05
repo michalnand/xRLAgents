@@ -32,6 +32,11 @@ class AgentPPOSND():
         
         self.learning_rate      = config.learning_rate
 
+        self.im_ssl_loss        = config.im_ssl_loss
+        self.max_distance       = config.max_distance
+
+        self.state_normalise    = config.state_normalise
+
 
         self.envs_count         = len(envs)
         self.state_shape        = self.envs.observation_space.shape
@@ -49,16 +54,61 @@ class AgentPPOSND():
 
         self.episode_steps     = numpy.zeros(self.envs_count, dtype=int)
 
+
+
+        # optional, for state mean and variance normalisation        
+        self.state_mean  = numpy.zeros(self.state_shape, dtype=numpy.float32)
+
+        for e in range(self.envs_count):
+            state, _ = self.envs.reset(e)
+            self.state_mean+= state.copy()
+
+        self.state_mean/= self.envs_count
+        self.state_var = numpy.ones(self.state_shape,  dtype=numpy.float32)
+
+
+        # result loggers
         self.log_rewards_int = ValuesLogger("rewards_int")
         self.log_loss_ppo    = ValuesLogger("loss_ppo")
         self.log_loss_im     = ValuesLogger("loss_im")
+        self.log_loss_im_ssl = ValuesLogger("loss_im_ssl")
+
+
+        # print parameters summary
+        print("\n\n\n\n")
+
+        print("model")
+        print(self.model)
+        print("\n\n")
+
+        print("gamma_int        ", self.gamma_int)
+        print("gamma_ext        ", self.gamma_ext)
+        print("entropy_beta     ", self.entropy_beta)
+        print("eps_clip         ", self.eps_clip)
+        print("adv_ext_coeff    ", self.adv_ext_coeff)
+        print("adv_int_coeff    ", self.adv_int_coeff)
+        print("val_coeff        ", self.val_coeff)
+        print("reward_int_coeff ", self.reward_int_coeff)
+        print("steps            ", self.steps)
+        print("batch_size       ", self.batch_size)
+        print("ss_batch_size    ", self.ss_batch_size)
+        print("training_epochs  ", self.training_epochs)
+        print("learning_rate    ", self.learning_rate)
+        print("im_ssl_loss      ", self.im_ssl_loss)
+        print("max_distance     ", self.max_distance)
+        print("state_normalise  ", self.state_normalise)
+
+        print("\n\n")
         
      
 
        
   
-    def step(self, states, training_enabled):        
-        states_t = torch.tensor(states, dtype=torch.float).to(self.device)
+    def step(self, states, training_enabled):     
+
+        states_norm = self._state_normalise(states, training_enabled)   
+
+        states_t = torch.tensor(states_norm, dtype=torch.float).to(self.device)
 
         # obtain model output, logits and values
         logits_t, values_ext_t, values_int_t  = self.model.forward(states_t)
@@ -106,7 +156,7 @@ class AgentPPOSND():
         self.model.load_state_dict(torch.load(result_path + "/model.pt", map_location = self.device))
 
     def get_logs(self):
-        return [self.log_rewards_int, self.log_loss_ppo, self.log_loss_im]
+        return [self.log_rewards_int, self.log_loss_ppo, self.log_loss_im, self.log_loss_im_ssl]
 
     def train(self): 
         samples_count = self.steps*self.envs_count
@@ -139,14 +189,24 @@ class AgentPPOSND():
             states, _, _, _ = self.trajectory_buffer.sample_states(self.ss_batch_size, 0, self.device)
             loss_im         = self._internal_motivation(states)
 
+            #self supervised target regularisation
+            states_a, steps_a, states_b, steps_b = self.trajectory_buffer.sample_states(self.ss_batch_size, self.max_distance, self.device)
+            loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_a, steps_a, states_b, steps_b)
+
+            loss_all = loss_im + loss_ssl
 
             self.optimizer.zero_grad()        
-            loss_im.mean().backward()
+            loss_all.mean().backward()
             self.optimizer.step() 
 
-
+            # log results
             self.log_loss_im.add("mean", loss_im.mean().detach().cpu().numpy())
             self.log_loss_im.add("std", loss_im.std().detach().cpu().numpy())
+
+
+            for key in info_ssl:
+                self.log_loss_im_ssl.add(str(key), info_ssl[key])
+
 
             
         
@@ -256,3 +316,22 @@ class AgentPPOSND():
 
         return loss_policy, loss_entropy
 
+    def _state_normalise(self, states, training_enabled, alpha = 0.99): 
+
+        if self.state_normalise:
+            #update running stats only during training
+            if training_enabled:
+                mean = states.mean(axis=0)
+                self.state_mean = alpha*self.state_mean + (1.0 - alpha)*mean
+        
+                var = ((states - mean)**2).mean(axis=0)
+                self.state_var  = alpha*self.state_var + (1.0 - alpha)*var 
+             
+            #normalise mean and variance
+            states_norm = (states - self.state_mean)/(numpy.sqrt(self.state_var) + 10**-6)
+            states_norm = numpy.clip(states_norm, -4.0, 4.0)
+        
+        else:
+            states_norm = states
+        
+        return states_norm
