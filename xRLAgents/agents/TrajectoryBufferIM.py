@@ -11,7 +11,7 @@ class TrajectoryBufferIM:
         self.clear()   
     
 
-    def add(self, state, logits, values_ext, values_int, actions, rewards_ext, rewards_int, dones):  
+    def add(self, state, logits, values_ext, values_int, actions, rewards_ext, rewards_int, dones, episode_steps):  
         self.states[self.ptr]       = state.detach().to("cpu").clone() 
         self.logits[self.ptr]       = logits.detach().to("cpu").clone() 
         
@@ -23,7 +23,8 @@ class TrajectoryBufferIM:
         self.rewards_ext[self.ptr]  = torch.from_numpy(rewards_ext)
         self.rewards_int[self.ptr]  = torch.from_numpy(rewards_int)
 
-        self.dones[self.ptr]     = torch.from_numpy(dones).float()
+        self.dones[self.ptr]            = torch.from_numpy(dones).float()
+        self.episode_steps[self.ptr]    = torch.from_numpy(episode_steps)
         
         self.ptr = self.ptr + 1 
 
@@ -47,6 +48,7 @@ class TrajectoryBufferIM:
         self.rewards_int    = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
 
         self.dones      = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
+        self.episode_steps = torch.zeros((self.buffer_size, self.envs_count, ), dtype=int)
 
         self.ptr = 0  
  
@@ -69,7 +71,8 @@ class TrajectoryBufferIM:
         self.rewards_int = self.rewards_int.reshape((self.buffer_size*self.envs_count, ))
 
       
-        self.dones      = self.dones.reshape((self.buffer_size*self.envs_count, ))
+        self.dones         = self.dones.reshape((self.buffer_size*self.envs_count, ))
+        self.episode_steps = self.episode_steps.reshape((self.buffer_size*self.envs_count, ))
 
         self.returns_ext      = self.returns_ext.reshape((self.buffer_size*self.envs_count, ))
         self.advantages_ext   = self.advantages_ext.reshape((self.buffer_size*self.envs_count, ))
@@ -94,6 +97,24 @@ class TrajectoryBufferIM:
 
 
         return states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int
+    
+
+    def sample_states(self, batch_size, max_distance, device):
+        count        = self.buffer_size*self.envs_count
+
+        indices_a   = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size, ))
+
+        dif         = torch.randint(0, max_distance, (batch_size, ))
+        indices_b   = torch.clip(indices_a + self.envs_count*dif, 0, count-1)
+
+
+        states_a   = (self.states[indices_a]).to(device)
+        steps_a    = (self.episode_steps[indices_a]).to(device)
+
+        states_b   = (self.states[indices_b]).to(device)
+        steps_b    = (self.episode_steps[indices_b]).to(device)
+
+        return states_a, steps_a,  states_b, steps_b
     
      
     def _gae(self, rewards, values, dones, gamma, lam):

@@ -47,8 +47,10 @@ class AgentPPOSND():
 
         self.trajectory_buffer = TrajectoryBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
 
-        self.log_loss_ppo    = ValuesLogger("loss_ppo")
         self.log_rewards_int = ValuesLogger("rewards_int")
+        self.log_loss_ppo    = ValuesLogger("loss_ppo")
+        self.log_loss_im     = ValuesLogger("loss_im")
+        
      
 
        
@@ -125,10 +127,18 @@ class AgentPPOSND():
         
         #main IM training loop
         for batch_idx in range(batch_count):    
-            pass
             #internal motivation loss, MSE distillation    
-            #states, _ = self.trajectory_buffer.sample_states(self.ss_batch_size, self.device)
-            #loss_im   = self._internal_motivation(states).mean()
+            states, _, _, _ = self.trajectory_buffer.sample_states(self.ss_batch_size, 0, self.device)
+            loss_im         = self._internal_motivation(states)
+
+
+            self.optimizer.zero_grad()        
+            loss_im.mean().backward()
+            self.optimizer.step() 
+
+
+            self.log_loss_im.add("mean", loss_im.mean().detach().cpu().numpy())
+            self.log_loss_im.add("std", loss_im.std().detach().cpu().numpy())
 
             
         
