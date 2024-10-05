@@ -2,6 +2,10 @@ import multiprocessing
 import time
 import torch
 
+import importlib.util
+import sys
+import os
+
 class Runner:
 
     # devices = [cuda:0, cuda:1 ... ]
@@ -33,6 +37,7 @@ class Runner:
 
         print("Runner : experiments done")
 
+    '''
     def _run(self, experiment, i, device):
         experiment = experiment + ".main"
         print("Runner : starting ", i, experiment)
@@ -46,4 +51,29 @@ class Runner:
 
         module = __import__(experiment)
         module.run()
-        
+    '''
+
+    def _run(self, experiment, i, device):
+        print("Runner : starting ", i, experiment)
+
+        try:
+            if "cuda" in device:
+                torch.cuda.set_device(device)
+                print("Runner : device   ", device)
+        except:
+            pass
+    
+        module_name = "main"
+
+        module_dir = os.path.dirname(experiment)
+        sys.path.append(module_dir)
+
+        spec = importlib.util.spec_from_file_location(module_name, experiment)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+        module.run()
+
+
+        print("Runner : ending ", i, experiment)
+            
