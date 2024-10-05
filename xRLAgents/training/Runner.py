@@ -34,7 +34,8 @@ class Runner:
         print("Runner : experiments done")
 
     def _run(self, experiment, i, device):
-        print("Runner : starting ", i)
+        experiment = experiment + ".main"
+        print("Runner : starting ", i, experiment)
 
         try:
             if "cuda" in device:

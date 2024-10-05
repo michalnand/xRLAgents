@@ -81,8 +81,8 @@ class AgentPPOSND():
         print(self.model)
         print("\n\n")
 
-        print("gamma_int        ", self.gamma_int)
         print("gamma_ext        ", self.gamma_ext)
+        print("gamma_int        ", self.gamma_int)
         print("entropy_beta     ", self.entropy_beta)
         print("eps_clip         ", self.eps_clip)
         print("adv_ext_coeff    ", self.adv_ext_coeff)
