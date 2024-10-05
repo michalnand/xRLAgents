@@ -45,12 +45,12 @@ class AgentPPOSND():
         # initialise optimizer and trajectory buffer
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
 
-        self.trajectory_buffer = TrajectoryBuffer(self.steps, self.state_shape, self.actions_count, self.envs_count)
+        self.trajectory_buffer = TrajectoryBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
 
         self.log_loss_ppo    = ValuesLogger("loss_ppo")
         self.log_rewards_int = ValuesLogger("rewards_int")
      
-     
+        
        
   
     def step(self, states, training_enabled):        
