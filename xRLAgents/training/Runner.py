@@ -9,19 +9,19 @@ import os
 class Runner:
 
     # devices = [cuda:0, cuda:1 ... ]
-    def __init__(self, experiments, devices, delay_s = 5.0):
+    def __init__(self, experiments_path, devices, delay_s = 5.0):
         multiprocessing.set_start_method('spawn')
         #multiprocessing.set_start_method('fork')
 
         process = []
-        for i in range(len(experiments)):
+        for i in range(len(experiments_path)):
 
             device = devices[i%len(devices)]
 
             #with multiprocessing.Pool(1) as p:
             #    p.map(module.run, [])
 
-            params = [experiments[i], i, device]
+            params = [experiments_path[i], i, device]
             p = multiprocessing.Process(target=self._run, args=params)
             process.append(p)
 
@@ -60,7 +60,7 @@ class Runner:
 
 
     def _run(self, experiment_path, i, device):
-        print("Runner : starting ", i, experiment_path)
+        print("Runner : starting ", i, experiment_path, device)
 
         try:
             if "cuda" in device:
@@ -68,12 +68,13 @@ class Runner:
                 print("Runner : setting device   ", device)
         except:
             pass
-
+        
+        experiment_path_ = experiment_path + "/"
         # Change working directory to the experiment path
-        os.chdir(experiment_path)
+        os.chdir(experiment_path_)
         
         # Temporarily add the experiment directory to sys.path to ensure imports work
-        sys.path.insert(0, experiment_path)
+        sys.path.insert(0, experiment_path_)
         
         # Import the main module dynamically and run it
         module_name = 'main'
