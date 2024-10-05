@@ -68,7 +68,9 @@ class Runner:
         module_dir = os.path.dirname(experiment)
         sys.path.append(module_dir)
 
-        spec = importlib.util.spec_from_file_location(module_name, experiment)
+        
+
+        spec = importlib.util.spec_from_file_location(module_name, experiment + "/main")
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
 
