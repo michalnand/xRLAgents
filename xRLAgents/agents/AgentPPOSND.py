@@ -45,7 +45,6 @@ class AgentPPOSND():
         # create mdoel
         self.model = Model(self.state_shape, self.actions_count)
         self.model.to(self.device)
-        print(self.model)
 
         # initialise optimizer and trajectory buffer
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
