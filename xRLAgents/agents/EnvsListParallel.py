@@ -60,7 +60,7 @@ def _env_process_main(id, n_envs, env_name, Wrapper, render_mode, child_conn):
             envs[env_id].render() 
 
         elif command == "close":
-            print("closing envs")
+            print("closing envs ", id)
             for n in range(n_envs): 
                 envs[n].close()
             break
