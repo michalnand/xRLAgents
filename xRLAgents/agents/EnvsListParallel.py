@@ -203,7 +203,7 @@ class EnvsListParallel:
         print("\n\n\n")
         print("closing workers")
         for i in range(len(self.workers)):
-            self.parent_conn[i].send(["end"])
+            self.parent_conn[i].send(["close"])
 
         print("waiting for close workers")
         for i in range(len(self.workers)):
