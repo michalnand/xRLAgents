@@ -43,7 +43,7 @@ def _env_process_main(id, n_envs, env_name, Wrapper, render_mode, child_conn):
             rewards     = [] 
             dones       = [] 
             truncated   = [] 
-            info        = []
+            infos       = []
 
             for n in range(n_envs): 
                 state_, reward_, done_, truncated_, info_ = envs[n].step(actions[n])
@@ -51,7 +51,7 @@ def _env_process_main(id, n_envs, env_name, Wrapper, render_mode, child_conn):
                 rewards.append(reward_)
                 dones.append(done_)
                 truncated.append(truncated_)
-                info.append(info_)  
+                infos.append(info_)  
 
             child_conn.send((states, rewards, dones, truncated, infos))
 
