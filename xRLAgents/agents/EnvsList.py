@@ -51,17 +51,19 @@ class EnvsList:
         
         return states, rewards, dones, infos
     
-    def reset(self):
+    def reset(self, env_id):
+        return self.envs[env_id].reset()
+    
+    def reset_all(self):
         states = []
         infos  = []
-
-        for i in range(len(self.envs)):
-            state, info = self.envs[i].reset()
-           
+        for n in range(len(self.envs)):
+            state, info = self.reset(n)
+        
             states.append(state)
             infos.append(info)
 
-        states  = numpy.stack(states)
+        states = numpy.stack(states)
 
         return states, infos
     
