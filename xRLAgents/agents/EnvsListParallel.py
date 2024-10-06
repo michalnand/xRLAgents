@@ -29,14 +29,14 @@ def _env_process_main(id, n_envs, env_name, Wrapper, render_mode, child_conn):
         val 	= child_conn.recv()
 
         command = val[0]
-        env_id  = val[1]
+        
 
         if command == "reset":
+            env_id  = val[1]
             state, info = envs[env_id].reset()
             child_conn.send((state, info))
 
         elif command == "step":
-
             actions = val[1]
 
             states      = [] 
@@ -56,11 +56,19 @@ def _env_process_main(id, n_envs, env_name, Wrapper, render_mode, child_conn):
             child_conn.send((states, rewards, dones, truncated, infos))
 
         elif command == "render":
+            env_id  = val[1]
             envs[env_id].render() 
+
+        elif command == "close":
+            print("closing envs")
+            for n in range(n_envs): 
+                envs[n].close()
+            break
 
         else:
             print("command error : ", command)
-            env.close()
+            for n in range(n_envs): 
+                envs[n].close()
             break
 
 '''
