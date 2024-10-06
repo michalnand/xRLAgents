@@ -189,7 +189,4 @@ class EnvsListParallel:
         return [self.env_log]
     
     def _get_ids(self, env_id):
-		return env_id//self.envs_per_thread, env_id%self.envs_per_thread 
-
-
-    
+        return env_id//self.envs_per_thread, env_id%self.envs_per_thread
