@@ -200,11 +200,16 @@ class EnvsListParallel:
         self.parent_conn[thread_id].send(["render", thread_env])
 
     def close(self):
+        print("\n\n\n")
+        print("closing workers")
         for i in range(len(self.workers)):
             self.parent_conn[i].send(["end"])
 
+        print("waiting for close workers")
         for i in range(len(self.workers)):
             self.workers[i].join()
+
+        print("closed")
 
     def get_logs(self):
         return [self.env_log]
