@@ -28,11 +28,11 @@ def aug_mask(x, p = 0.75, gw = 16, gh = 16):
 
 def Augmentations(aug_names, x):
     if "mask" in aug_names:
-        x = aug_random_apply(x, 0.5, aug_mask)
+        x, _ = aug_random_apply(x, 0.5, aug_mask)
         print("aug mask")
     
     if "noise" in aug_names:
-        x = aug_random_apply(x, 0.5, aug_noise)
+        x, _ = aug_random_apply(x, 0.5, aug_noise)
         print("aug noise")
     
     return x
