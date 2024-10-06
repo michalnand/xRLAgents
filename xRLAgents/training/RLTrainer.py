@@ -48,6 +48,6 @@ class RLTrainer:
             for e in done_idx:
                 states[e], _ = self.envs.reset(e)
 
-
         self.agent.save(self.result_path)
+
 
