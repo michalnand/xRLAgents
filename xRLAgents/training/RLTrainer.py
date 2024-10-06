@@ -51,3 +51,7 @@ class RLTrainer:
         self.agent.save(self.result_path)
 
 
+        if hasattr(self.envs, "close"):
+            self.envs.close()
+
+
