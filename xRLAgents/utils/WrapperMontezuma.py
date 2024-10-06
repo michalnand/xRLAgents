@@ -173,7 +173,7 @@ class Rewards(gym.Wrapper):
 
 
 
-class VisitedRoomsEnv(gym.Wrapper):
+class ExploredRoomsEnv(gym.Wrapper):
     '''
     room_address for games : 
     montezuma revenge : 3
@@ -183,31 +183,42 @@ class VisitedRoomsEnv(gym.Wrapper):
         gym.Wrapper.__init__(self, env)
         self.room_address = room_address
 
-        self.visited_rooms = {}
+        self.explored_rooms         = {}
+        self.explored_rooms_episode = {}
 
     def step(self, action):
-        obs, reward, done, truncated, info = self.env.step(action)
+        obs, reward, done, truncated, _ = self.env.step(action)
 
         room_id = self._get_current_room_id()
 
-        if room_id not in self.visited_rooms:
-            self.visited_rooms[room_id] = 1
+        if room_id not in self.explored_rooms:
+            self.explored_rooms[room_id] = 1
         else:
-            self.visited_rooms[room_id]+= 1
+            self.explored_rooms[room_id]+= 1
 
-        info["room_id"]         = room_id
-        info["explored_rooms"]  = len(self.visited_rooms)
+        if room_id not in self.explored_rooms_episode:
+            self.explored_rooms_episode[room_id] = 1
+        else:
+            self.explored_rooms_episode[room_id]+= 1
 
-        print(info)
+        info = {}
+        info["room_id"]                 = room_id
+        info["explored_rooms"]          = len(self.explored_rooms)
+        info["explored_rooms_episode"]  = len(self.explored_rooms_episode)
 
-        #print("room_id = ", room_id, len(self.visited_rooms))
+        #print("room_id = ", room_id, len(self.explored_rooms))
 
         return obs, reward, done, truncated, info
     
+    def reset(self, seed = None, options = None):
+        self.explored_rooms_episode = {}
+        return self.env.reset()
 
     def _get_current_room_id(self):
         ram = self.env.unwrapped.ale.getRAM()
         return int(ram[self.room_address])
+
+
 
      
 
@@ -219,6 +230,6 @@ def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps
     env = ResizeEnv(env, height, width, frame_stacking)
     env = MaxSteps(env, max_steps)
     env = Rewards(env)
-    env = VisitedRoomsEnv(env)     
+    env = ExploredRoomsEnv(env)     
 
     return env

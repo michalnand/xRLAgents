@@ -161,15 +161,37 @@ class EnvsListParallel:
             else:
                 self.score_per_episode_curr[i]+= rewards[i]
 
+
+        explored_rooms = []
+        for i in range(self.n_envs): 
+            if "explored_rooms" in infos[i]:
+                explored_rooms.append(infos["explored_rooms"])
+        explored_rooms = numpy.stack(explored_rooms)
+
+        explored_rooms_episode = []
+        for i in range(self.n_envs): 
+            if "explored_rooms_episode" in infos[i]:
+                explored_rooms_episode.append(infos["explored_rooms_episode"])
+        explored_rooms_episode = numpy.stack(explored_rooms_episode)
+
+
         dones_idx = numpy.where(dones)[0]
         for idx in dones_idx:
             self.score_per_episode[idx] = self.score_per_episode_curr[idx]
             self.score_per_episode_curr[idx] = 0.0
 
         self.env_log.add("reward_episode_mean", self.score_per_episode.mean(), 1.0)
-        self.env_log.add("reward_episode_std", self.score_per_episode.std(), 1.0)
-        self.env_log.add("reward_episode_min", self.score_per_episode.min(), 1.0)
-        self.env_log.add("reward_episode_max", self.score_per_episode.max(), 1.0)
+        self.env_log.add("reward_episode_std",  self.score_per_episode.std(), 1.0)
+        self.env_log.add("reward_episode_min",  self.score_per_episode.min(), 1.0)
+        self.env_log.add("reward_episode_max",  self.score_per_episode.max(), 1.0)
+
+        if len(explored_rooms) != 0:
+            self.env_log.add("explored_rooms", explored_rooms.max(), 1.0)
+        
+        if len(explored_rooms_episode) != 0:
+            self.env_log.add("explored_rooms_episode_mean", explored_rooms_episode.mean(), 1.0)
+            self.env_log.add("explored_rooms_episode_std", explored_rooms_episode.std(), 1.0)
+            self.env_log.add("explored_rooms_episode_max", explored_rooms_episode.max(), 1.0)
 
         return states, rewards, dones, infos
     
