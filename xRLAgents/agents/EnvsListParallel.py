@@ -191,6 +191,7 @@ class EnvsListParallel:
         if len(explored_rooms_episode) != 0:
             self.env_log.add("explored_rooms_episode_mean", explored_rooms_episode.mean(), 1.0)
             self.env_log.add("explored_rooms_episode_std", explored_rooms_episode.std(), 1.0)
+            self.env_log.add("explored_rooms_episode_min", explored_rooms_episode.min(), 1.0)
             self.env_log.add("explored_rooms_episode_max", explored_rooms_episode.max(), 1.0)
 
         return states, rewards, dones, infos
