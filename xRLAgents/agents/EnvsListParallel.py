@@ -165,13 +165,13 @@ class EnvsListParallel:
         explored_rooms = []
         for i in range(self.n_envs): 
             if "explored_rooms" in infos[i]:
-                explored_rooms.append(infos["explored_rooms"])
+                explored_rooms.append(infos[i]["explored_rooms"])
         explored_rooms = numpy.stack(explored_rooms)
 
         explored_rooms_episode = []
         for i in range(self.n_envs): 
             if "explored_rooms_episode" in infos[i]:
-                explored_rooms_episode.append(infos["explored_rooms_episode"])
+                explored_rooms_episode.append(infos[i]["explored_rooms_episode"])
         explored_rooms_episode = numpy.stack(explored_rooms_episode)
 
 
