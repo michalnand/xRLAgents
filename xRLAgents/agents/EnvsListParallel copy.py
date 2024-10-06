@@ -2,26 +2,19 @@ import numpy
 import multiprocessing
 import gymnasium as gym
 
-import time
-
 from ..training.ValuesLogger           import *
 
 
-def _env_process_main(id, n_envs, env_name, Wrapper, render_mode, child_conn):
+def _env_process_main(id, env_name, Wrapper, render_mode, child_conn):
 
-    print("creating env ", id, n_envs, env_name)
+    print("creating env ", id, env_name)
+    if isinstance(env_name, str):
+        env = gym.make(env_name, render_mode=render_mode)
+    else:
+        env = env_name()
 
-    envs = []
-    for n in range(envs_count):
-        if isinstance(env_name, str):
-            env = gym.make(env_name, render_mode=render_mode)
-        else:
-            env = env_name()
-
-        if Wrapper is not None:
-            env = Wrapper(env)
-
-        envs.append(env)
+    if Wrapper is not None:
+        env = Wrapper(env)
 
 
 
@@ -29,37 +22,25 @@ def _env_process_main(id, n_envs, env_name, Wrapper, render_mode, child_conn):
         val 	= child_conn.recv()
 
         command = val[0]
-        env_id  = val[1]
 
         if command == "reset":
-            state, info = envs[env_id].reset()
+            state, info = env.reset()
             child_conn.send((state, info))
 
         elif command == "step":
 
-            actions = val[1]
+            action = val[1]
+            state, reward, done, truncated, info = env.step(action)
 
-            states      = [] 
-            rewards     = [] 
-            dones       = [] 
-            truncated   = [] 
-            info        = []
-
-            for n in range(n_envs):
-                state_, reward_, done_, truncated_, info_ = envs.step(actions[n])
-                states.append(state_)
-                rewards.append(reward_)
-                dones.append(done_)
-                truncated.append(truncated_)
-                info.append(info_)  
-
-            child_conn.send((states, rewards, dones, truncated, infos))
+            child_conn.send((state, reward, done, truncated, info))
 
         elif command == "render":
-            envs[env_id].render() 
+            env.render() 
+
+        elif command == "get":
+            child_conn.send(env)
 
         else:
-            print("command error : ", command)
             env.close()
             break
 
@@ -67,7 +48,8 @@ def _env_process_main(id, n_envs, env_name, Wrapper, render_mode, child_conn):
     multiple environments wrapper
 '''
 class EnvsListParallel:
-    def __init__(self, env_name, n_envs, render_mode = None, Wrapper = None, n_threads = 4):
+    def __init__(self, env_name, n_envs, render_mode = None, Wrapper = None):
+
         if isinstance(env_name, str):
             env = gym.make(env_name, render_mode=render_mode)
         else:
@@ -82,36 +64,25 @@ class EnvsListParallel:
         env.close()
 
         
-        self.n_envs     = n_envs
-        self.n_threads  = n_threads
-        self.envs_per_thread = self.n_envs//self.n_threads
-
-        print("EnvsListParallel")
-		print("env	        : ", env_name)
-        print("wrapper      : ", Wrapper)
-		print("n_envs       : ", self.n_envs)
-		print("n_threads    : ", self.n_threads)
-		print("\n\n")
+        self.n_envs = n_envs
         
         #environments and threads
         self.parent_conn	= []
         self.child_conn		= []
         self.workers		= []
 
-        for i in range(self.n_threads):
+        for i in range(n_envs):
             parent_conn, child_conn = multiprocessing.Pipe()
 
-            worker = multiprocessing.Process(target=_env_process_main, args=(i, self.envs_per_thread, env_name, Wrapper, render_mode, child_conn))
+            worker = multiprocessing.Process(target=_env_process_main, args=(i, env_name, Wrapper, render_mode, child_conn))
             worker.daemon = True
 
             self.parent_conn.append(parent_conn)
             self.child_conn.append(child_conn)
             self.workers.append(worker) 
 
-        for i in range(self.n_threads):
+        for i in range(n_envs):
             self.workers[i].start()
-
-        time.sleep(2)
 
         self.score_per_episode = numpy.zeros(self.n_envs)
         self.score_per_episode_curr = numpy.zeros(self.n_envs)
@@ -122,10 +93,10 @@ class EnvsListParallel:
         return self.n_envs
 
     def step(self, actions):
-        # send actions to all threads and its environments
-        for i in range(self.n_threads):
-            actions_ = actions[(i+0)*self.envs_per_thread:(i+1)*self.envs_per_thread]
-            self.parent_conn[i].send(["step", actions_])
+        # send actions to environments
+        for i in range(self.n_envs):
+            action = actions[i]
+            self.parent_conn[i].send(["step", action])
 
 
         states  = []
@@ -134,14 +105,13 @@ class EnvsListParallel:
         infos   = []
         
         # obtain envs responses
-        for i in range(self.n_threads):
-            state_, reward_, done_, _, info_ = self.parent_conn[i].recv()
+        for i in range(self.n_envs):
+            state, reward, done, _, info = self.parent_conn[i].recv()
 
-            for j in range(self.envs_per_thread):
-                states.append(state_[j])
-                rewards.append(reward_[j])
-                dones.append(done_[j])
-                infos.append(info_[j])
+            states.append(state)
+            rewards.append(reward)
+            dones.append(done)
+            infos.append(info)
 
         states  = numpy.stack(states)
         rewards = numpy.stack(rewards)
@@ -166,18 +136,33 @@ class EnvsListParallel:
         return states, rewards, dones, infos
     
     
-   
-   
-    def reset(self, env_id):
-		thread_id, thread_env = self._get_ids(env_id)
+    '''
+        reset all environments
+    '''
+    def reset_all(self):
+        states = []
+        infos  = [] 
 
-		self.parent_conn[thread_id].send(["reset", thread_env])
-		return self.parent_conn[thread_id].recv() 
+        for i in range(self.n_envs):
+            self.parent_conn[i].send(["reset"])
+
+        for i in range(self.n_envs):
+            state, info = self.parent_conn[i].recv()
+           
+            states.append(state)
+            infos.append(info)
+
+        states  = numpy.stack(states)
+
+        return states, infos
+    
+    def reset(self, env_id):
+        self.parent_conn[env_id].send(["reset"])
+        state, info = self.parent_conn[env_id].recv()
+        return state, info
     
     def render(self, env_id):
-        thread_id, thread_env = self._get_ids(env_id)
-
-        self.parent_conn[thread_id].send(["render", thread_env])
+        self.parent_conn[env_id].send(["render"])
 
     def close(self):
         for i in range(len(self.workers)):
@@ -188,9 +173,5 @@ class EnvsListParallel:
 
     def get_logs(self):
         return [self.env_log]
-    
-    def _get_ids(self, env_id):
-		return env_id//self.envs_per_thread, env_id%self.envs_per_thread 
-
 
     
