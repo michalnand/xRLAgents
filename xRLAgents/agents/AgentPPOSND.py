@@ -33,7 +33,7 @@ class AgentPPOSND():
         self.learning_rate      = config.learning_rate
 
         self.im_ssl_loss        = config.im_ssl_loss
-        self.max_distance       = config.max_distance
+        self.im_ssl_distance    = config.im_ssl_distance
 
         self.state_normalise    = config.state_normalise
 
@@ -95,7 +95,7 @@ class AgentPPOSND():
         print("training_epochs  ", self.training_epochs)
         print("learning_rate    ", self.learning_rate)
         print("im_ssl_loss      ", self.im_ssl_loss)
-        print("max_distance     ", self.max_distance)
+        print("im_ssl_distance     ", self.im_ssl_distance)
         print("state_normalise  ", self.state_normalise)
 
         print("\n\n")
@@ -190,7 +190,7 @@ class AgentPPOSND():
             loss_im         = self._internal_motivation(states)
 
             #self supervised target regularisation
-            states_a, steps_a, states_b, steps_b = self.trajectory_buffer.sample_states(self.ss_batch_size, self.max_distance, self.device)
+            states_a, steps_a, states_b, steps_b = self.trajectory_buffer.sample_states(self.ss_batch_size, self.im_ssl_distance, self.device)
             loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_a, steps_a, states_b, steps_b)
 
             loss_all = loss_im + loss_ssl

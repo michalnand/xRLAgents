@@ -1,1 +1,2 @@
-from .WrapperAtari import WrapperAtari
+from .WrapperAtari  import WrapperAtari
+from .Augmentations import Augmentations
