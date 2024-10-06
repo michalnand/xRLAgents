@@ -174,6 +174,19 @@ class EnvsListParallel:
         self.parent_conn[thread_id].send(["reset", thread_env])
         return self.parent_conn[thread_id].recv() 
     
+    def reset_all(self):
+        states = []
+        infos  = []
+        for n in range(self.n_envs):
+            state, info = self.reset(n)
+        
+            states.append(state)
+            infos.append(info)
+
+        states = numpy.stack(states)
+        
+        return states, infos
+    
     def render(self, env_id):
         thread_id, thread_env = self._get_ids(env_id)
         self.parent_conn[thread_id].send(["render", thread_env])
