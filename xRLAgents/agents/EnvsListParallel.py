@@ -92,7 +92,7 @@ class EnvsListParallel:
         print("n_envs       : ", self.n_envs)
         print("n_threads    : ", self.n_threads)
         print("\n\n")
-        
+
         #environments and threads
         self.parent_conn	= []
         self.child_conn		= []
@@ -169,14 +169,13 @@ class EnvsListParallel:
    
    
     def reset(self, env_id):
-		thread_id, thread_env = self._get_ids(env_id)
+        thread_id, thread_env = self._get_ids(env_id)
 
-		self.parent_conn[thread_id].send(["reset", thread_env])
-		return self.parent_conn[thread_id].recv() 
+        self.parent_conn[thread_id].send(["reset", thread_env])
+        return self.parent_conn[thread_id].recv() 
     
     def render(self, env_id):
         thread_id, thread_env = self._get_ids(env_id)
-
         self.parent_conn[thread_id].send(["render", thread_env])
 
     def close(self):
