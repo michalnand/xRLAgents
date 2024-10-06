@@ -24,6 +24,12 @@ class EnvsList:
 
         self.observation_space = self.envs[0].observation_space
         self.action_space      = self.envs[0].action_space
+
+        print("EnvsListParallel")
+        print("env	        : ", env_name)
+        print("wrapper      : ", Wrapper)
+        print("n_envs       : ", n_envs)
+        print("\n\n")
         
 
     def __len__(self):
@@ -47,6 +53,8 @@ class EnvsList:
         states  = numpy.stack(states)
         rewards = numpy.stack(rewards)
         dones   = numpy.stack(dones)
+
+      
 
         
         return states, rewards, dones, infos
