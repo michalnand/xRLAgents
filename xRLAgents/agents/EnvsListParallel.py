@@ -12,7 +12,7 @@ def _env_process_main(id, n_envs, env_name, Wrapper, render_mode, child_conn):
     print("creating env ", id, n_envs, env_name)
 
     envs = []
-    for n in range(envs_count):
+    for n in range(n_envs):
         if isinstance(env_name, str):
             env = gym.make(env_name, render_mode=render_mode)
         else:
