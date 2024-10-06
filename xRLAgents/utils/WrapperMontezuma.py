@@ -187,7 +187,7 @@ class ExploredRoomsEnv(gym.Wrapper):
         self.explored_rooms_episode = {}
 
     def step(self, action):
-        obs, reward, done, truncated, _ = self.env.step(action)
+        obs, reward, done, truncated, info = self.env.step(action)
 
         room_id = self._get_current_room_id()
 
@@ -201,7 +201,6 @@ class ExploredRoomsEnv(gym.Wrapper):
         else:
             self.explored_rooms_episode[room_id]+= 1
 
-        info = {}
         info["room_id"]                 = room_id
         info["explored_rooms"]          = len(self.explored_rooms)
         info["explored_rooms_episode"]  = len(self.explored_rooms_episode)
