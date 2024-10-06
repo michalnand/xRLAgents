@@ -198,7 +198,7 @@ class VisitedRoomsEnv(gym.Wrapper):
         info["room_id"]         = room_id
         info["explored_rooms"]  = len(self.visited_rooms)
 
-        print(room_id, len(self.visited_rooms))
+        print(info)
 
         #print("room_id = ", room_id, len(self.visited_rooms))
 
