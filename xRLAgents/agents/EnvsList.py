@@ -25,7 +25,7 @@ class EnvsList:
         self.observation_space = self.envs[0].observation_space
         self.action_space      = self.envs[0].action_space
 
-        print("EnvsListParallel")
+        print("EnvsList")
         print("env	        : ", env_name)
         print("wrapper      : ", Wrapper)
         print("n_envs       : ", n_envs)
