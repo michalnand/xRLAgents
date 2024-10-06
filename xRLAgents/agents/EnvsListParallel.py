@@ -45,8 +45,8 @@ def _env_process_main(id, n_envs, env_name, Wrapper, render_mode, child_conn):
             truncated   = [] 
             info        = []
 
-            for n in range(n_envs):
-                state_, reward_, done_, truncated_, info_ = envs.step(actions[n])
+            for n in range(n_envs): 
+                state_, reward_, done_, truncated_, info_ = envs[n].step(actions[n])
                 states.append(state_)
                 rewards.append(reward_)
                 dones.append(done_)
@@ -184,7 +184,7 @@ class EnvsListParallel:
             infos.append(info)
 
         states = numpy.stack(states)
-        
+
         return states, infos
     
     def render(self, env_id):
