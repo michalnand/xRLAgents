@@ -87,11 +87,11 @@ class EnvsListParallel:
         self.envs_per_thread = self.n_envs//self.n_threads
 
         print("EnvsListParallel")
-		print("env	        : ", env_name)
+        print("env	        : ", env_name)
         print("wrapper      : ", Wrapper)
-		print("n_envs       : ", self.n_envs)
-		print("n_threads    : ", self.n_threads)
-		print("\n\n")
+        print("n_envs       : ", self.n_envs)
+        print("n_threads    : ", self.n_threads)
+        print("\n\n")
         
         #environments and threads
         self.parent_conn	= []
