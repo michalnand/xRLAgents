@@ -231,10 +231,12 @@ class AgentPPOD():
         k          = torch.rand((batch_size, ), device=states.device)
         alpha      = (1.0 - k)*alpha_min + k*alpha_max
 
+        alpha_tmp = alpha.unsqueeze(1).unsqueeze(2).unsqueeze(3)
+
         noise      = torch.randn_like(states)
 
-        states_noised = states + alpha*noise
-
+        states_noised = states + alpha_tmp*noise
+        
         return states_noised, noise, alpha
     
     # main PPO loss
