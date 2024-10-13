@@ -226,9 +226,9 @@ class AgentPPOD():
         return loss
     
     def _add_noise(self, states, alpha_min, alpha_max):
-        batch_size = states[0]
+        batch_size = states.shape[0]
 
-        k          = torch.rand((batch_size, )).to(states.device)
+        k          = torch.rand((batch_size, ), device=states.device)
         alpha      = (1.0 - k)*alpha_min + k*alpha_max
 
         noise      = torch.randn_like(states)
