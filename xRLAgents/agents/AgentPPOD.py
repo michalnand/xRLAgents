@@ -233,7 +233,7 @@ class AgentPPOD():
 
         noise      = torch.randn_like(states)
 
-        states_noised = (1.0 - alpha)*states + alpha*noise
+        states_noised = states + alpha*noise
 
         return states_noised, noise, alpha
     
