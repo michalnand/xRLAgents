@@ -7,6 +7,7 @@ from .EnvsListParallel      import *
 
 
 from .AgentPPOSND           import *
+from .AgentPPOD             import *
 
 
 from .loss_self_supervised  import *
