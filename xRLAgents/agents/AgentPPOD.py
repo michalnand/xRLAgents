@@ -187,6 +187,11 @@ class AgentPPOD():
             states, _, _, _ = self.trajectory_buffer.sample_states(self.ss_batch_size, 0, self.device)
             loss_im         = self._loss_im(states)
 
+
+            self.optimizer.zero_grad()        
+            loss_im.mean().backward() 
+            self.optimizer.step() 
+
             # log results
             self.log_loss_im.add("mean", loss_im.mean().detach().cpu().numpy())
             self.log_loss_im.add("std", loss_im.std().detach().cpu().numpy())
@@ -224,7 +229,7 @@ class AgentPPOD():
 
         noise_pred  = self.model.forward_im(states_noised, alpha)
 
-        loss = ((noise.detach() - noise_pred)**2).mean()
+        loss = ((noise.detach() - noise_pred)**2).mean(dim=(1, 2, 3))
 
         return loss
     
