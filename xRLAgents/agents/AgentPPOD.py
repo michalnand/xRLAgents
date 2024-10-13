@@ -219,6 +219,8 @@ class AgentPPOD():
 
         states_noised, noise, alpha = self._add_noise(states_tmp, self.alpha_min, self.alpha_max)
 
+        print(">>> ", states_noised.shape, noise.shape, alpha.shape)
+
         noise_pred  = self.model.forward_im(states_noised, alpha)
 
         loss = ((noise.detach() - noise_pred)**2).mean()
@@ -236,7 +238,7 @@ class AgentPPOD():
         noise      = torch.randn_like(states)
 
         states_noised = states + alpha_tmp*noise
-        
+
         return states_noised, noise, alpha
     
     # main PPO loss
