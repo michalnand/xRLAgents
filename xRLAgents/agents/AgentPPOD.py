@@ -207,10 +207,13 @@ class AgentPPOD():
         
         states_noised, noise, alpha = self._add_noise(states_tmp, alpha_min_max, alpha_min_max)
 
+
         noise_pred  = self.model.forward_im(states_noised, alpha)
         states_denoised = states_noised - noise_pred
 
-        novelty     = ((states_tmp.detach() - states_denoised)**2).mean(dim=1)
+        print(">>> IM : ", states_noised.shape, noise.shape, noise_pred.shape, alpha.shape)
+
+        novelty     = ((states_tmp.detach() - states_denoised)**2).mean(dim=(1, 2, 3))
 
         return novelty
     
