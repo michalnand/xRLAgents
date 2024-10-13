@@ -90,6 +90,8 @@ class AgentPPOD():
         print("steps            ", self.steps)
         print("batch_size       ", self.batch_size)
         print("ss_batch_size    ", self.ss_batch_size)
+        print("alpha_min        ", self.alpha_min)
+        print("alpha_max        ", self.alpha_max)
         print("training_epochs  ", self.training_epochs)
         print("learning_rate    ", self.learning_rate)
         print("state_normalise  ", self.state_normalise)
