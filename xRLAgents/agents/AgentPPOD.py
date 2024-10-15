@@ -32,6 +32,7 @@ class AgentPPOD():
         
         self.learning_rate      = config.learning_rate
         self.im_ssl_loss        = config.im_ssl_loss
+        self.im_ssl_distance    = config.im_ssl_distance
         self.alpha_min          = config.alpha_min
         self.alpha_max          = config.alpha_max
         
