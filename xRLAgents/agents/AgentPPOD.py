@@ -35,6 +35,7 @@ class AgentPPOD():
         self.im_ssl_distance    = config.im_ssl_distance
         self.alpha_min          = config.alpha_min
         self.alpha_max          = config.alpha_max
+        self.alpha_inf          = config.alpha_inf
         
 
         self.state_normalise    = config.state_normalise
@@ -99,6 +100,7 @@ class AgentPPOD():
         print("im_ssl_distance  ", self.im_ssl_distance)
         print("alpha_min        ", self.alpha_min)
         print("alpha_max        ", self.alpha_max)
+        print("alpha_inf        ", self.alpha_inf)
         print("state_normalise  ", self.state_normalise)
 
         print("\n\n")
@@ -123,9 +125,7 @@ class AgentPPOD():
         # environment step  
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
-        #alpha              = (self.alpha_min + self.alpha_max)/2.0
-
-        rewards_int        = self._internal_motivation(states_t, 0.0, 0.0)
+        rewards_int        = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf)
         rewards_int        = rewards_int.detach().cpu().numpy()
         rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
 
