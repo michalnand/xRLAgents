@@ -96,6 +96,7 @@ class AgentPPOD():
         print("training_epochs  ", self.training_epochs)
         print("learning_rate    ", self.learning_rate)
         print("im_ssl_loss      ", self.im_ssl_loss)
+        print("im_ssl_distance  ", self.im_ssl_distance)
         print("alpha_min        ", self.alpha_min)
         print("alpha_max        ", self.alpha_max)
         print("state_normalise  ", self.state_normalise)
