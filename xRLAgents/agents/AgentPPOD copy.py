@@ -27,15 +27,14 @@ class AgentPPOD():
         self.steps              = config.steps
         self.batch_size         = config.batch_size
         self.ss_batch_size      = config.ss_batch_size
+        self.alpha_min          = config.alpha_min
+        self.alpha_max          = config.alpha_max
         
         self.training_epochs    = config.training_epochs
         
         self.learning_rate      = config.learning_rate
-        self.im_ssl_loss        = config.im_ssl_loss
-        self.alpha_min          = config.alpha_min
-        self.alpha_max          = config.alpha_max
-        
 
+     
         self.state_normalise    = config.state_normalise
 
 
@@ -68,10 +67,9 @@ class AgentPPOD():
 
 
         # result loggers
-        self.log_rewards_int        = ValuesLogger("rewards_int")
-        self.log_loss_ppo           = ValuesLogger("loss_ppo")
-        self.log_loss_diffusion     = ValuesLogger("loss_diffusion")
-        self.log_loss_im_ssl        = ValuesLogger("loss_im_ssl")
+        self.log_rewards_int = ValuesLogger("rewards_int")
+        self.log_loss_ppo    = ValuesLogger("loss_ppo")
+        self.log_loss_im     = ValuesLogger("loss_im")
 
 
         # print parameters summary
@@ -92,11 +90,10 @@ class AgentPPOD():
         print("steps            ", self.steps)
         print("batch_size       ", self.batch_size)
         print("ss_batch_size    ", self.ss_batch_size)
-        print("training_epochs  ", self.training_epochs)
-        print("learning_rate    ", self.learning_rate)
-        print("im_ssl_loss      ", self.im_ssl_loss)
         print("alpha_min        ", self.alpha_min)
         print("alpha_max        ", self.alpha_max)
+        print("training_epochs  ", self.training_epochs)
+        print("learning_rate    ", self.learning_rate)
         print("state_normalise  ", self.state_normalise)
 
         print("\n\n")
@@ -121,9 +118,7 @@ class AgentPPOD():
         # environment step  
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
-        #alpha              = (self.alpha_min + self.alpha_max)/2.0
-
-        rewards_int        = self._internal_motivation(states_t, 0.0, 0.0)
+        rewards_int        = self._internal_motivation(states_t)
         rewards_int        = rewards_int.detach().cpu().numpy()
         rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
 
@@ -159,7 +154,7 @@ class AgentPPOD():
         self.model.load_state_dict(torch.load(result_path + "/model.pt", map_location = self.device))
 
     def get_logs(self):
-        return [self.log_rewards_int, self.log_loss_ppo, self.log_loss_diffusion, self.log_loss_im_ssl]
+        return [self.log_rewards_int, self.log_loss_ppo, self.log_loss_im]
 
     def train(self): 
         samples_count = self.steps*self.envs_count
@@ -188,28 +183,19 @@ class AgentPPOD():
         
         #main IM training loop
         for batch_idx in range(batch_count):    
-            #internal motivation loss, MSE diffusion    
+            #internal motivation loss, MSE distillation    
             states, _, _, _ = self.trajectory_buffer.sample_states(self.ss_batch_size, 0, self.device)
-            loss_diffusion  = self._internal_motivation(states, self.alpha_min, self.alpha_max)
+            loss_im         = self._loss_im(states)
 
-
-            #self supervised target regularisation
-            states_a, steps_a, states_b, steps_b = self.trajectory_buffer.sample_states(self.ss_batch_size, self.im_ssl_distance, self.device)
-            loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_a, steps_a, states_b, steps_b)
-
-            #final IM loss
-            loss_im = loss_diffusion.mean() + loss_ssl
 
             self.optimizer.zero_grad()        
             loss_im.mean().backward() 
             self.optimizer.step() 
 
             # log results
-            self.log_loss_diffusion.add("mean", loss_diffusion.mean().detach().cpu().numpy())
-            self.log_loss_diffusion.add("std", loss_diffusion.std().detach().cpu().numpy())
-                
-            for key in info_ssl:
-                self.log_loss_im_ssl.add(str(key), info_ssl[key])
+            self.log_loss_im.add("mean", loss_im.mean().detach().cpu().numpy())
+            self.log_loss_im.add("std", loss_im.std().detach().cpu().numpy())
+                    
 
     # sample action, probs computed from logits
     def _sample_actions(self, logits):
@@ -221,32 +207,45 @@ class AgentPPOD():
         return actions
 
     # state denoising ability novely detection
-    def _internal_motivation(self, states, alpha_min, alpha_max):
-        z_target  = self.model.forward_im_features(states)
-        z_target  = z_target.detach()
+    def _internal_motivation(self, states):
+        states_tmp = states[:, 0].unsqueeze(1)
+
+        alpha_min_max = (self.alpha_min + self.alpha_max)/2.0
         
-        z_noised, noise, alpha = self._add_noise(z_target, alpha_min, alpha_max)
+        states_noised, noise, alpha = self._add_noise(states_tmp, alpha_min_max, alpha_min_max)
 
-        z_noise_pred  = self.model.forward_im_diffusion(z_noised)
 
-        z_denoised = z_noised - z_noise_pred
+        noise_pred  = self.model.forward_im(states_noised, alpha)
+        states_denoised = states_noised - noise_pred
 
-        novelty     = ((z_target - z_denoised)**2).mean(dim=1)
+        novelty     = ((states_tmp.detach() - states_denoised)**2).mean(dim=(1, 2, 3))
 
         return novelty
     
- 
-    def _add_noise(self, z, alpha_min, alpha_max):
-        batch_size = z.shape[0]
+    def _loss_im(self, states):
+        states_tmp = states[:, 0].unsqueeze(1)
 
-        k          = torch.rand((batch_size, ), device=z.device)
+        states_noised, noise, alpha = self._add_noise(states_tmp, self.alpha_min, self.alpha_max)
+
+        noise_pred  = self.model.forward_im(states_noised, alpha)
+
+        loss = ((noise.detach() - noise_pred)**2).mean(dim=(1, 2, 3))
+
+        return loss
+    
+    def _add_noise(self, states, alpha_min, alpha_max):
+        batch_size = states.shape[0]
+
+        k          = torch.rand((batch_size, ), device=states.device)
         alpha      = (1.0 - k)*alpha_min + k*alpha_max
 
-        noise      = torch.randn_like(z)
+        alpha_tmp = alpha.unsqueeze(1).unsqueeze(2).unsqueeze(3)
 
-        z_noised = z + alpha.unsqueeze(1)*noise
+        noise      = torch.randn_like(states)
 
-        return z_noised, noise, alpha
+        states_noised = states + alpha_tmp*noise
+
+        return states_noised, noise, alpha
     
     # main PPO loss
     def _loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
