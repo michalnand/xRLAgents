@@ -234,7 +234,7 @@ class AgentPPOD():
         if training:
             # MSE loss for noise prediction
             loss = ((noise - z_noise_pred)**2).mean(dim=1)
-            return loss
+            return loss 
 
         else:
             # state denoising
@@ -254,9 +254,9 @@ class AgentPPOD():
         alpha      = (1.0 - k)*alpha_min + k*alpha_max
         alpha      = alpha.unsqueeze(1)
 
-        noise      = torch.randn_like(z)
+        noise      = alpha*torch.randn_like(z)
 
-        z_noised = z + alpha*noise
+        z_noised = z + noise
 
         return z_noised, noise, alpha
     
