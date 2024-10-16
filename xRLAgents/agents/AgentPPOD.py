@@ -192,7 +192,7 @@ class AgentPPOD():
         for batch_idx in range(batch_count):    
             #internal motivation loss, MSE diffusion    
             states, _, _, _ = self.trajectory_buffer.sample_states(self.ss_batch_size, 0, self.device)
-            loss_diffusion  = self._internal_motivation(states, self.alpha_min, self.alpha_max)
+            loss_diffusion  = self._internal_motivation(states, self.alpha_min, self.alpha_max, True)
 
 
             #self supervised target regularisation
@@ -223,19 +223,28 @@ class AgentPPOD():
         return actions
 
     # state denoising ability novely detection
-    def _internal_motivation(self, states, alpha_min, alpha_max):
+    def _internal_motivation(self, states, alpha_min, alpha_max, training = False):
         z_target  = self.model.forward_im_features(states)
         z_target  = z_target.detach()
         
         z_noised, noise, alpha = self._add_noise(z_target, alpha_min, alpha_max)
 
-        z_noise_pred  = self.model.forward_im_diffusion(z_noised)
+        z_noise_pred  = self.model.forward_im_diffusion(z_noised, alpha)
 
-        z_denoised = z_noised - z_noise_pred
+        if training:
+            # MSE loss for noise prediction
+            loss = ((noise - z_noise_pred)**2).mean(dim=1)
+            return loss
 
-        novelty     = ((z_target - z_denoised)**2).mean(dim=1)
+        else:
+            # state denoising
+            z_denoised = z_noised - z_noise_pred
+            novelty    = ((z_target - z_denoised)**2).mean(dim=1)
 
-        return novelty
+            return novelty
+
+
+    
     
  
     def _add_noise(self, z, alpha_min, alpha_max):
@@ -243,10 +252,11 @@ class AgentPPOD():
 
         k          = torch.rand((batch_size, ), device=z.device)
         alpha      = (1.0 - k)*alpha_min + k*alpha_max
+        alpha      = alpha.unsqueeze(1)
 
         noise      = torch.randn_like(z)
 
-        z_noised = z + alpha.unsqueeze(1)*noise
+        z_noised = z + alpha*noise
 
         return z_noised, noise, alpha
     
