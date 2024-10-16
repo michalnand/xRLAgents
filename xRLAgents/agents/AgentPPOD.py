@@ -224,11 +224,14 @@ class AgentPPOD():
 
     # state denoising ability novely detection
     def _internal_motivation(self, states, alpha_min, alpha_max, training = False):
+        # obtain features from raw states
         z_target  = self.model.forward_im_features(states)
         z_target  = z_target.detach()
         
+        # inject noise into features
         z_noised, noise, alpha = self._add_noise(z_target, alpha_min, alpha_max)
 
+        # obtain noise prediction
         z_noise_pred  = self.model.forward_im_diffusion(z_noised, alpha)
 
         if training:
@@ -250,12 +253,15 @@ class AgentPPOD():
     def _add_noise(self, z, alpha_min, alpha_max):
         batch_size = z.shape[0]
 
+        # create random alpha from range (alpha_min, alpha_max)
         k          = torch.rand((batch_size, ), device=z.device)
         alpha      = (1.0 - k)*alpha_min + k*alpha_max
         alpha      = alpha.unsqueeze(1)
 
+        # weighted noise
         noise      = alpha*torch.randn_like(z)
 
+        # add noise to z
         z_noised = z + noise
 
         return z_noised, noise, alpha
