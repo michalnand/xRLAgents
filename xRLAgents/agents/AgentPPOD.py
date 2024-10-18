@@ -33,6 +33,7 @@ class AgentPPOD():
         self.learning_rate      = config.learning_rate
         self.im_ssl_loss        = config.im_ssl_loss
         self.im_ssl_distance    = config.im_ssl_distance
+        self.im_noise           = config.im_noise
         self.alpha_min          = config.alpha_min
         self.alpha_max          = config.alpha_max
         self.alpha_inf          = config.alpha_inf
@@ -98,6 +99,7 @@ class AgentPPOD():
         print("learning_rate    ", self.learning_rate)
         print("im_ssl_loss      ", self.im_ssl_loss)
         print("im_ssl_distance  ", self.im_ssl_distance)
+        print("im_noise         ", self.im_noise)
         print("alpha_min        ", self.alpha_min)
         print("alpha_max        ", self.alpha_max)
         print("alpha_inf        ", self.alpha_inf)
@@ -229,7 +231,7 @@ class AgentPPOD():
         z_target  = z_target.detach()
         
         # inject noise into features
-        z_noised, noise, alpha = self._add_noise(z_target, alpha_min, alpha_max)
+        z_noised, noise, alpha = self.im_noise(z_target, alpha_min, alpha_max)
 
         # obtain noise prediction
         z_noise_pred  = self.model.forward_im_diffusion(z_noised, alpha)
@@ -239,7 +241,7 @@ class AgentPPOD():
             loss = ((noise - z_noise_pred)**2).mean(dim=1)
             return loss 
 
-        else:
+        else:   
             # state denoising
             z_denoised = z_noised - z_noise_pred
             novelty    = ((z_target - z_denoised)**2).mean(dim=1)
@@ -247,25 +249,6 @@ class AgentPPOD():
             return novelty
 
 
-    
-    
- 
-    def _add_noise(self, z, alpha_min, alpha_max):
-        batch_size = z.shape[0]
-
-        # create random alpha from range (alpha_min, alpha_max)
-        k          = torch.rand((batch_size, ), device=z.device)
-        alpha      = (1.0 - k)*alpha_min + k*alpha_max
-        alpha      = alpha.unsqueeze(1)
-
-        # weighted noise
-        noise      = alpha*torch.randn_like(z)
-
-        # add noise to z
-        z_noised = z + noise
-
-        return z_noised, noise, alpha
-    
     # main PPO loss
     def _loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
         logits_new, values_ext_new, values_int_new  = self.model.forward(states)
