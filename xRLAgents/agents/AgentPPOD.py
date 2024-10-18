@@ -252,7 +252,7 @@ class AgentPPOD():
                 z_noise_pred  = self.model.forward_im_diffusion(z_denoised, alpha)
 
                 # state denoising
-                z_denoised-= z_noise_pred
+                z_denoised-= z_noise_pred.detach()
 
 
             novelty    = ((z_target - z_denoised)**2).mean(dim=1)
