@@ -37,6 +37,7 @@ class AgentPPOD():
         self.alpha_min          = config.alpha_min
         self.alpha_max          = config.alpha_max
         self.alpha_inf          = config.alpha_inf
+        self.denoising_steps    = config.denoising_steps
         
 
         self.state_normalise    = config.state_normalise
@@ -103,6 +104,7 @@ class AgentPPOD():
         print("alpha_min        ", self.alpha_min)
         print("alpha_max        ", self.alpha_max)
         print("alpha_inf        ", self.alpha_inf)
+        print("denoising_steps  ", self.denoising_steps)
         print("state_normalise  ", self.state_normalise)
 
         print("\n\n")
@@ -233,17 +235,26 @@ class AgentPPOD():
         # inject noise into features
         z_noised, noise, alpha = self.im_noise(z_target, alpha_min, alpha_max)
 
-        # obtain noise prediction
-        z_noise_pred  = self.model.forward_im_diffusion(z_noised, alpha)
-
+    
         if training:
+            # obtain noise prediction
+            z_noise_pred  = self.model.forward_im_diffusion(z_noised, alpha)
+
             # MSE loss for noise prediction
             loss = ((noise - z_noise_pred)**2).mean(dim=1)
             return loss 
 
         else:   
-            # state denoising
-            z_denoised = z_noised - z_noise_pred
+            z_denoised = z_noised.clone()
+
+            for n in range(self.denoising_steps):
+                # obtain noise prediction
+                z_noise_pred  = self.model.forward_im_diffusion(z_denoised, alpha)
+
+                # state denoising
+                z_denoised-= z_noise_pred
+
+
             novelty    = ((z_target - z_denoised)**2).mean(dim=1)
 
             return novelty
