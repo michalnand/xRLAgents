@@ -37,7 +37,11 @@ class AgentPPOD():
         self.alpha_min          = config.alpha_min
         self.alpha_max          = config.alpha_max
         self.alpha_inf          = config.alpha_inf
-        self.denoising_steps    = config.denoising_steps
+
+        if hasattr(config, "im_ssl_coeff"):
+            self.im_ssl_coeff       = config.im_ssl_coeff
+        else:
+            self.im_ssl_coeff       = 1.0
         
 
         self.state_normalise    = config.state_normalise
@@ -99,12 +103,12 @@ class AgentPPOD():
         print("training_epochs  ", self.training_epochs)
         print("learning_rate    ", self.learning_rate)
         print("im_ssl_loss      ", self.im_ssl_loss)
+        print("im_ssl_coeff     ", self.im_ssl_coeff)
         print("im_ssl_distance  ", self.im_ssl_distance)
         print("im_noise         ", self.im_noise)
         print("alpha_min        ", self.alpha_min)
         print("alpha_max        ", self.alpha_max)
         print("alpha_inf        ", self.alpha_inf)
-        print("denoising_steps  ", self.denoising_steps)
         print("state_normalise  ", self.state_normalise)
 
         print("\n\n")
@@ -204,7 +208,7 @@ class AgentPPOD():
             loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_a, steps_a, states_b, steps_b)
 
             #final IM loss
-            loss_im = loss_diffusion.mean() + loss_ssl
+            loss_im = loss_diffusion.mean() + self.im_ssl_coeff*loss_ssl
 
             self.optimizer.zero_grad()        
             loss_im.mean().backward() 
@@ -245,15 +249,11 @@ class AgentPPOD():
             return loss 
 
         else:   
-            z_denoised = z_noised.clone()
+            # obtain noise prediction
+            z_noise_pred  = self.model.forward_im_diffusion(z_noised, alpha)
 
-            for n in range(self.denoising_steps):
-                # obtain noise prediction
-                z_noise_pred  = self.model.forward_im_diffusion(z_denoised, alpha)
-
-                # state denoising
-                z_denoised-= z_noise_pred.detach()
-
+            # state denoising
+            z_denoised = z_noised - z_noise_pred.detach()
 
             novelty    = ((z_target - z_denoised)**2).mean(dim=1)
 
