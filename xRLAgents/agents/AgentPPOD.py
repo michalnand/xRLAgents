@@ -239,7 +239,7 @@ class AgentPPOD():
         # inject noise into features
         z_noised, noise, alpha = self.im_noise(z_target, alpha_min, alpha_max)
 
-        print("noise = ", (z_noised**2).mean(), (noise**2).mean())
+        print("noise = ", (z_noised**2).mean(), (noise**2).mean(), alpha.mean())
         if training:
             # obtain noise prediction
             z_noise_pred  = self.model.forward_im_diffusion(z_noised, alpha)
