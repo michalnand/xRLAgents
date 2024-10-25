@@ -128,7 +128,7 @@ class AgentPPOInDiff():
         # environment step  
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
-        rewards_int        = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf, self.diff_steps)
+        rewards_int, novelties_log = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf, self.diff_steps)
         rewards_int        = rewards_int.detach().cpu().numpy()
         rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
 
@@ -153,6 +153,10 @@ class AgentPPOInDiff():
 
         self.log_rewards_int.add("mean", rewards_int.mean())
         self.log_rewards_int.add("std", rewards_int.std())
+
+        for n in range(len(novelties_log)):
+            self.log_rewards_int.add("diff_"+str(n), novelties_log[n])
+        
 
            
         return states_new, rewards_ext, dones, infos
@@ -246,6 +250,7 @@ class AgentPPOInDiff():
 
         # inference mode
         else:
+            novelties_log = []
             for n in range(diff_steps):
                 # obtain noise prediction
                 noise_pred = self.model.forward_im_diffusion(z_noised.detach())
@@ -255,10 +260,12 @@ class AgentPPOInDiff():
 
                 z_noised = torch.clip(z_noised, -10, 10)
 
-            # MSE novelty for denoising prediction
-            novelty = ((z_target - z_noised)**2).mean(dim=1)
+                # MSE novelty for denoising prediction
+                novelty = ((z_target - z_noised)**2).mean(dim=1)
 
-            return novelty 
+                novelties.append(novelty.mean().detach().cpu().numpy())
+
+            return novelty, novelties_log
 
 
 
