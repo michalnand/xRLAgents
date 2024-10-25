@@ -232,12 +232,12 @@ class AgentPPOInDiff():
         z_target  = self.model.forward_im_features(states).detach()
 
         # add noise into features
-        z_noised, noise, alpha = self.im_noise(states, alpha_min, alpha_max)
+        z_noised, noise, alpha = self.im_noise(z_target, alpha_min, alpha_max)
 
         # training mode
-        if diff_steps == -1:
+        if diff_steps == -1:    
             # obtain noise prediction
-            noise_pred = self.model.forward_im_diffusion(z_denoised)
+            noise_pred = self.model.forward_im_diffusion(z_noised)
 
             # MSE noise loss prediction
             loss = ((noise - noise_pred)**2).mean(dim=1)
