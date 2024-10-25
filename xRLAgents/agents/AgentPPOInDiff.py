@@ -263,7 +263,7 @@ class AgentPPOInDiff():
                 # MSE novelty for denoising prediction
                 novelty = ((z_target - z_noised)**2).mean(dim=1)
 
-                novelties.append(novelty.mean().detach().cpu().numpy())
+                novelties_log.append(novelty.mean().detach().cpu().numpy())
 
             return novelty, novelties_log
 
