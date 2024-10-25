@@ -200,7 +200,7 @@ class AgentPPOInDiff():
         for batch_idx in range(batch_count):    
             #internal motivation loss, MSE diffusion    
             states, _, _, _ = self.trajectory_buffer.sample_states(self.ss_batch_size, 0, self.device)
-            loss_diffusion  = self._internal_motivation(states, self.alpha_min, self.alpha_max, True)
+            loss_diffusion  = self._internal_motivation(states, self.alpha_min, self.alpha_max)
 
 
             #self supervised target regularisation
