@@ -30,14 +30,14 @@ class AgentPPOInDiff():
         
         self.training_epochs    = config.training_epochs
         
-        self.learning_rate      = config.learning_rate
-        self.im_ssl_loss        = config.im_ssl_loss
-        self.im_ssl_distance    = config.im_ssl_distance
-        self.im_noise           = config.im_noise
-        self.alpha_min          = config.alpha_min
-        self.alpha_max          = config.alpha_max
-        self.alpha_inf          = config.alpha_inf
-        self.diff_steps         = config.diff_steps
+        self.learning_rate        = config.learning_rate
+        self.im_ssl_loss          = config.im_ssl_loss
+        self.im_ssl_distance      = config.im_ssl_distance
+        self.im_noise             = config.im_noise
+        self.alpha_min            = config.alpha_min
+        self.alpha_max            = config.alpha_max
+        self.alpha_inf            = config.alpha_inf
+        self.raw_states_denoising = config.raw_states_denoising
 
         self.state_normalise    = config.state_normalise
 
@@ -84,27 +84,27 @@ class AgentPPOInDiff():
         print(self.model)
         print("\n\n")
 
-        print("gamma_ext        ", self.gamma_ext)
-        print("gamma_int        ", self.gamma_int)
-        print("entropy_beta     ", self.entropy_beta)
-        print("eps_clip         ", self.eps_clip)
-        print("adv_ext_coeff    ", self.adv_ext_coeff)
-        print("adv_int_coeff    ", self.adv_int_coeff)
-        print("val_coeff        ", self.val_coeff)
-        print("reward_int_coeff ", self.reward_int_coeff)
-        print("steps            ", self.steps)
-        print("batch_size       ", self.batch_size)
-        print("ss_batch_size    ", self.ss_batch_size)
-        print("training_epochs  ", self.training_epochs)
-        print("learning_rate    ", self.learning_rate)
-        print("im_ssl_loss      ", self.im_ssl_loss)
-        print("im_ssl_distance  ", self.im_ssl_distance)
-        print("im_noise         ", self.im_noise)
-        print("alpha_min        ", self.alpha_min)
-        print("alpha_max        ", self.alpha_max)
-        print("alpha_inf        ", self.alpha_inf)
-        print("diff_steps       ", self.diff_steps)
-        print("state_normalise  ", self.state_normalise)
+        print("gamma_ext            ", self.gamma_ext)
+        print("gamma_int            ", self.gamma_int)
+        print("entropy_beta         ", self.entropy_beta)
+        print("eps_clip             ", self.eps_clip)
+        print("adv_ext_coeff        ", self.adv_ext_coeff)
+        print("adv_int_coeff        ", self.adv_int_coeff)
+        print("val_coeff            ", self.val_coeff)
+        print("reward_int_coeff     ", self.reward_int_coeff)
+        print("steps                ", self.steps)
+        print("batch_size           ", self.batch_size)
+        print("ss_batch_size        ", self.ss_batch_size)
+        print("training_epochs      ", self.training_epochs)
+        print("learning_rate        ", self.learning_rate)
+        print("im_ssl_loss          ", self.im_ssl_loss)
+        print("im_ssl_distance      ", self.im_ssl_distance)
+        print("im_noise             ", self.im_noise)
+        print("alpha_min            ", self.alpha_min)
+        print("alpha_max            ", self.alpha_max)
+        print("alpha_inf            ", self.alpha_inf)
+        print("raw_states_denoising ", self.raw_states_denoising)
+        print("state_normalise      ", self.state_normalise)
 
         print("\n\n")
         
@@ -128,7 +128,7 @@ class AgentPPOInDiff():
         # environment step  
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
-        rewards_int, novelties_log = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf, self.diff_steps)
+        rewards_int, _     = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf, self.raw_states_denoising)
         rewards_int        = rewards_int.detach().cpu().numpy()
         rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
 
@@ -153,14 +153,10 @@ class AgentPPOInDiff():
 
         self.log_rewards_int.add("mean", rewards_int.mean())
         self.log_rewards_int.add("std", rewards_int.std())
-
-        for n in range(len(novelties_log)):
-            self.log_rewards_int.add("diff_"+str(n), novelties_log[n])
-        
-
-           
+    
         return states_new, rewards_ext, dones, infos
     
+
     def save(self, result_path):
         torch.save(self.model.state_dict(), result_path + "/model.pt")
 
@@ -198,8 +194,8 @@ class AgentPPOInDiff():
         #main IM training loop
         for batch_idx in range(batch_count):    
             #internal motivation loss, MSE diffusion    
-            states, _, _, _ = self.trajectory_buffer.sample_states(self.ss_batch_size, 0, self.device)
-            loss_diffusion  = self._internal_motivation(states, self.alpha_min, self.alpha_max, -1)
+            states, _, _, _    = self.trajectory_buffer.sample_states(self.ss_batch_size, 0, self.device)
+            _, loss_diffusion  = self._internal_motivation(states, self.alpha_min, self.alpha_max, self.raw_states_denoising)
 
 
             #self supervised target regularisation
@@ -231,41 +227,43 @@ class AgentPPOInDiff():
 
 
     # state denoising ability novely detection
-    def _internal_motivation(self, states, alpha_min, alpha_max, diff_steps):
-        # obtain taget features from states and noised states
-        z_target  = self.model.forward_im_features(states).detach()
+    def _internal_motivation(self, states, alpha_min, alpha_max, raw_state_denoising):
+        if raw_state_denoising:
+            # add noise into state
+            states_noised, noise, alpha = self.im_noise(states, alpha_min, alpha_max)
 
-        # add noise into features
-        z_noised, noise, alpha = self.im_noise(z_target, alpha_min, alpha_max)
+            # obtain taget features from states and noised states
+            z_target  = self.model.forward_im_features(states).detach()
+            z_noised  = self.model.forward_im_features(states_noised).detach()
 
-        # training mode
-        if diff_steps == -1:    
+            # predict denoised features
+            z_pred    = self.model.forward_im_diffusion(z_noised)
+
+            # identical MSE for novelty and loss
+            novelty   = ((z_target - z_pred)**2).mean(dim=1)
+            loss      = ((z_target - z_pred)**2).mean(dim=1)
+
+        
+        else:
+            # obtain taget features from states and noised states
+            z_target  = self.model.forward_im_features(states).detach()
+
+            # add noise into features
+            z_noised, noise, alpha = self.im_noise(z_target, alpha_min, alpha_max)
+
+     
             # obtain noise prediction
             noise_pred = self.model.forward_im_diffusion(z_noised)
+
+            # denoising novelty
+            z_denoised = z_noised - noise_pred
+            novelty    = ((z_target - z_denoised)**2).mean(dim=1)
 
             # MSE noise loss prediction
             loss = ((noise - noise_pred)**2).mean(dim=1)
 
-            return loss
-
-        # inference mode
-        else:
-            novelties_log = []
-            for n in range(diff_steps):
-                # obtain noise prediction
-                noise_pred = self.model.forward_im_diffusion(z_noised.detach())
-
-                # apply denoising
-                z_noised = z_noised - noise_pred
-
-                z_noised = torch.clip(z_noised, -10, 10)
-
-                # MSE novelty for denoising prediction
-                novelty = ((z_target - z_noised)**2).mean(dim=1)
-
-                novelties_log.append(novelty.mean().detach().cpu().numpy().item())
-
-            return novelty, novelties_log
+        
+        return novelty.detach(), loss
 
 
 
