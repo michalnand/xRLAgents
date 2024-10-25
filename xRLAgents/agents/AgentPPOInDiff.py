@@ -37,12 +37,7 @@ class AgentPPOInDiff():
         self.alpha_min          = config.alpha_min
         self.alpha_max          = config.alpha_max
         self.alpha_inf          = config.alpha_inf
-
-        if hasattr(config, "im_ssl_coeff"):
-            self.im_ssl_coeff       = config.im_ssl_coeff
-        else:
-            self.im_ssl_coeff       = 1.0
-        
+        self.diff_steps         = config.diff_steps
 
         self.state_normalise    = config.state_normalise
 
@@ -103,12 +98,12 @@ class AgentPPOInDiff():
         print("training_epochs  ", self.training_epochs)
         print("learning_rate    ", self.learning_rate)
         print("im_ssl_loss      ", self.im_ssl_loss)
-        print("im_ssl_coeff     ", self.im_ssl_coeff)
         print("im_ssl_distance  ", self.im_ssl_distance)
         print("im_noise         ", self.im_noise)
         print("alpha_min        ", self.alpha_min)
         print("alpha_max        ", self.alpha_max)
         print("alpha_inf        ", self.alpha_inf)
+        print("diff_steps       ", self.diff_steps)
         print("state_normalise  ", self.state_normalise)
 
         print("\n\n")
@@ -133,7 +128,7 @@ class AgentPPOInDiff():
         # environment step  
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
-        rewards_int        = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf)
+        rewards_int        = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf, self.diff_steps)
         rewards_int        = rewards_int.detach().cpu().numpy()
         rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
 
@@ -200,7 +195,7 @@ class AgentPPOInDiff():
         for batch_idx in range(batch_count):    
             #internal motivation loss, MSE diffusion    
             states, _, _, _ = self.trajectory_buffer.sample_states(self.ss_batch_size, 0, self.device)
-            loss_diffusion  = self._internal_motivation(states, self.alpha_min, self.alpha_max)
+            loss_diffusion  = self._internal_motivation(states, self.alpha_min, self.alpha_max, -1)
 
 
             #self supervised target regularisation
@@ -208,7 +203,7 @@ class AgentPPOInDiff():
             loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_a, steps_a, states_b, steps_b)
 
             #final IM loss
-            loss_im = loss_diffusion.mean() + self.im_ssl_coeff*loss_ssl
+            loss_im = loss_diffusion.mean() + loss_ssl
 
             self.optimizer.zero_grad()        
             loss_im.mean().backward() 
@@ -232,20 +227,38 @@ class AgentPPOInDiff():
 
 
     # state denoising ability novely detection
-    def _internal_motivation(self, states, alpha_min, alpha_max):
-        # add noise into state
-        states_noised, noise, alpha = self.im_noise(states, alpha_min, alpha_max)
-
-        # obtain features from states and noised states
+    def _internal_motivation(self, states, alpha_min, alpha_max, diff_steps):
+        # obtain taget features from states and noised states
         z_target  = self.model.forward_im_features(states).detach()
-        z_noised  = self.model.forward_im_features(states_noised).detach()
-        
-        # obtain prediction
-        z_pred = self.model.forward_im_diffusion(z_noised)
 
-        # MSE novelty for denoising prediction
-        novelty = ((z_target - z_pred)**2).mean(dim=1)
-        return novelty 
+        # add noise into features
+        z_noised, noise, alpha = self.im_noise(states, alpha_min, alpha_max)
+
+        # training mode
+        if diff_steps == -1:
+            # obtain noise prediction
+            noise_pred = self.model.forward_im_diffusion(z_denoised)
+
+            # MSE noise loss prediction
+            loss = ((noise - noise_pred)**2).mean(dim=1)
+
+            return loss
+
+        # inference mode
+        else:
+            for n in range(diff_steps):
+                # obtain noise prediction
+                noise_pred = self.model.forward_im_diffusion(z_noised.detach())
+
+                # apply denoising
+                z_noised = z_noised - noise_pred
+
+                z_noised = torch.clip(z_noised, -10, 10)
+
+            # MSE novelty for denoising prediction
+            novelty = ((z_target - z_noised)**2).mean(dim=1)
+
+            return novelty 
 
 
 
