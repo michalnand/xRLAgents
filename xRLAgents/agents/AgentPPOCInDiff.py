@@ -106,7 +106,7 @@ class AgentPPOCInDiff():
         print("alpha_min            ", self.alpha_min)
         print("alpha_max            ", self.alpha_max)
         print("alpha_inf            ", self.alpha_inf)
-        print("self.context_size    ", self.context_size)
+        print("context_size         ", self.context_size)
         print("state_normalise      ", self.state_normalise)
 
         print("\n\n")
@@ -240,7 +240,8 @@ class AgentPPOCInDiff():
             z_context = torch.zeros((n_batch, n_seq, self.n_features), dtype=torch.float32, device=self.device)
 
             for n in range(n_seq):
-                n_rev = n_seq - n - 1   
+                n_rev = (n_seq -1) - n
+                print(n_seq, n, n_rev)
                 z_context[:, n] = self.model.forward_im_features(states[n_rev]).detach()
 
             z_target = z_context[:, 0]
@@ -252,7 +253,7 @@ class AgentPPOCInDiff():
 
 
 
-        # add new z into context
+        # add new z into context, newest state is on first position
         z_context_new       = z_context.roll(shifts=1, dims=1)
         z_context_new[:, 0] = z_target.clone().detach()
 
