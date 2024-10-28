@@ -10,6 +10,7 @@ from .AgentPPOSND           import *
 from .AgentPPOD             import *
 
 from .AgentPPOInDiff        import *
+from .AgentPPOCInDiff       import *
 
 
 from .loss_self_supervised  import *

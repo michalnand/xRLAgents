@@ -116,6 +116,18 @@ class TrajectoryBufferIM:
 
         return states_a, steps_a,  states_b, steps_b
     
+
+
+    def sample_trajectory_states(self, trajectory_length, batch_size, device):
+        indices = torch.randint(0, self.envs_count*(self.buffer_size - trajectory_length), size=(batch_size, ))
+        states  = torch.zeros((trajectory_length, batch_size, ) + self.state_shape,  dtype=torch.float32, device=device)
+
+        for n in range(trajectory_length):
+            states[n]        = self.states[indices].to(device)
+            indices+= self.envs_count 
+
+        return states
+    
      
     def _gae(self, rewards, values, dones, gamma, lam):
         buffer_size = rewards.shape[0]
