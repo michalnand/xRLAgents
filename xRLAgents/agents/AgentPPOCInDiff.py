@@ -246,7 +246,7 @@ class AgentPPOCInDiff():
             z_target = z_context[:, 0]
 
         else:
-            # inference mode, udpate only one step
+            # inference mode, update only one step
             # obtain taget features from states and noised states
             z_target  = self.model.forward_im_features(states).detach()
 
