@@ -235,8 +235,8 @@ class AgentPPOCInDiff():
 
         # training mode, compute whole context
         if z_context is None:
-            n_batch   = states.shape[0]
-            n_seq     = states.shape[1]
+            n_seq     = states.shape[0]
+            n_batch   = states.shape[1]
             z_context = torch.zeros((n_batch, n_seq, self.n_features), dtype=torch.float32, device=self.device)
 
             for n in range(n_seq):
@@ -262,7 +262,7 @@ class AgentPPOCInDiff():
 
         # create contextual input into model
         # first item is noised, remaining works as context
-        z_in_noised = z_context.clone()
+        z_in_noised = z_context_new.clone()
         z_in_noised[:, 0, :] = z_noised.clone().detach()
 
         # obtain noise prediction
