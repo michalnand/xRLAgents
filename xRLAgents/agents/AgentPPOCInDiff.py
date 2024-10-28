@@ -240,8 +240,7 @@ class AgentPPOCInDiff():
             z_context = torch.zeros((n_batch, n_seq, self.n_features), dtype=torch.float32, device=self.device)
 
             for n in range(n_seq):
-                n_rev = (n_seq -1) - n
-                print(n_seq, n, n_rev)
+                n_rev = (n_seq - 1) - n
                 z_context[:, n] = self.model.forward_im_features(states[n_rev]).detach()
 
             z_target = z_context[:, 0]
