@@ -37,7 +37,6 @@ class AgentPPOInDiff():
         self.alpha_min            = config.alpha_min
         self.alpha_max            = config.alpha_max
         self.alpha_inf            = config.alpha_inf
-        self.raw_states_denoising = config.raw_states_denoising
 
         self.state_normalise    = config.state_normalise
 
@@ -103,7 +102,6 @@ class AgentPPOInDiff():
         print("alpha_min            ", self.alpha_min)
         print("alpha_max            ", self.alpha_max)
         print("alpha_inf            ", self.alpha_inf)
-        print("raw_states_denoising ", self.raw_states_denoising)
         print("state_normalise      ", self.state_normalise)
 
         print("\n\n")
@@ -128,7 +126,7 @@ class AgentPPOInDiff():
         # environment step  
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
-        rewards_int, _     = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf, self.raw_states_denoising)
+        rewards_int, _     = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf)
         rewards_int        = rewards_int.detach().cpu().numpy()
         rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
 
@@ -195,7 +193,7 @@ class AgentPPOInDiff():
         for batch_idx in range(batch_count):    
             #internal motivation loss, MSE diffusion    
             states, _, _, _    = self.trajectory_buffer.sample_states(self.ss_batch_size, 0, self.device)
-            _, loss_diffusion  = self._internal_motivation(states, self.alpha_min, self.alpha_max, self.raw_states_denoising)
+            _, loss_diffusion  = self._internal_motivation(states, self.alpha_min, self.alpha_max)
 
 
             #self supervised target regularisation
@@ -227,41 +225,24 @@ class AgentPPOInDiff():
 
 
     # state denoising ability novely detection
-    def _internal_motivation(self, states, alpha_min, alpha_max, raw_state_denoising):
-        if raw_state_denoising:
-            # add noise into state
-            states_noised, noise, alpha = self.im_noise(states, alpha_min, alpha_max)
+    def _internal_motivation(self, states, alpha_min, alpha_max):
+      
+        # obtain taget features from states and noised states
+        z_target  = self.model.forward_im_features(states).detach()
 
-            # obtain taget features from states and noised states
-            z_target  = self.model.forward_im_features(states).detach()
-            z_noised  = self.model.forward_im_features(states_noised).detach()
+        # add noise into features
+        z_noised, noise, alpha = self.im_noise(z_target, alpha_min, alpha_max)
 
-            # predict denoised features
-            z_pred    = self.model.forward_im_diffusion(z_noised)
+    
+        # obtain noise prediction
+        noise_pred = self.model.forward_im_diffusion(z_noised)
 
-            # identical MSE for novelty and loss
-            novelty   = ((z_target - z_pred)**2).mean(dim=1)
-            loss      = ((z_target - z_pred)**2).mean(dim=1)
+        # denoising novelty
+        z_denoised = z_noised - noise_pred
+        novelty    = ((z_target - z_denoised)**2).mean(dim=1)
 
-        
-        else:
-            # obtain taget features from states and noised states
-            z_target  = self.model.forward_im_features(states).detach()
-
-            # add noise into features
-            z_noised, noise, alpha = self.im_noise(z_target, alpha_min, alpha_max)
-
-     
-            # obtain noise prediction
-            noise_pred = self.model.forward_im_diffusion(z_noised)
-
-            # denoising novelty
-            z_denoised = z_noised - noise_pred
-            novelty    = ((z_target - z_denoised)**2).mean(dim=1)
-
-            # MSE noise loss prediction
-            loss = ((noise - noise_pred)**2).mean(dim=1)
-
+        # MSE noise loss prediction
+        loss = ((noise - noise_pred)**2).mean(dim=1)
         
         return novelty.detach(), loss
 
