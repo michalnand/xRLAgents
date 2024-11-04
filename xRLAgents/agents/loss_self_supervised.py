@@ -70,7 +70,8 @@ def loss_contrastive_vicreg_func(za, zb):
     idx = torch.randperm(zb.shape[0])
     zb_perm = zb[idx]
 
-    dif_loss = torch.relu(1.0 - ((za - zb_perm)**2).mean(dim=1))
+    d        = ((za - zb_perm)**2).mean(dim=1)
+    dif_loss = torch.relu(1.0 - d)
     dif_loss = dif_loss.mean()
 
 
