@@ -48,6 +48,10 @@ class RLTrainer:
             for e in done_idx:
                 states[e], _ = self.envs.reset(e)
 
+            if (n%(n_steps//10)) == 0:
+                self.agent.save(self.result_path)
+                print("saving model at step ", n)
+
         self.agent.save(self.result_path)
 
 

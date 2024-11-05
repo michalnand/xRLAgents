@@ -93,7 +93,7 @@ class AgentPPOMultiAgent():
         torch.save(self.model.state_dict(), result_path + "/model.pt")
 
     def load(self, result_path):
-        self.model.load_state_dict(torch.load(result_path + "/model.pt", map_location = self.device))
+        self.model.load_state_dict(torch.load(result_path + "/model.pt", map_location = self.device, weights_only=True))
 
     def get_logs(self):
         return [self.log_loss_ppo]
