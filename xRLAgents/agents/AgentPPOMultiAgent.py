@@ -4,6 +4,8 @@ import numpy
 from .TrajectoryBuffer  import *
 from ..training.ValuesLogger           import *
   
+import cv2
+
 class AgentPPOMultiAgent():
     def __init__(self, envs, Config, Model):
         self.envs = envs
@@ -43,7 +45,7 @@ class AgentPPOMultiAgent():
 
         self.log_loss_ppo = ValuesLogger("loss_ppo")
      
-     
+        #cv2.namedWindow("attention", cv2.WINDOW_NORMAL)
         
   
     def step(self, states, training_enabled):        
@@ -51,8 +53,13 @@ class AgentPPOMultiAgent():
 
 
         # obtain model output, logits and values for all agents in one stap
-        logits_t, values_t  = self.model.forward(states_t)
+        logits_t, values_t, attn  = self.model.forward(states_t)
 
+        '''
+        attn_img = attn[2][0].detach().cpu().numpy()
+        attn_img = attn_img/(numpy.max(attn_img, axis=0, keepdims=True) + 10**-8)
+        cv2.imshow("attention", attn_img)
+        '''
         
         n_agents     = states_t.shape[1]
         actions_list = numpy.zeros((states_t.shape[0], n_agents), dtype=int)
@@ -125,7 +132,7 @@ class AgentPPOMultiAgent():
         main PPO loss
     '''
     def loss_ppo(self, states, logits, actions, returns, advantages):
-        logits_new, values_new  = self.model.forward(states)
+        logits_new, values_new, _  = self.model.forward(states)
 
         # we use only agent on first index
         logits_new = logits_new[:, 0]
