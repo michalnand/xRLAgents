@@ -229,11 +229,11 @@ class AgentPPOInDiffC():
 
 
     # state denoising ability novely detection
-    def _internal_motivation(self, states, states_next, actions, alpha_min, alpha_max):
+    def _internal_motivation(self, states_now, states_next, actions, alpha_min, alpha_max):
         # obtain current features
-        z_now = self.model.forward_im_features(states).detach()
+        z_now = self.model.forward_im_features(states_now).detach()
 
-        # obtain target features from states
+        # obtain next features
         z_next = self.model.forward_im_features(states_next).detach()
 
         # features difference
@@ -245,13 +245,14 @@ class AgentPPOInDiffC():
         # obtain prediction
         noise_pred = self.model.forward_im_diffusion(dz_noised, actions)
 
-        # denoising novelty
+        # denoising novelty detection
+        # note, this is forward model training,
+        # because : z_next_pred = dz_pred + z_now
         dz_pred    = dz_noised - noise_pred
         novelty    = ((dz_target - dz_pred)**2).mean(dim=1)
 
         # MSE noise loss prediction
         loss_diff = ((noise - noise_pred)**2).mean(dim=1)
-
 
         # AUX loss, learn to predict actions
         action_pred = self.model.forward_im_actions(z_now, z_now + dz_pred)
@@ -259,7 +260,6 @@ class AgentPPOInDiffC():
         #loss_func    = torch.nn.CrossEntropyLoss()
         #loss_actions = loss_func(action_pred, actions)
         acc = (torch.argmax(action_pred, dim=-1) == actions).float().mean()
-
         
         return novelty.detach(), loss_diff, acc
 
