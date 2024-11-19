@@ -45,7 +45,7 @@ class AgentPPOMultiAgent():
 
         self.log_loss_ppo = ValuesLogger("loss_ppo")
      
-        #cv2.namedWindow("attention", cv2.WINDOW_NORMAL)
+        cv2.namedWindow("attention", cv2.WINDOW_NORMAL)
         
   
     def step(self, states, training_enabled):        
@@ -55,11 +55,11 @@ class AgentPPOMultiAgent():
         # obtain model output, logits and values for all agents in one stap
         logits_t, values_t, attn  = self.model.forward(states_t)
 
-        '''
-        attn_img = attn[2][0].detach().cpu().numpy()
-        attn_img = attn_img/(numpy.max(attn_img, axis=0, keepdims=True) + 10**-8)
-        cv2.imshow("attention", attn_img)
-        '''
+        if training_enabled != True:
+            attn_img = attn[2][0].detach().cpu().numpy()
+            attn_img = attn_img/(numpy.max(attn_img, axis=0, keepdims=True) + 10**-8)
+            cv2.imshow("attention", attn_img)
+        
         
         n_agents     = states_t.shape[1]
         actions_list = numpy.zeros((states_t.shape[0], n_agents), dtype=int)
