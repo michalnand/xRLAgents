@@ -12,8 +12,8 @@ from .AgentPPOSND           import *
 from .AgentPPOD             import *
 
 from .AgentPPOInDiff        import *
-from .AgentPPOCInDiff       import *
 from .AgentPPOInDiffB       import *
+from .AgentPPOInDiffC       import *
 
 
 from .loss_self_supervised  import *

@@ -4,7 +4,7 @@ import numpy
 from .TrajectoryBufferIM  import *
 from ..training.ValuesLogger           import *
   
-class AgentPPOInDiffB():
+class AgentPPOInDiffC():
     def __init__(self, envs, Config, Model):
         self.envs = envs
  
@@ -114,6 +114,7 @@ class AgentPPOInDiffB():
 
         states_t = torch.tensor(states_norm, dtype=torch.float).to(self.device)
 
+
         # obtain model output, logits and values
         logits_t, values_ext_t, values_int_t  = self.model.forward(states_t)
 
@@ -124,7 +125,10 @@ class AgentPPOInDiffB():
         # environment step  
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
-        rewards_int, _     = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf)
+        states_next_t = torch.tensor(states_new, dtype=torch.float).to(self.device)
+        actions_t     = torch.tensor(actions, dtype=int).to(self.device)
+
+        rewards_int, _     = self._internal_motivation(states_t, states_next_t, actions_t, self.alpha_inf, self.alpha_inf)
         rewards_int        = rewards_int.detach().cpu().numpy()
         rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
 
@@ -190,13 +194,13 @@ class AgentPPOInDiffB():
         #main IM training loop
         for batch_idx in range(batch_count):    
             #internal motivation loss, MSE diffusion    
-            states_now, states_next, _   = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
+            _, states_now, _   = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
             _, loss_diffusion  = self._internal_motivation(states_now, self.alpha_min, self.alpha_max)
 
 
             #self supervised target regularisation
-            states_now, states_next, actions = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
-            loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_now, states_next, actions)
+            states_prev, states_now, actions = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
+            loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_prev, states_now, actions)
 
             #final IM loss
             loss_im = loss_diffusion.mean() + loss_ssl
@@ -223,26 +227,34 @@ class AgentPPOInDiffB():
 
 
     # state denoising ability novely detection
-    def _internal_motivation(self, states, alpha_min, alpha_max):
-      
-        # obtain taget features from states and noised states
-        z_target  = self.model.forward_im_features(states).detach()
+    def _internal_motivation(self, states, states_next, actions, alpha_min, alpha_max):
+        # obtain current features
+        z_now = self.model.forward_im_features(states).detach()
+
+        # obtain target features from states
+        z_next_target = self.model.forward_im_features(states_next).detach()
 
         # add noise into features
-        z_noised, noise, alpha = self.im_noise(z_target, alpha_min, alpha_max)
+        z_now_noised, noise, alpha = self.im_noise(z_now, alpha_min, alpha_max)
 
-    
-        # obtain noise prediction
-        noise_pred = self.model.forward_im_diffusion(z_noised)
+        # obtain prediction
+        z_next_pred = self.model.forward_im_diffusion(z_now_noised, actions)
 
-        # denoising novelty
-        z_denoised = z_noised - noise_pred
-        novelty    = ((z_target - z_denoised)**2).mean(dim=1)
+        # novelty
+        novelty    = ((z_next_target - z_next_pred)**2).mean(dim=1)
 
-        # MSE noise loss prediction
-        loss = ((noise - noise_pred)**2).mean(dim=1)
+        # predict actions
+        actions_pred = self.model.im_actions(z_next_pred - z_now)
+        loss_func    = torch.nn.CrossEntropyLoss()
+        loss_actions = loss_func(actions_pred, actions)
+
+        acc          = (torch.argmax(actions_pred, dim=-1) == actions).float().mean()
+        acc          = acc.detach().cpu().numpy().item()
         
-        return novelty.detach(), loss
+        # MSE noise loss prediction
+        loss_pred = novelty.mean(dim=1)
+        
+        return novelty.detach(), loss_pred + loss_actions, acc
 
 
 

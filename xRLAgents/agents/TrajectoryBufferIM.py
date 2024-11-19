@@ -118,17 +118,17 @@ class TrajectoryBufferIM:
     
 
     def sample_state_pairs(self, batch_size, device):
-        count         = self.buffer_size*self.envs_count
+        count           = self.buffer_size*self.envs_count
 
-        indices_prev  = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size, ))
-        indices_now   = torch.clip(indices_prev + self.envs_count, 0, count-1)
+        indices_now     = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size, ))
+        indices_next    = torch.clip(indices_now + self.envs_count, 0, count-1)
 
-        states_prev   = (self.states[indices_prev]).to(device)
-        states_now    = (self.states[indices_now]).to(device)
+        states_now      = (self.states[indices_now]).to(device)
+        states_next     = (self.states[indices_next]).to(device)
 
-        actions_prev  = (self.actions[indices_prev]).to(device)
+        actions         = (self.actions[indices_now]).to(device)    
 
-        return states_prev, states_now, actions_prev
+        return states_now, states_next, actions
     
 
 
