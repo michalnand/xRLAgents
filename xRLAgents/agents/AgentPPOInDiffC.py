@@ -240,7 +240,7 @@ class AgentPPOInDiffC():
         dz_target = z_next - z_now
 
         # add noise into features
-        dz_noised, noise, alpha = self.im_noise(dz, alpha_min, alpha_max)
+        dz_noised, noise, alpha = self.im_noise(dz_target, alpha_min, alpha_max)
 
         # obtain prediction
         noise_pred = self.model.forward_im_diffusion(dz_noised, actions)
