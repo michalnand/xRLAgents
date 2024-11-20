@@ -228,7 +228,7 @@ class AgentPPOInDiffC():
         return actions
 
 
-    # state denoising ability novely detection
+    # predicted state denoising ability novely detection
     def _internal_motivation(self, states_now, states_next, actions, alpha_min, alpha_max):
         # obtain current features
         z_now = self.model.forward_im_features(states_now).detach()
