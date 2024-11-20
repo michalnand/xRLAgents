@@ -237,16 +237,19 @@ class AgentPPOInDiffB():
     
         # denoising by diffusion process
         for n in range(denoising_steps):
-            noise_pred = self.model.forward_im_diffusion(z_denoised)
-            z_denoised = z_denoised - noise_pred
+            noise_hat = self.model.forward_im_diffusion(z_denoised)
+            z_denoised = z_denoised - noise_hat
 
         # denoising novelty
         novelty    = ((z_target - z_denoised)**2).mean(dim=1)
 
         # MSE noise loss prediction
+        noise_pred = z_noised - z_denoised
         loss = ((noise - noise_pred)**2).mean(dim=1)
         
         return novelty.detach(), loss
+
+
 
 
 
