@@ -180,10 +180,10 @@ class AgentPPOInDiffB():
             self.trajectory_buffer.rewards_int[:, env] = rewards_int_scaled
      
             # add into logs
-            self.log_rewards_int.add("mean_a", rewards_int_a.mean())
-            self.log_rewards_int.add("std_a", rewards_int_a.std())
-            self.log_rewards_int.add("mean_b", rewards_int_b.mean())
-            self.log_rewards_int.add("std_b", rewards_int_b.std())
+            self.log_rewards_int.add("mean_a", rewards_int_a.mean().numpy())
+            self.log_rewards_int.add("std_a", rewards_int_a.std().numpy())
+            self.log_rewards_int.add("mean_b", rewards_int_b.mean().numpy())
+            self.log_rewards_int.add("std_b", rewards_int_b.std().numpy())
 
 
     """
