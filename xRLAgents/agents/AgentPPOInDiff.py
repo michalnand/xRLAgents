@@ -4,7 +4,7 @@ import numpy
 from .TrajectoryBufferIM  import *
 from ..training.ValuesLogger           import *
   
-class AgentPPOInDiff():
+class AgentPPOInDiff(): 
     def __init__(self, envs, Config, Model):
         self.envs = envs
  
@@ -32,11 +32,11 @@ class AgentPPOInDiff():
         
         self.learning_rate        = config.learning_rate
         self.im_ssl_loss          = config.im_ssl_loss
-        self.im_ssl_distance      = config.im_ssl_distance
         self.im_noise             = config.im_noise
         self.alpha_min            = config.alpha_min
         self.alpha_max            = config.alpha_max
         self.alpha_inf            = config.alpha_inf
+        self.denoising_steps      = config.denoising_steps
 
         self.state_normalise    = config.state_normalise
 
@@ -97,11 +97,11 @@ class AgentPPOInDiff():
         print("training_epochs      ", self.training_epochs)
         print("learning_rate        ", self.learning_rate)
         print("im_ssl_loss          ", self.im_ssl_loss)
-        print("im_ssl_distance      ", self.im_ssl_distance)
         print("im_noise             ", self.im_noise)
         print("alpha_min            ", self.alpha_min)
         print("alpha_max            ", self.alpha_max)
         print("alpha_inf            ", self.alpha_inf)
+        print("denoising_steps      ", self.denoising_steps)
         print("state_normalise      ", self.state_normalise)
 
         print("\n\n")
@@ -126,12 +126,12 @@ class AgentPPOInDiff():
         # environment step  
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
-        rewards_int, _     = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf)
+        rewards_int, _     = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
         rewards_int        = rewards_int.detach().cpu().numpy()
         rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
 
         # top PPO training part
-        if training_enabled:
+        if training_enabled:    
             
             # put trajectory into policy buffer
             self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext, rewards_int_scaled, dones, self.episode_steps)
@@ -192,13 +192,13 @@ class AgentPPOInDiff():
         #main IM training loop
         for batch_idx in range(batch_count):    
             #internal motivation loss, MSE diffusion    
-            states, _, _, _    = self.trajectory_buffer.sample_states(self.ss_batch_size, 0, self.device)
-            _, loss_diffusion  = self._internal_motivation(states, self.alpha_min, self.alpha_max)
+            states_now, states_next, _   = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
+            _, loss_diffusion  = self._internal_motivation(states_now, self.alpha_min, self.alpha_max, self.denoising_steps)
 
 
             #self supervised target regularisation
-            states_a, steps_a, states_b, steps_b = self.trajectory_buffer.sample_states(self.ss_batch_size, self.im_ssl_distance, self.device)
-            loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_a, steps_a, states_b, steps_b)
+            states_now, states_next, actions = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
+            loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_now, states_next, actions)
 
             #final IM loss
             loss_im = loss_diffusion.mean() + loss_ssl
@@ -225,7 +225,7 @@ class AgentPPOInDiff():
 
 
     # state denoising ability novely detection
-    def _internal_motivation(self, states, alpha_min, alpha_max):
+    def _internal_motivation(self, states, alpha_min, alpha_max, denoising_steps):
       
         # obtain taget features from states and noised states
         z_target  = self.model.forward_im_features(states).detach()
@@ -233,18 +233,23 @@ class AgentPPOInDiff():
         # add noise into features
         z_noised, noise, alpha = self.im_noise(z_target, alpha_min, alpha_max)
 
+        z_denoised = z_noised.detach().clone()
     
-        # obtain noise prediction
-        noise_pred = self.model.forward_im_diffusion(z_noised)
+        # denoising by diffusion process
+        for n in range(denoising_steps):
+            noise_hat = self.model.forward_im_diffusion(z_denoised)
+            z_denoised = z_denoised - noise_hat
 
         # denoising novelty
-        z_denoised = z_noised - noise_pred
         novelty    = ((z_target - z_denoised)**2).mean(dim=1)
 
         # MSE noise loss prediction
+        noise_pred = z_noised - z_denoised
         loss = ((noise - noise_pred)**2).mean(dim=1)
         
         return novelty.detach(), loss
+
+
 
 
 
