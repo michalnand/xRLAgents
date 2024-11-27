@@ -173,8 +173,6 @@ class AgentPPOInDiffB():
            
             rewards_int_a         = rewards_int_a.detach().cpu()
             rewards_int_b         = rewards_int_b.detach().cpu()
-
-            print(">>>> ", rewards_int_a.shape, rewards_int_a.mean(), rewards_int_b.shape, rewards_int_b.mean())
             
             rewards_int_scaled    = torch.clip(reward_int_a_coeff*rewards_int_a + reward_int_b_coeff*rewards_int_b, 0.0, 1.0)
 
@@ -242,7 +240,7 @@ class AgentPPOInDiffB():
         for batch_idx in range(batch_count):    
             #internal motivation loss, MSE diffusion    
             states_now, states_next, _   = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
-            _, loss_diffusion  = self._internal_motivation(states_now, self.alpha_min, self.alpha_max, self.denoising_steps)
+            _, _, loss_diffusion  = self._internal_motivation(states_now, self.alpha_min, self.alpha_max, self.denoising_steps)
 
 
             #self supervised target regularisation
