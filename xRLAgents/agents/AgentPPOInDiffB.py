@@ -136,7 +136,7 @@ class AgentPPOInDiffB():
 
             # if buffer is full, run training loop
             if self.trajectory_buffer.is_full():
-                self.compute_im(self.reward_int_a_coeff, self.reward_int_b_coeff)
+                self.compute_im()   
                 self.trajectory_buffer.compute_returns(self.gamma_ext, self.gamma_int)
                 self.train()
                 self.trajectory_buffer.clear()
@@ -162,7 +162,7 @@ class AgentPPOInDiffB():
     def get_logs(self):
         return [self.log_rewards_int, self.log_loss_ppo, self.log_loss_diffusion, self.log_loss_im_ssl]
 
-    def compute_im(self, reward_int_a_coeff, reward_int_b_coeff):
+    def compute_im(self):
         # for all paralel envs
         for env in range(self.envs_count):
             states_t              = self.trajectory_buffer.states[:, env].to(self.device)
@@ -174,7 +174,7 @@ class AgentPPOInDiffB():
             rewards_int_a         = rewards_int_a.detach().cpu()
             rewards_int_b         = rewards_int_b.detach().cpu()
             
-            rewards_int_scaled    = torch.clip(reward_int_a_coeff*rewards_int_a + reward_int_b_coeff*rewards_int_b, 0.0, 1.0)
+            rewards_int_scaled    = torch.clip(self.reward_int_a_coeff*rewards_int_a + self.reward_int_b_coeff*rewards_int_b, 0.0, 1.0)
 
             # add internal rewards into buffer
             self.trajectory_buffer.rewards_int[:, env] = rewards_int_scaled
