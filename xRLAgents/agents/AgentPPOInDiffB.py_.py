@@ -22,7 +22,8 @@ class AgentPPOInDiffB():
         self.adv_ext_coeff      = config.adv_ext_coeff
         self.adv_int_coeff      = config.adv_int_coeff
         self.val_coeff          = config.val_coeff
-        self.reward_int_coeff   = config.reward_int_coeff
+        self.reward_int_a_coeff = config.reward_int_a_coeff
+        self.reward_int_b_coeff = config.reward_int_b_coeff
 
         self.steps              = config.steps
         self.batch_size         = config.batch_size
@@ -37,7 +38,6 @@ class AgentPPOInDiffB():
         self.alpha_max            = config.alpha_max
         self.alpha_inf            = config.alpha_inf
         self.denoising_steps      = config.denoising_steps
-        self.im_distance_func     = config.im_distance_func
 
         self.state_normalise    = config.state_normalise
 
@@ -91,7 +91,8 @@ class AgentPPOInDiffB():
         print("adv_ext_coeff        ", self.adv_ext_coeff)
         print("adv_int_coeff        ", self.adv_int_coeff)
         print("val_coeff            ", self.val_coeff)
-        print("reward_int_coeff     ", self.reward_int_coeff)
+        print("reward_int_a_coeff   ", self.reward_int_a_coeff)
+        print("reward_int_b_coeff   ", self.reward_int_b_coeff)
         print("steps                ", self.steps)
         print("batch_size           ", self.batch_size)
         print("ss_batch_size        ", self.ss_batch_size)
@@ -103,7 +104,6 @@ class AgentPPOInDiffB():
         print("alpha_max            ", self.alpha_max)
         print("alpha_inf            ", self.alpha_inf)
         print("denoising_steps      ", self.denoising_steps)
-        print("im_distance_func     ", self.im_distance_func)
         print("state_normalise      ", self.state_normalise)
 
         print("\n\n")
@@ -124,22 +124,19 @@ class AgentPPOInDiffB():
         # sample action, probs computed from logits
         actions = self._sample_actions(logits_t)
       
-       
         # environment step  
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
-
-        rewards_int, _     = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
-        rewards_int        = rewards_int.detach().cpu().numpy()
-        rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
 
         # top PPO training part
         if training_enabled:    
             
+            rewards_int = numpy.zeros((self.envs_count, ))
             # put trajectory into policy buffer
-            self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext, rewards_int_scaled, dones, self.episode_steps)
+            self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext, rewards_int, dones, self.episode_steps)
 
             # if buffer is full, run training loop
             if self.trajectory_buffer.is_full():
+                self.compute_im()   
                 self.trajectory_buffer.compute_returns(self.gamma_ext, self.gamma_int)
                 self.train()
                 self.trajectory_buffer.clear()
@@ -151,8 +148,7 @@ class AgentPPOInDiffB():
             self.episode_steps[i] = 0
 
 
-        self.log_rewards_int.add("mean", rewards_int.mean())
-        self.log_rewards_int.add("std", rewards_int.std())
+     
     
         return states_new, rewards_ext, dones, infos
     
@@ -165,6 +161,55 @@ class AgentPPOInDiffB():
 
     def get_logs(self):
         return [self.log_rewards_int, self.log_loss_ppo, self.log_loss_diffusion, self.log_loss_im_ssl]
+
+    def compute_im(self):
+        # for all paralel envs
+        for env in range(self.envs_count):
+            states_t              = self.trajectory_buffer.states[:, env].to(self.device)
+
+            # compute internal reward
+            rewards_int_a, dz, _  = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
+            rewards_int_b         = self._z_score_novelty(dz)
+           
+            rewards_int_a         = rewards_int_a.detach().cpu()
+            rewards_int_b         = rewards_int_b.detach().cpu()
+            
+            rewards_int_scaled    = torch.clip(self.reward_int_a_coeff*rewards_int_a + self.reward_int_b_coeff*rewards_int_b, 0.0, 1.0)
+
+            # add internal rewards into buffer
+            self.trajectory_buffer.rewards_int[:, env] = rewards_int_scaled
+     
+            # add into logs
+            self.log_rewards_int.add("mean_a", rewards_int_a.mean().numpy())
+            self.log_rewards_int.add("std_a", rewards_int_a.std().numpy())
+            self.log_rewards_int.add("mean_b", rewards_int_b.mean().numpy())
+            self.log_rewards_int.add("std_b", rewards_int_b.std().numpy())
+
+
+    """
+    compute Mahalanobis distance as novelty scores
+
+    input z : torch.Tensor, shape (n_steps, n_features)
+    
+    returns :
+    mahalanobis_distances: torch.Tensor, shape (n_steps,)
+    """
+    def _z_score_novelty(self, z):
+        n_steps, n_features = z.shape
+
+        # compute the covariance matrix (shape: n_features x n_features)
+        z_centered = z - z.mean(dim=0)  
+        # covariance matrix
+        covariance_matrix = z_centered.T @ z_centered / (n_steps - 1) 
+
+        # invert matrix, add small value for numerical stability
+        cov_inv = torch.linalg.pinv(covariance_matrix + 1e-8 * torch.eye(n_features, device=z.device))
+
+        # compute Mahalanobis distances for all steps in batch
+        mahalanobis_distances = torch.sqrt((z_centered @ cov_inv * z_centered).sum(dim=1))  
+
+        return mahalanobis_distances
+
 
     def train(self): 
         samples_count = self.steps*self.envs_count
@@ -195,7 +240,7 @@ class AgentPPOInDiffB():
         for batch_idx in range(batch_count):    
             #internal motivation loss, MSE diffusion    
             states_now, states_next, _   = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
-            _, loss_diffusion  = self._internal_motivation(states_now, self.alpha_min, self.alpha_max, self.denoising_steps)
+            _, _, loss_diffusion  = self._internal_motivation(states_now, self.alpha_min, self.alpha_max, self.denoising_steps)
 
 
             #self supervised target regularisation
@@ -243,13 +288,14 @@ class AgentPPOInDiffB():
             z_denoised = z_denoised - noise_hat
 
         # denoising novelty
-        novelty = self.im_distance_func((z_target - z_denoised).detach())
-        
+        dz         = z_target - z_denoised
+        novelty    = (dz**2).mean(dim=1)
+
         # MSE noise loss prediction
         noise_pred = z_noised - z_denoised
         loss = ((noise - noise_pred)**2).mean(dim=1)
         
-        return novelty.detach(), loss
+        return novelty.detach(), dz.detach(), loss
 
 
 
