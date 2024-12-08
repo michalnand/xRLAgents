@@ -4,7 +4,7 @@ import numpy
 from .TrajectoryBufferIM  import *
 from ..training.ValuesLogger           import *
   
-class AgentPPOInDiffC():
+class AgentPPOInDiffC(): 
     def __init__(self, envs, Config, Model):
         self.envs = envs
  
@@ -36,6 +36,8 @@ class AgentPPOInDiffC():
         self.alpha_min            = config.alpha_min
         self.alpha_max            = config.alpha_max
         self.alpha_inf            = config.alpha_inf
+        self.denoising_steps      = config.denoising_steps
+        self.mastering_threshold  = config.mastering_threshold
 
         self.state_normalise    = config.state_normalise
 
@@ -67,12 +69,22 @@ class AgentPPOInDiffC():
         self.state_mean/= self.envs_count
         self.state_var = numpy.ones(self.state_shape,  dtype=numpy.float32)
 
+        # agent mode
+        # 0 - exploiting, no SSL regularisation
+        # 1 - exploring, SSL regularisation enabled
+        self.agent_mode  = 0
+        self.agent_level = 0.0
+
+        self.reward_sum      = numpy.zeros((self.envs_count, ))
+        self.rewards_episode = numpy.zeros((self.envs_count, ))
+
 
         # result loggers
         self.log_rewards_int        = ValuesLogger("rewards_int")
         self.log_loss_ppo           = ValuesLogger("loss_ppo")
         self.log_loss_diffusion     = ValuesLogger("loss_diffusion")
         self.log_loss_im_ssl        = ValuesLogger("loss_im_ssl")
+        self.log_agent_mode         = ValuesLogger("agent_mode")
 
 
         # print parameters summary
@@ -100,6 +112,8 @@ class AgentPPOInDiffC():
         print("alpha_min            ", self.alpha_min)
         print("alpha_max            ", self.alpha_max)
         print("alpha_inf            ", self.alpha_inf)
+        print("denoising_steps      ", self.denoising_steps)
+        print("mastering_threshold  ", self.mastering_threshold)
         print("state_normalise      ", self.state_normalise)
 
         print("\n\n")
@@ -114,7 +128,6 @@ class AgentPPOInDiffC():
 
         states_t = torch.tensor(states_norm, dtype=torch.float).to(self.device)
 
-
         # obtain model output, logits and values
         logits_t, values_ext_t, values_int_t  = self.model.forward(states_t)
 
@@ -125,12 +138,15 @@ class AgentPPOInDiffC():
         # environment step  
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
-        states_next_t = torch.tensor(states_new, dtype=torch.float).to(self.device)
-        actions_t     = torch.tensor(actions, dtype=int).to(self.device)
-
-        rewards_int, _, _  = self._internal_motivation(states_t, states_next_t, actions_t, self.alpha_inf, self.alpha_inf)
+        rewards_int, _     = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
         rewards_int        = rewards_int.detach().cpu().numpy()
         rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
+
+
+        self.reward_sum+=  rewards_ext
+
+        
+
 
         # top PPO training part
         if training_enabled:    
@@ -149,7 +165,32 @@ class AgentPPOInDiffC():
         dones_idx = numpy.where(dones)[0]
         for i in dones_idx:
             self.episode_steps[i] = 0
+            self.rewards_episode[i] = self.reward_sum[i]
+            self.reward_sum[i] = 0
 
+        # count how many trials already mastered current level
+        reached_ratio = self.rewards_episode >= self.agent_level
+        reached_ratio = (1.0*reached_ratio).mean()
+
+        # agent in exploiting mode
+        if self.agent_mode == 0:
+            # if level is mastered, switch to exploring mode
+            if reached_ratio > self.mastering_threshold:
+                self.agent_mode = 1
+        # agent in exploring mode
+        else:
+            max_score = numpy.max(self.rewards_episode)
+            # if found higher episodic reward, switch to exploiting 
+            if max_score > self.agent_level:
+                self.agent_level = max_score
+                self.agent_mode = 0
+
+
+        self.log_agent_mode.add("agent_mode",    self.agent_mode)
+        self.log_agent_mode.add("agent_level",   self.agent_level)
+        self.log_agent_mode.add("reached_ratio", reached_ratio)
+
+        
 
         self.log_rewards_int.add("mean", rewards_int.mean())
         self.log_rewards_int.add("std", rewards_int.std())
@@ -164,7 +205,7 @@ class AgentPPOInDiffC():
         self.model.load_state_dict(torch.load(result_path + "/model.pt", map_location = self.device))
 
     def get_logs(self):
-        return [self.log_rewards_int, self.log_loss_ppo, self.log_loss_diffusion, self.log_loss_im_ssl]
+        return [self.log_rewards_int, self.log_loss_ppo, self.log_loss_diffusion, self.log_loss_im_ssl, self.log_agent_mode]
 
     def train(self): 
         samples_count = self.steps*self.envs_count
@@ -194,8 +235,8 @@ class AgentPPOInDiffC():
         #main IM training loop
         for batch_idx in range(batch_count):    
             #internal motivation loss, MSE diffusion    
-            states_now, states_next, actions = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
-            _, loss_diffusion, actions_acc   = self._internal_motivation(states_now, states_next, actions, self.alpha_min, self.alpha_max)
+            states_now, states_next, _   = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
+            _, loss_diffusion  = self._internal_motivation(states_now, self.alpha_min, self.alpha_max, self.denoising_steps)
 
 
             #self supervised target regularisation
@@ -212,8 +253,6 @@ class AgentPPOInDiffC():
             # log results
             self.log_loss_diffusion.add("mean", loss_diffusion.mean().detach().cpu().numpy())
             self.log_loss_diffusion.add("std", loss_diffusion.std().detach().cpu().numpy())
-            self.log_loss_diffusion.add("acc", actions_acc.detach().cpu().numpy())
-
                 
             for key in info_ssl:
                 self.log_loss_im_ssl.add(str(key), info_ssl[key])
@@ -228,40 +267,31 @@ class AgentPPOInDiffC():
         return actions
 
 
-    # predicted state denoising ability novely detection
-    def _internal_motivation(self, states_now, states_next, actions, alpha_min, alpha_max):
-        # obtain current features
-        z_now = self.model.forward_im_features(states_now).detach()
-
-        # obtain next features
-        z_next = self.model.forward_im_features(states_next).detach()
-
-        # features difference
-        dz_target = z_next - z_now
+    # state denoising ability novely detection
+    def _internal_motivation(self, states, alpha_min, alpha_max, denoising_steps):
+      
+        # obtain taget features from states and noised states
+        z_target  = self.model.forward_im_features(states).detach()
 
         # add noise into features
-        dz_noised, noise, alpha = self.im_noise(dz_target, alpha_min, alpha_max)
+        z_noised, noise, alpha = self.im_noise(z_target, alpha_min, alpha_max)
 
-        # obtain prediction
-        noise_pred = self.model.forward_im_diffusion(dz_noised, actions)
+        z_denoised = z_noised.detach().clone()
+    
+        # denoising by diffusion process
+        for n in range(denoising_steps):
+            noise_hat = self.model.forward_im_diffusion(z_denoised)
+            z_denoised = z_denoised - noise_hat
 
-        # denoising novelty detection
-        # note, this is forward model training,
-        # because : z_next_pred = dz_pred + z_now
-        dz_pred    = dz_noised - noise_pred
-        novelty    = ((dz_target - dz_pred)**2).mean(dim=1)
+        # denoising novelty
+        novelty    = ((z_target - z_denoised)**2).mean(dim=1)
 
         # MSE noise loss prediction
-        loss_diff = ((noise - noise_pred)**2).mean(dim=1)
-
-        # AUX loss, learn to predict actions
-        action_pred = self.model.forward_im_actions(z_now, z_now + dz_pred)
-
-        #loss_func    = torch.nn.CrossEntropyLoss()
-        #loss_actions = loss_func(action_pred, actions)
-        acc = (torch.argmax(action_pred, dim=-1) == actions).float().mean()
+        noise_pred = z_noised - z_denoised
+        loss = ((noise - noise_pred)**2).mean(dim=1)
         
-        return novelty.detach(), loss_diff, acc
+        return novelty.detach(), loss
+
 
 
 
