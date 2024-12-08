@@ -244,7 +244,8 @@ class AgentPPOInDiffC():
             loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_now, states_next, actions)
 
             #final IM loss
-            loss_im = loss_diffusion.mean() + loss_ssl
+            ssl_enabled = 1*self.agent_mode
+            loss_im = loss_diffusion.mean() + ssl_enabled*loss_ssl
 
             self.optimizer.zero_grad()        
             loss_im.mean().backward() 
