@@ -179,11 +179,15 @@ class AgentPPOInDiffC():
                 self.agent_mode = 1
         # agent in exploring mode
         else:
-            max_score = numpy.max(self.rewards_episode)
+            best_score = numpy.sort(self.rewards_episode)
+            # select p% best for next level 
+            n_best = int(self.rewards_episode.shape[0]*(1.0 - self.mastering_threshold))
+            best_score = best_score[-n_best:].mean()
+
             # if found higher episodic reward, switch to exploiting 
-            if max_score > self.agent_level:
-                self.agent_level = max_score
-                self.agent_mode = 0
+            if best_score > self.agent_level:
+                self.agent_level = best_score
+                self.agent_mode  = 0
 
 
         self.log_agent_mode.add("agent_mode",    self.agent_mode)
