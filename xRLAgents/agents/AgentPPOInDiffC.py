@@ -245,7 +245,6 @@ class AgentPPOInDiffC():
 
             #final IM loss
             ssl_enabled = float(self.agent_mode)
-            print(ssl_enabled)
             loss_im = loss_diffusion.mean() + ssl_enabled*loss_ssl
 
             self.optimizer.zero_grad()        
