@@ -193,7 +193,7 @@ class AgentPPOInDiffD():
 
             # add new goal if any
             x = numpy.expand_dims(states[i][0], 0)
-            self.goals_buffer.add(x, self.episode_steps[i], self.episode_score[i], threshold = 0.1)
+            self.goals_buffer.add(x, self.episode_steps[i], self.episode_score[i])
 
             self.goal_reached_flag[i] = 1.0
         
