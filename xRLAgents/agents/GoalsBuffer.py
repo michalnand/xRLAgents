@@ -33,7 +33,7 @@ class GoalsBuffer():
         return goal_idx, self.buffer[goal_idx]
 
     # check if current goal has been reached and update all values
-    def update(self, goal_idx, x, steps, score, threshold = 0.01):
+    def update(self, goal_idx, x, steps, score, threshold = 0.001):
         d = (self.buffer[goal_idx] - x)
         d = (d**2).mean()
 
@@ -53,7 +53,7 @@ class GoalsBuffer():
         return reach_reward, steps_reward
     
 
-    def add(self, x, steps, score, threshold = 0.01):
+    def add(self, x, steps, score, threshold = 0.001):
         d = self.buffer - x
         d = (d**2).mean(axis=(1, 2, 3))
 
