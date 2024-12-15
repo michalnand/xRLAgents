@@ -188,8 +188,8 @@ class AgentPPOInDiffD():
                     self.goal_idx[i] = 0
                     self.goal_states[i] = 0.0
 
-                # agent to common mode
-                self.agent_mode[i] = 0
+                    # agent to common mode
+                    self.agent_mode[i] = 0
 
             # add new goal if any
             x = numpy.expand_dims(states[i][0], 0)
