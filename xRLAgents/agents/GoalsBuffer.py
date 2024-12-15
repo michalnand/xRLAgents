@@ -70,9 +70,9 @@ class GoalsBuffer():
 
             self.curr_ptr+= 1   
 
-            print("\n\n")
-            print("new goal added ", d_closest, self.curr_ptr)
-            print("\n\n")
+            #print("\n\n")
+            #print("new goal added ", d_closest, self.curr_ptr)
+            #print("\n\n")
             
             return True
         
