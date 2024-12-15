@@ -11,7 +11,7 @@ class TrajectoryBufferIM:
         self.clear()   
     
 
-    def add(self, state, logits, values_ext, values_int, actions, rewards_ext, rewards_int, dones, episode_steps):  
+    def add(self, state, logits, values_ext, values_int, actions, rewards_ext, rewards_int, dones, episode_steps, mode = None):  
         self.states[self.ptr]       = state.detach().to("cpu").clone() 
         self.logits[self.ptr]       = logits.detach().to("cpu").clone() 
         
@@ -25,6 +25,9 @@ class TrajectoryBufferIM:
 
         self.dones[self.ptr]            = torch.from_numpy(dones).float()
         self.episode_steps[self.ptr]    = torch.from_numpy(episode_steps)
+
+        if mode is not None:
+            self.mode[self.ptr] = torch.from_numpy(mode)
         
         self.ptr = self.ptr + 1 
 
@@ -50,6 +53,8 @@ class TrajectoryBufferIM:
         self.dones      = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
         self.episode_steps = torch.zeros((self.buffer_size, self.envs_count, ), dtype=int)
 
+        self.mode       = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
+
         self.ptr = 0  
  
     def compute_returns(self, gamma_ext, gamma_int, lam = 0.95):
@@ -74,11 +79,16 @@ class TrajectoryBufferIM:
         self.dones         = self.dones.reshape((self.buffer_size*self.envs_count, ))
         self.episode_steps = self.episode_steps.reshape((self.buffer_size*self.envs_count, ))
 
+        self.mode             = self.mode.reshape((self.buffer_size*self.envs_count, ))
+
         self.returns_ext      = self.returns_ext.reshape((self.buffer_size*self.envs_count, ))
         self.advantages_ext   = self.advantages_ext.reshape((self.buffer_size*self.envs_count, ))
 
+        
         self.returns_int      = self.returns_int.reshape((self.buffer_size*self.envs_count, ))
         self.advantages_int   = self.advantages_int.reshape((self.buffer_size*self.envs_count, ))
+
+        
 
 
     def sample_batch(self, batch_size, device):
@@ -126,9 +136,11 @@ class TrajectoryBufferIM:
         states_now      = (self.states[indices_now]).to(device)
         states_next     = (self.states[indices_next]).to(device)
 
-        actions         = (self.actions[indices_now]).to(device)    
+        actions         = (self.actions[indices_now]).to(device)   
 
-        return states_now, states_next, actions
+        modes           = (self.mode[indices_now]).to(device) 
+
+        return states_now, states_next, actions, modes
     
 
 
