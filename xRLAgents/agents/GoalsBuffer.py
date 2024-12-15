@@ -66,7 +66,9 @@ class GoalsBuffer():
             self.steps[self.curr_ptr]  = steps
             self.scores[self.curr_ptr] = score
 
-            self.curr_ptr+= 1
+            self.curr_ptr+= 1   
+
+            print("new goal added ", d_closest, self.curr_ptr)
             
             return True
         
