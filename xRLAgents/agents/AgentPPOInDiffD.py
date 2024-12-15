@@ -216,11 +216,12 @@ class AgentPPOInDiffD():
             self.episode_steps[i] = 0
             self.episode_score[i] = 0
 
-            # choose new random goal state
-            self.goal_idx[i], self.goal_states[i] = self.goals_buffer.get_goal()
+            if self.goals_buffer.get_count() > 1:
+                # choose new random goal state
+                self.goal_idx[i], self.goal_states[i] = self.goals_buffer.get_goal()
 
-            # goal reaching mode
-            self.agent_mode[i] = 1
+                # goal reaching mode
+                self.agent_mode[i] = 1  
 
             # clear stats
             self.goal_reached_flag_sum[i] = self.goal_reached_flag[i]
