@@ -63,21 +63,22 @@ class GoalsBuffer():
                 steps_reward = True
 
             print("goal reached ", goal_idx, reach_reward, steps_reward)
-            
-            # update content and scores if higher
-            if score > self.scores[goal_idx]:
-                print("score updated for ", goal_idx, self.scores[goal_idx], score)
-
-                self.states_raw[goal_idx]       = state.copy()
-                self.states_processed[goal_idx] = state_processed.copy()
-                self.scores[goal_idx]           = score
-                self.steps[goal_idx]            = steps
-
-                
         
+        # update closes goal if need
+        if d[closest_idx] < threshold:
+            # update content and scores if higher
+            if score > self.scores[closest_idx]:
+                print("score updated for ", closest_idx, self.scores[closest_idx], score)
+
+                self.states_raw[closest_idx]       = state.copy()
+                self.states_processed[closest_idx] = state_processed.copy()
+                self.scores[closest_idx]           = score
+                self.steps[closest_idx]            = steps
+       
         # check if need add new goal
-        if d[closest_idx] > threshold and self.curr_ptr < self.states_raw.shape[0]:
+        elif self.curr_ptr < self.states_raw.shape[0]:
             print("new goal added ", d.mean(), d[closest_idx])
+            
             self.states_raw[self.curr_ptr]       = state[0].copy()
             self.states_processed[self.curr_ptr] = state_processed.copy()
             self.scores[self.curr_ptr]           = score
