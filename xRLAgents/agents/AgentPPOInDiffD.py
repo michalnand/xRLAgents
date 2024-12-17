@@ -61,8 +61,7 @@ class AgentPPOInDiffD():
 
         self.trajectory_buffer = TrajectoryBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
 
-        goal_shape             = (1, state_shape[1], state_shape[2])
-        self.goals_buffer      = GoalsBuffer(goal_shape, 256)
+        self.goals_buffer      = GoalsBuffer(state_shape[1], state_shape[2], 256)
 
         self.episode_steps     = numpy.zeros(self.envs_count, dtype=int)
         self.episode_score     = numpy.zeros((self.envs_count, ))
@@ -82,7 +81,7 @@ class AgentPPOInDiffD():
 
         self.agent_mode  = numpy.zeros((self.envs_count, ))
         self.goal_idx    = numpy.zeros((self.envs_count, ), dtype=int)
-        self.goal_states = numpy.zeros((self.envs_count, ) + goal_shape)
+        self.goal_states = numpy.zeros((self.envs_count, 1, state_shape[1], state_shape[2]))
 
         # initial goals
         for e in range(self.envs_count):
@@ -167,35 +166,32 @@ class AgentPPOInDiffD():
 
         self.episode_score+= rewards_ext
 
-        # non-zero reward
-        reward_idx = numpy.where(rewards_ext > 0)[0]
-
+       
         # add or refresh target state
         rewards_ext_g = rewards_ext.copy()
-        for i in reward_idx:
+        
+        for i in range(self.envs_count):
+            reach_reward, steps_reward, goal_added = self.goals_buffer.update(self.goal_idx[i], states[i], self.episode_steps[i], self.episode_score[i])
+
             # reward only when agent in goal reaching mode
-            if self.agent_mode[i] == 1:
-                reach_reward, steps_reward = self.goals_buffer.update(self.goal_idx[i], self.goal_states[i], self.episode_steps[i], self.episode_score[i])
-                
+            if self.agent_mode[i] == 1:                
                 if reach_reward:
+                    # reward for reaching goal
                     rewards_ext_g[i]+= reach_reward*self.goal_reach_coeff
 
-                if steps_reward:
-                    rewards_ext_g[i]+= steps_reward*self.goal_steps_coeff
-
-                # clear goal state
-                if reach_reward:
-                    self.goal_idx[i] = 0
+                    # clear goal
+                    self.goal_idx[i]    = 0
                     self.goal_states[i] = 0.0
 
                     # agent to common mode
                     self.agent_mode[i] = 0
 
-            # add new goal if any
-            x = numpy.expand_dims(states[i][0], 0)
-            self.goals_buffer.add(x, self.episode_steps[i], self.episode_score[i])
+                    self.goal_reached_flag[i] = 1.0
 
-            self.goal_reached_flag[i] = 1.0
+                    # extra reward for faster goal reaching
+                    if steps_reward:
+                        rewards_ext_g[i]+= steps_reward*self.goal_steps_coeff
+    
         
         # top PPO training part
         if training_enabled:    

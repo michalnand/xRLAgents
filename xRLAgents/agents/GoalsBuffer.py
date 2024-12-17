@@ -1,17 +1,22 @@
 import torch 
 import numpy
 
+import cv2
   
 class GoalsBuffer(): 
-    def __init__(self, shape, buffer_size):
+    def __init__(self, height, width, buffer_size, downsample = 8):
 
-        self.curr_ptr = 1
-        self.buffer = numpy.zeros((buffer_size, ) + shape, dtype=numpy.float32)
+        self.downsample       = downsample
+
+        self.states_raw       = numpy.zeros((buffer_size, height, width), dtype=numpy.float32)
+        self.states_processed = numpy.zeros((buffer_size, height//downsample, width//downsample), dtype=numpy.float32)
 
         self.scores = numpy.zeros((buffer_size, ), dtype=numpy.float32)
         self.steps  = numpy.zeros((buffer_size, ), dtype=int)
 
         self.scores[0] = 10**-4
+
+        self.curr_ptr = 1
 
     # randomly select one goal from buffer
     # selection probability is given by scores vlaues
@@ -30,54 +35,65 @@ class GoalsBuffer():
 
         goal_idx = numpy.random.choice(tmp.shape[0], p=normalised)
 
-        return goal_idx, self.buffer[goal_idx]
+        return goal_idx, numpy.expand_dims(self.states_raw[goal_idx], 0)
 
-    # check if current goal has been reached and update all values
-    def update(self, goal_idx, x, steps, score, threshold = 0.002):
-        d = (self.buffer[goal_idx] - x)
-        d = (d**2).mean()
+
+    def step(self, goal_idx, state, steps, score, threshold = 0.001):
+
+        state_processed = self._preprocess_frame(state[0])
+
+        d = self.states_processed - state_processed
+        d = (d**2).mean(axis=(1, 2))
+
+        closest_idx = numpy.argmin(d)
+        
 
         reach_reward = False
         steps_reward = False
+        goal_added   = False
 
-        if d < threshold :
-            reach_reward = True
-
+        # check if current goal idx reached
+        if d[goal_idx] < threshold and score >= self.scores[goal_idx]:
+            
+            # fewer steps to reach goal
             if steps < self.steps[goal_idx]:
                 self.steps[goal_idx] = steps
                 steps_reward = True
-
-            if score > self.scores[goal_idx]:
-                self.scores[goal_idx] = score
-
-        return reach_reward, steps_reward
-    
-
-    def add(self, x, steps, score, threshold = 0.002):
-        d = self.buffer - x
-        d = (d**2).mean(axis=(1, 2, 3))
-
-        closest = numpy.argmin(d)
-
-        d_closest = d[closest]
-
-        max_score = numpy.max(self.scores)  
-
-        if d_closest > 2*threshold and self.curr_ptr < self.buffer.shape[0] and score > max_score:
-            self.buffer[self.curr_ptr] = x
-            self.steps[self.curr_ptr]  = steps
-            self.scores[self.curr_ptr] = score
-
-            self.curr_ptr+= 1   
-
-            #print("\n\n")
-            #print("new goal added ", d_closest, self.curr_ptr)
-            #print("\n\n")
             
-            return True
-        
-        return False
-    
+            # update content and scores if higher
+            if score > self.scores[goal_idx]:
+                self.states_raw[goal_idx]       = state.copy()
+                self.states_processed[goal_idx] = state_processed.copy()
+                self.scores[goal_idx]           = score
+                self.steps[goal_idx]            = steps
 
+            reach_reward = True
+        
+        # check if need add new goal
+        if d[closest_idx] > threshold and self.curr_ptr < self.states_raw.shape[0]:
+            self.states_raw[self.curr_ptr]       = state.copy()
+            self.states_processed[self.curr_ptr] = state_processed.copy()
+            self.scores[self.curr_ptr]           = score
+            self.steps[self.curr_ptr]            = steps
+
+            self.curr_ptr+= 1
+
+            goal_added = True
+ 
+
+        return reach_reward, steps_reward, goal_added
+
+   
     def get_count(self):
         return self.curr_ptr
+
+    def _preprocess_frame(self, frame, bits=8):
+        height = self.states_processed.shape[1]
+        width  = self.states_processed.shape[2]
+
+        # downsample 
+        resized = cv2.resize(frame, (width, height), interpolation=cv2.INTER_AREA)
+        
+        # discretise
+        binned = (resized*bits).astype(numpy.uint8)  
+        return numpy.array(binned, dtype=numpy.float32)/bits
