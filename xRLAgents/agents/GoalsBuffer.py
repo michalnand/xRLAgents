@@ -71,6 +71,7 @@ class GoalsBuffer():
         
         # check if need add new goal
         if d[closest_idx] > threshold and self.curr_ptr < self.states_raw.shape[0]:
+            print("new goal added ", d.mean(), d[closest_idx])
             self.states_raw[self.curr_ptr]       = state[0].copy()
             self.states_processed[self.curr_ptr] = state_processed.copy()
             self.scores[self.curr_ptr]           = score
