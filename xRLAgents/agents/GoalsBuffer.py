@@ -56,9 +56,14 @@ class GoalsBuffer():
         if d[goal_idx] < threshold and score >= self.scores[goal_idx]:
             
             # fewer steps to reach goal
-            if steps < self.steps[goal_idx]:
-                self.steps[goal_idx] = steps
-                steps_reward = True
+            if score > 0:
+                reach_reward = True
+                
+                if steps < self.steps[goal_idx]:
+                    self.steps[goal_idx] = steps
+                    steps_reward = True
+
+                print("goal reached ", goal_idx, reach_reward, steps_reward)
             
             # update content and scores if higher
             if score > self.scores[goal_idx]:
@@ -69,9 +74,7 @@ class GoalsBuffer():
                 self.scores[goal_idx]           = score
                 self.steps[goal_idx]            = steps
 
-            if score > 0:
-                reach_reward = True
-                print("goal reached ", goal_idx)
+                
         
         # check if need add new goal
         if d[closest_idx] > threshold and self.curr_ptr < self.states_raw.shape[0]:
