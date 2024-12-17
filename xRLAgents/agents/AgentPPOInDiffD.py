@@ -171,7 +171,7 @@ class AgentPPOInDiffD():
         rewards_ext_g = rewards_ext.copy()
         
         for i in range(self.envs_count):
-            reach_reward, steps_reward, goal_added = self.goals_buffer.update(self.goal_idx[i], states[i], self.episode_steps[i], self.episode_score[i])
+            reach_reward, steps_reward, goal_added = self.goals_buffer.step(self.goal_idx[i], states[i], self.episode_steps[i], self.episode_score[i])
 
             # reward only when agent in goal reaching mode
             if self.agent_mode[i] == 1:                
