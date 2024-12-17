@@ -69,7 +69,9 @@ class GoalsBuffer():
                 self.scores[goal_idx]           = score
                 self.steps[goal_idx]            = steps
 
-            reach_reward = True
+            if score > 0:
+                reach_reward = True
+                print("goal reached ", goal_idx)
         
         # check if need add new goal
         if d[closest_idx] > threshold and self.curr_ptr < self.states_raw.shape[0]:
