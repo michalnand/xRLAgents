@@ -38,7 +38,7 @@ class GoalsBuffer():
         return goal_idx, numpy.expand_dims(self.states_raw[goal_idx], 0)
 
 
-    def step(self, goal_idx, state, steps, score, threshold = 0.001):
+    def step(self, goal_idx, state, steps, score, threshold = 0.002):
 
         state_processed = self._preprocess_frame(state[0])
 
@@ -62,6 +62,8 @@ class GoalsBuffer():
             
             # update content and scores if higher
             if score > self.scores[goal_idx]:
+                print("score updated for ", goal_idx, self.scores[goal_idx], score)
+
                 self.states_raw[goal_idx]       = state.copy()
                 self.states_processed[goal_idx] = state_processed.copy()
                 self.scores[goal_idx]           = score
