@@ -20,9 +20,10 @@ class GoalsBuffer():
 
     # randomly select one goal from buffer
     # selection probability is given by scores vlaues
-    def get_goal(self):
+    def get_goal(self, temperature = 1.0):
         # normalise to sum equal to 1
         tmp = numpy.array(self.scores, dtype=numpy.float64)
+        tmp = numpy.exp((tmp - numpy.max(tmp))/temperature)
         sum = numpy.sum(tmp)
 
         normalised = tmp/sum
