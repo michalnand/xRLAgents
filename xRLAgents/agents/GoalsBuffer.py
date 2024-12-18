@@ -11,10 +11,8 @@ class GoalsBuffer():
         self.states_raw       = numpy.zeros((buffer_size, height, width), dtype=numpy.float32)
         self.states_processed = numpy.zeros((buffer_size, height//downsample, width//downsample), dtype=numpy.float32)
 
-        self.scores = numpy.zeros((buffer_size, ), dtype=numpy.float32)
+        self.scores = -(10**6)*numpy.ones((buffer_size, ), dtype=numpy.float32)
         self.steps  = numpy.zeros((buffer_size, ), dtype=int)
-
-        self.scores[0] = 10**-4
 
         self.curr_ptr = 1
 

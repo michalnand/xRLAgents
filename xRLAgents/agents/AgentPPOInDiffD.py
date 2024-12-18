@@ -228,11 +228,12 @@ class AgentPPOInDiffD():
         self.log_rewards_int.add("std", rewards_int.std())
 
         self.log_goals.add("count", self.goals_buffer.get_count())
+
         self.log_goals.add("reached mean", self.goal_reached_flag_sum.mean())
         self.log_goals.add("reached std", self.goal_reached_flag_sum.std())
         self.log_goals.add("mode mean", self.agent_mode.mean())
         self.log_goals.add("mode std", self.agent_mode.std())
-    
+
         return states_new, rewards_ext, dones, infos
     
 
