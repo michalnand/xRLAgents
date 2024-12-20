@@ -239,6 +239,7 @@ class AgentPPOInDiffD():
 
     def save(self, result_path):
         torch.save(self.model.state_dict(), result_path + "/model.pt")
+        self.goals_buffer.save(result_path + "/goals_buffer_")
 
     def load(self, result_path):
         self.model.load_state_dict(torch.load(result_path + "/model.pt", map_location = self.device))

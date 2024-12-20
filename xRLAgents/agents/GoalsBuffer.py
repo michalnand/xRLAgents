@@ -56,14 +56,14 @@ class GoalsBuffer():
             
             reach_reward = True
             
-            # fewer steps to reach goal
+            # less steps to reach goal
             if steps < self.steps[goal_idx]:
                 self.steps[goal_idx] = steps
                 steps_reward = True
 
             #print("\n\ngoal reached ", goal_idx, reach_reward, steps_reward)
         
-        # update closes goal if need
+        # update closest goal if needed
         if d[closest_idx] < threshold:
             # update content and scores if higher
             if score > self.scores[closest_idx]:
@@ -75,7 +75,7 @@ class GoalsBuffer():
                 self.steps[closest_idx]            = steps
        
         # check if need add new goal
-        elif self.curr_ptr < self.states_raw.shape[0]:
+        elif d[closest_idx] > 1.5*threshold and self.curr_ptr < self.states_raw.shape[0]:
             #print("\n\nnew goal added ", d.mean(), d[closest_idx], score)
 
             self.states_raw[self.curr_ptr]       = state_tmp.copy()
@@ -94,13 +94,24 @@ class GoalsBuffer():
     def get_count(self):
         return self.curr_ptr
 
-    def _preprocess_frame(self, frame, bits=8):
+
+    def save(self, prefix):
+        numpy.save(prefix + "raw.npy", self.states_raw)
+        numpy.save(prefix + "processed.npy", self.states_processed)
+        numpy.save(prefix + "scores.npy", self.scores)
+        numpy.save(prefix + "steps.npy", self.steps)
+
+    def _preprocess_frame(self, frame, levels_count=8):
         height = self.states_processed.shape[1]
         width  = self.states_processed.shape[2]
 
         # downsample 
         resized = cv2.resize(frame, (width, height), interpolation=cv2.INTER_AREA)
+
+        # normalise
+        resized = resized/(numpy.max(resized) + 10e-6)  
         
-        # discretise
-        binned = (resized*bits).astype(numpy.uint8)  
-        return numpy.array(binned, dtype=numpy.float32)/bits
+        # discretise    
+        quantized = (resized*levels_count).astype(numpy.uint8) 
+        quantized = numpy.array(quantized, dtype=numpy.float32)/levels_count 
+        return quantized
