@@ -75,7 +75,7 @@ class GoalsBuffer():
                 self.steps[closest_idx]            = steps
        
         # check if need add new goal
-        elif d[closest_idx] > 1.5*threshold and self.curr_ptr < self.states_raw.shape[0]:
+        elif self.curr_ptr < self.states_raw.shape[0]:
             #print("\n\nnew goal added ", d.mean(), d[closest_idx], score)
 
             self.states_raw[self.curr_ptr]       = state_tmp.copy()
@@ -111,7 +111,7 @@ class GoalsBuffer():
         # normalise
         resized = resized/(numpy.max(resized) + 10e-6)  
         
-        # discretise    
+        # discretise       
         quantized = (resized*levels_count).astype(numpy.uint8) 
         quantized = numpy.array(quantized, dtype=numpy.float32)/levels_count 
         return quantized
