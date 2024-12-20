@@ -74,10 +74,10 @@ class GoalsBuffer():
                 self.scores[closest_idx]           = score
                 self.steps[closest_idx]            = steps
        
-        # check if need add new goal
+        # add new goal
         elif d[closest_idx] > 1.5*threshold and self.curr_ptr < self.states_raw.shape[0]:
             #print("\n\nnew goal added ", d.mean(), d[closest_idx], score)
-            
+
             self.states_raw[self.curr_ptr]       = state_tmp.copy()
             self.states_processed[self.curr_ptr] = state_processed.copy()
             self.scores[self.curr_ptr]           = score
