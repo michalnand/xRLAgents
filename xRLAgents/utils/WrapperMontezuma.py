@@ -229,6 +229,20 @@ def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps
     env = ResizeEnv(env, height, width, frame_stacking)
     env = MaxSteps(env, max_steps)
     env = Rewards(env)
-    env = ExploredRoomsEnv(env)     
+    env = ExploredRoomsEnv(env, room_address = 3)     
+
+    return env
+
+
+
+def WrapperPitfall(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
+    #env = VideoRecorder(env)
+    env = NopOpsEnv(env)
+    env = StickyActionEnv(env)
+    env = RepeatActionEnv(env) 
+    env = ResizeEnv(env, height, width, frame_stacking)
+    env = MaxSteps(env, max_steps)
+    env = Rewards(env)
+    env = ExploredRoomsEnv(env, room_address = 1)     
 
     return env
