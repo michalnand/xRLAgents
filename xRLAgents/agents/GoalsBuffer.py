@@ -17,10 +17,12 @@ class GoalsBuffer():
         self.curr_ptr = 0
 
     # randomly select one goal from buffer
-    # selection probability is given by scores vlaues
+    # selection probability is given by scores vlaues and num of steps to reach
     def get_goal(self, temperature = 1.0):
+        tmp = self.scores*(1.0 + numpy.log(1.0 + self.steps))
+        tmp = numpy.array(tmp, dtype=numpy.float64)
+
         # normalise to sum equal to 1
-        tmp = numpy.array(self.scores, dtype=numpy.float64)
         tmp = numpy.exp((tmp - numpy.max(tmp))/temperature)
         sum = numpy.sum(tmp)
 
