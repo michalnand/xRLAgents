@@ -176,7 +176,7 @@ class AgentPPOInDiffD():
             # reward only when agent in goal reaching mode and goal reached
             if self.agent_mode[i] == 1 and reach_reward:    
 
-                if self.goals_buffer.get_count() > 1:             
+                if self.goal_idx[i] != 0:             
                     # reward for reaching goal
                     rewards_ext_g[i]+= reach_reward*self.goal_reach_coeff
 
@@ -185,7 +185,7 @@ class AgentPPOInDiffD():
                         rewards_ext_g[i]+= steps_reward*self.goal_steps_coeff
 
                 # clear goal    
-                self.goal_idx[i]    = 0
+                self.goal_idx[i]    = 0 
                 self.goal_states[i] = 0.0
 
                 # agent to common mode
