@@ -36,11 +36,6 @@ class GoalsBuffer():
 
         goal_idx = numpy.random.choice(tmp.shape[0], p=normalised)
 
-        print("probs = ", normalised[0:20])
-        print("steps = ", self.steps[0:20])
-        print("score = ", self.scores[0:20])
-        print()
-
         return goal_idx, numpy.expand_dims(self.states_raw[goal_idx], 0)
 
 
