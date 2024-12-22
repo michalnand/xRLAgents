@@ -175,7 +175,8 @@ class AgentPPOInDiffD():
 
             # reward only when agent in goal reaching mode and goal reached
             if self.agent_mode[i] == 1 and reach_reward:    
-
+                
+                # don't reward for reaching initial goal, since it is trivial
                 if self.goal_idx[i] != 0:             
                     # reward for reaching goal
                     rewards_ext_g[i]+= reach_reward*self.goal_reach_coeff
