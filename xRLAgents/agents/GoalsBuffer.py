@@ -65,7 +65,7 @@ class GoalsBuffer():
                 self.steps[goal_idx] = steps
                 steps_reward = True
 
-            #print("\n\ngoal reached ", goal_idx, reach_reward, steps_reward)
+            print("\n\ngoal reached ", goal_idx, reach_reward, steps_reward, self.steps[goal_idx])
         
         # update closest goal if needed
         if d[closest_idx] < threshold:
