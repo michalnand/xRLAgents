@@ -46,17 +46,16 @@ class GoalsBuffer():
 
         closest_idx = numpy.argmin(d)
         
-
         reach_reward = False
         steps_reward = False
         goal_added   = False
 
-        # check if current goal idx reached
+        # check if current goal reached with expected score
         if d[goal_idx] < threshold and score >= self.scores[goal_idx]:
             
             reach_reward = True
             
-            # less steps to reach goal
+            # reward for less steps to reach goal
             if steps < self.steps[goal_idx]:
                 self.steps[goal_idx] = steps
                 steps_reward = True
@@ -74,8 +73,9 @@ class GoalsBuffer():
                 self.scores[closest_idx]           = score
                 self.steps[closest_idx]            = steps
        
-        # add new goal
-        elif d[closest_idx] > 1.5*threshold and self.curr_ptr < self.states_raw.shape[0]:
+       
+        # add new goal if not close goal present 
+        if d[closest_idx] > 1.05*threshold and self.curr_ptr < self.states_raw.shape[0]:
             #print("\n\nnew goal added ", d.mean(), d[closest_idx], score)
 
             self.states_raw[self.curr_ptr]       = state_tmp.copy()
@@ -101,7 +101,21 @@ class GoalsBuffer():
         numpy.save(prefix + "scores.npy", self.scores)
         numpy.save(prefix + "steps.npy", self.steps)
 
-    def _preprocess_frame(self, frame, levels_count=8):
+    def load(self, prefix):
+        self.states_raw       = numpy.load(prefix + "raw.npy")
+        self.states_processed = numpy.load(prefix + "processed.npy", self.states_processed)
+        self.scores           = numpy.load(prefix + "scores.npy", self.scores)
+        self.steps            = numpy.load(prefix + "steps.npy", self.steps)
+
+        # count number of real stored states
+        self.curr_ptr = 0
+        for n in range(self.steps.shape[0]):
+            self.curr_ptr+= 1
+            if self.steps[n] == 0:
+                break
+
+
+    def _preprocess_frame(self, frame, levels_count=16):
         height = self.states_processed.shape[1]
         width  = self.states_processed.shape[2]
 

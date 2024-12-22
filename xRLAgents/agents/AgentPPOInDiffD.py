@@ -173,25 +173,27 @@ class AgentPPOInDiffD():
         for i in range(self.envs_count):
             reach_reward, steps_reward, goal_added = self.goals_buffer.step(self.goal_idx[i], states[i], self.episode_steps[i], self.episode_score[i])
 
-            # reward only when agent in goal reaching mode
-            if self.agent_mode[i] == 1:                
-                if reach_reward:
-                    # reward for reaching goal
-                    rewards_ext_g[i]+= reach_reward*self.goal_reach_coeff
+            # reward only when agent in goal reaching mode and goal reached
+            if self.agent_mode[i] == 1 and reach_reward:                
+                # reward for reaching goal
+                rewards_ext_g[i]+= reach_reward*self.goal_reach_coeff
 
-                    # clear goal
-                    self.goal_idx[i]    = 0
-                    self.goal_states[i] = 0.0
+                # extra reward for faster goal reaching
+                if steps_reward:
+                    rewards_ext_g[i]+= steps_reward*self.goal_steps_coeff
 
-                    # agent to common mode
-                    self.agent_mode[i] = 0
+                # clear goal    
+                self.goal_idx[i]    = 0
+                self.goal_states[i] = 0.0
 
-                    self.goal_reached_flag[i] = 1.0
+                # agent to common mode
+                self.agent_mode[i] = 0
 
-                    # extra reward for faster goal reaching
-                    if steps_reward:
-                        rewards_ext_g[i]+= steps_reward*self.goal_steps_coeff
-    
+                # store fot statistics
+                self.goal_reached_flag[i] = 1.0
+
+              
+
         
         # top PPO training part
         if training_enabled:    
