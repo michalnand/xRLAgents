@@ -214,7 +214,7 @@ class AgentPPOInDiffD():
             self.episode_steps[i] = 0
             self.episode_score[i] = 0
 
-            if self.goals_buffer.get_count() > 1:
+            if self.goals_buffer.get_count() > 0:
                 # choose new random goal state
                 self.goal_idx[i], self.goal_states[i] = self.goals_buffer.get_goal()
 

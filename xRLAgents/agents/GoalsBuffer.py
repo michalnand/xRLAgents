@@ -14,7 +14,7 @@ class GoalsBuffer():
         self.scores = -(10**6)*numpy.ones((buffer_size, ), dtype=numpy.float32)
         self.steps  = numpy.zeros((buffer_size, ), dtype=int)
 
-        self.curr_ptr = 1
+        self.curr_ptr = 0
 
     # randomly select one goal from buffer
     # selection probability is given by scores vlaues
@@ -40,6 +40,11 @@ class GoalsBuffer():
     def step(self, goal_idx, state, steps, score, threshold = 0.002):
         state_tmp = state[0]
         state_processed = self._preprocess_frame(state_tmp)
+
+        # first step, initialise 
+        if self.curr_ptr == 0:
+            self._add_new_goal(state_tmp, state_processed, score, steps)
+
 
         d = self.states_processed - state_processed
         d = (d**2).mean(axis=(1, 2))
@@ -76,21 +81,23 @@ class GoalsBuffer():
        
         # add new goal if not close goal present 
         if d[closest_idx] > 1.05*threshold and self.curr_ptr < self.states_raw.shape[0]:
-            #print("\n\nnew goal added ", d.mean(), d[closest_idx], score)
-
-            self.states_raw[self.curr_ptr]       = state_tmp.copy()
-            self.states_processed[self.curr_ptr] = state_processed.copy()
-            self.scores[self.curr_ptr]           = score
-            self.steps[self.curr_ptr]            = steps
-
-            self.curr_ptr+= 1
-
+            self._add_new_goal(state_tmp, state_processed, score, steps)
+           
             goal_added = True
  
 
         return reach_reward, steps_reward, goal_added
 
-   
+    def _add_new_goal(self, state_tmp, state_processed, score, steps):
+        #print("\n\nnew goal added ", d.mean(), d[closest_idx], score)
+
+        self.states_raw[self.curr_ptr]       = state_tmp.copy()
+        self.states_processed[self.curr_ptr] = state_processed.copy()
+        self.scores[self.curr_ptr]           = score
+        self.steps[self.curr_ptr]            = steps
+
+        self.curr_ptr+= 1
+
     def get_count(self):
         return self.curr_ptr
 
@@ -111,7 +118,7 @@ class GoalsBuffer():
         self.curr_ptr = 0
         for n in range(self.steps.shape[0]):
             self.curr_ptr+= 1
-            if self.steps[n] == 0:
+            if self.states_raw[n].sum() < 10e-6:
                 break
 
 
