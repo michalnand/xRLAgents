@@ -56,7 +56,7 @@ class GoalsBuffer():
         goal_added   = False
 
         # check if current goal reached with expected score
-        if d[goal_idx] < threshold and score >= self.scores[goal_idx]:
+        if d[goal_idx] < threshold and score >= self.scores[goal_idx]: # and steps > 0:
             
             reach_reward = True
             
@@ -65,7 +65,7 @@ class GoalsBuffer():
                 self.steps[goal_idx] = steps
                 steps_reward = True
 
-            print("\n\ngoal reached ", goal_idx, reach_reward, steps_reward, self.steps[goal_idx])
+            #print("\n\ngoal reached ", goal_idx, reach_reward, steps_reward, self.steps[goal_idx])
         
         # update closest goal if needed
         if d[closest_idx] < threshold:
@@ -89,7 +89,7 @@ class GoalsBuffer():
         return reach_reward, steps_reward, goal_added
 
     def _add_new_goal(self, state_tmp, state_processed, score, steps):
-        print("\n\nnew goal added ", self.curr_ptr, score, steps)
+        #print("\n\nnew goal added ", self.curr_ptr, score, steps)
 
         self.states_raw[self.curr_ptr]       = state_tmp.copy()
         self.states_processed[self.curr_ptr] = state_processed.copy()

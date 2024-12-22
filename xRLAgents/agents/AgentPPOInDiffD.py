@@ -192,6 +192,8 @@ class AgentPPOInDiffD():
                 # store fot statistics
                 self.goal_reached_flag[i] = 1.0
 
+                print("goal reached ", i, reach_reward, steps_reward, (self.agent_mode*1.0).mean())
+
               
 
         
@@ -219,7 +221,7 @@ class AgentPPOInDiffD():
                 self.goal_idx[i], self.goal_states[i] = self.goals_buffer.get_goal()
 
                 # goal reaching mode
-                self.agent_mode[i] = 1  
+                self.agent_mode[i] = 1      
 
             # clear stats
             self.goal_reached_flag_sum[i] = self.goal_reached_flag[i]
