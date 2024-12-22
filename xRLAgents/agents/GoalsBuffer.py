@@ -36,6 +36,8 @@ class GoalsBuffer():
 
         goal_idx = numpy.random.choice(tmp.shape[0], p=normalised)
 
+        print("probs = ", normalised[0:20])
+
         return goal_idx, numpy.expand_dims(self.states_raw[goal_idx], 0)
 
 
