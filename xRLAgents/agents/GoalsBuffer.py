@@ -89,7 +89,7 @@ class GoalsBuffer():
         return reach_reward, steps_reward, goal_added
 
     def _add_new_goal(self, state_tmp, state_processed, score, steps):
-        #print("\n\nnew goal added ", d.mean(), d[closest_idx], score)
+        print("\n\nnew goal added ", self.curr_ptr, score, steps)
 
         self.states_raw[self.curr_ptr]       = state_tmp.copy()
         self.states_processed[self.curr_ptr] = state_processed.copy()
