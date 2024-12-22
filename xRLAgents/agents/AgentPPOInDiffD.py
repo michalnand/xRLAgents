@@ -190,9 +190,9 @@ class AgentPPOInDiffD():
                 self.agent_mode[i] = 0
 
                 # store fot statistics
-                self.goal_reached_flag[i] = 1.0
+                self.goal_reached_flag[i] = 1.0 
 
-                print("goal reached ", i, reach_reward, steps_reward, (self.agent_mode*1.0).mean())
+                print("goal reached ", i, reach_reward, steps_reward, self.episode_steps[i], (self.agent_mode*1.0).mean())
 
               
 
