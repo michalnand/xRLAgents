@@ -174,13 +174,15 @@ class AgentPPOInDiffD():
             reach_reward, steps_reward, goal_added = self.goals_buffer.step(self.goal_idx[i], states[i], self.episode_steps[i], self.episode_score[i])
 
             # reward only when agent in goal reaching mode and goal reached
-            if self.agent_mode[i] == 1 and reach_reward:                
-                # reward for reaching goal
-                rewards_ext_g[i]+= reach_reward*self.goal_reach_coeff
+            if self.agent_mode[i] == 1 and reach_reward:    
 
-                # extra reward for faster goal reaching
-                if steps_reward:
-                    rewards_ext_g[i]+= steps_reward*self.goal_steps_coeff
+                if self.goals_buffer.get_count() > 1:             
+                    # reward for reaching goal
+                    rewards_ext_g[i]+= reach_reward*self.goal_reach_coeff
+
+                    # extra reward for faster goal reaching
+                    if steps_reward:
+                        rewards_ext_g[i]+= steps_reward*self.goal_steps_coeff
 
                 # clear goal    
                 self.goal_idx[i]    = 0
@@ -192,7 +194,7 @@ class AgentPPOInDiffD():
                 # store fot statistics
                 self.goal_reached_flag[i] = 1.0 
 
-                print("goal reached ", i, reach_reward, steps_reward, self.episode_steps[i], (self.agent_mode*1.0).mean())
+                #print("goal reached ", i, reach_reward, steps_reward, self.episode_steps[i], (self.agent_mode*1.0).mean())
 
               
 

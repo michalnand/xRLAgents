@@ -55,8 +55,8 @@ class GoalsBuffer():
         steps_reward = False
         goal_added   = False
 
-        # check if current goal reached with expected score 
-        if d[goal_idx] < threshold and score >= self.scores[goal_idx] and steps > 100:
+        # check if current goal reached with expected score     
+        if d[goal_idx] < threshold and score >= self.scores[goal_idx]:
             
             reach_reward = True
             
