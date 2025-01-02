@@ -184,7 +184,7 @@ class AgentPPOInDiffD():
                     rewards_ext_g[n]+= reach_reward[n]*self.goal_reach_coeff
 
                     # extra reward for faster goal reaching
-                    if steps_reward:
+                    if steps_reward[n]:
                         rewards_ext_g[n]+= steps_reward[n]*self.goal_steps_coeff
 
                 # clear goal    
