@@ -72,7 +72,7 @@ class AdaptiveGoalsBuffer():
                     steps_reward[n] = True
 
                 if goal_ids[n] != 0:
-                    print("goal reached ", n, d_min[n], self.scores[n], self.steps[n], steps_reward[n])
+                    print("goal reached ", n, closest_id, d_min[n], self.scores[n], self.steps[n], steps_reward[n])
             
             # some goal reached, update it's values, only if reached with higher score
             elif scores[n] > self.scores[closest_id]:
@@ -142,7 +142,7 @@ class AdaptiveGoalsBuffer():
         return goal_idx, numpy.expand_dims(self.states_raw[goal_idx], 0)
 
 
-    def _features_func(self, states, kernel_size = 4):
+    def _features_func(self, states, kernel_size = 8):
         
         x = torch.from_numpy(states).float()
         x = torch.nn.functional.avg_pool2d(x, (kernel_size, kernel_size), kernel_size)
