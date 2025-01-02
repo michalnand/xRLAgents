@@ -45,7 +45,6 @@ class AdaptiveGoalsBuffer():
         closests_ids = numpy.argmin(d, axis=0)[0]
         d_min        = numpy.min(d, axis=0)[0]
 
-        print(closests_ids, d_min)       
 
         # estimate mean and var using EMA
         self.mu  = (1.0 - self.alpha)*self.mu  + self.alpha*d_min.mean()
@@ -53,6 +52,11 @@ class AdaptiveGoalsBuffer():
         
         # compute adaptive threshold for goal reaching
         threshold  = self.mu + 0.1*self.threshold * (self.var**0.5)
+
+        print(closests_ids, d_min)       
+        print(self.mu, self.var)       
+        print("\n")
+
 
         # goal reaching reward
         candidates   = numpy.where(d_min < threshold)[0]
