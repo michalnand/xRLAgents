@@ -67,11 +67,11 @@ class GoalsBuffer():
                 self.steps[goal_idx] = steps
                 steps_reward = True
 
-            print("\n\ngoal reached ", goal_idx, reach_reward, steps_reward, self.steps[goal_idx])
+            #print("\n\ngoal reached ", goal_idx, reach_reward, steps_reward, self.steps[goal_idx])
         
         # update closest goal only if reached higher score
         if d[closest_idx] < reach_threshold and score > self.scores[closest_idx]:
-            print("\n\nscore updated for ", closest_idx, self.scores[closest_idx], score)
+            #print("\n\nscore updated for ", closest_idx, self.scores[closest_idx], score)
 
             self.states_raw[closest_idx]       = state_tmp.copy()
             self.states_processed[closest_idx] = state_processed.copy()
