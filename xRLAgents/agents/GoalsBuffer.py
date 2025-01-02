@@ -82,10 +82,9 @@ class GoalsBuffer():
         # add new goal if not close goal present 
         diff = ((state[0] - state[1])**2).mean()
         if d[closest_idx] > reach_threshold and diff > diff_threshold and self.curr_ptr < self.states_raw.shape[0]:
-            print("\n\nnew goal added ", d[closest_idx], diff, score, steps)
+            #print("\n\nnew goal added ", d[closest_idx], diff, score, steps)
 
             self._add_new_goal(state_tmp, state_processed, score, steps)
-           
             goal_added = True
  
 
