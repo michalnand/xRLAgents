@@ -24,7 +24,7 @@ class AdaptiveGoalsBuffer():
 
     # states    : current states, shape (batch_size, channels, height, width)
     # goal_idx  : ids of current goals to reach, shape (batch_size, )
-    def step(self, states, scores, steps, goal_ids):
+    def step(self, states, goal_ids, scores, steps):
         # take only first frame
         states_tmp       = states[:, 0]
         states_processed = self._features_func(states_tmp)
