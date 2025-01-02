@@ -97,8 +97,8 @@ class AdaptiveGoalsBuffer():
                 self.states_raw[self.curr_ptr]       = states_tmp[n].copy()
                 self.states_processed[self.curr_ptr] = states_processed[n].copy()
 
-                self.scores[n] = scores[n]
-                self.steps[n]  = steps[n]
+                self.scores[self.curr_ptr] = scores[n]
+                self.steps[self.curr_ptr]  = steps[n]
 
                 self.curr_ptr+= 1
 
