@@ -171,9 +171,10 @@ class AgentPPOInDiffD():
         rewards_ext_g = rewards_ext.copy()
         
         for i in range(self.envs_count):
-            threshold = 0.002
+            reach_threshold = 0.002
+            diff_threshold  = 0.0001
             #threshold = 0.001
-            reach_reward, steps_reward, goal_added = self.goals_buffer.step(self.goal_idx[i], states[i], self.episode_steps[i], self.episode_score[i], threshold)
+            reach_reward, steps_reward, goal_added = self.goals_buffer.step(self.goal_idx[i], states[i], self.episode_steps[i], self.episode_score[i], reach_threshold, diff_threshold)
 
             # reward only when agent in goal reaching mode and goal reached
             if self.agent_mode[i] == 1 and reach_reward:    

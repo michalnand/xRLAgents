@@ -39,7 +39,7 @@ class GoalsBuffer():
         return goal_idx, numpy.expand_dims(self.states_raw[goal_idx], 0)
 
 
-    def step(self, goal_idx, state, steps, score, threshold = 0.002):
+    def step(self, goal_idx, state, steps, score, reach_threshold = 0.002, diff_threshold = 0.0001):
         state_tmp = state[0]
         state_processed = self._preprocess_frame(state_tmp)
 
@@ -57,8 +57,8 @@ class GoalsBuffer():
         steps_reward = False
         goal_added   = False
 
-        # check if current goal reached with expected score     
-        if d[goal_idx] < threshold and score >= self.scores[goal_idx]:
+        # check if current goal reached with expected score or better    
+        if d[goal_idx] < reach_threshold and score >= self.scores[goal_idx]:
             
             reach_reward = True
             
@@ -69,20 +69,20 @@ class GoalsBuffer():
 
             #print("\n\ngoal reached ", goal_idx, reach_reward, steps_reward, self.steps[goal_idx])
         
-        # update closest goal if needed
-        if d[closest_idx] < threshold:
-            # update content and scores if higher
-            if score > self.scores[closest_idx]:
-                #print("\n\nscore updated for ", closest_idx, self.scores[closest_idx], score)
+        # update closest goal only if reached higher score
+        if d[closest_idx] < reach_threshold and score > self.scores[closest_idx]:
+            #print("\n\nscore updated for ", closest_idx, self.scores[closest_idx], score)
 
-                self.states_raw[closest_idx]       = state_tmp.copy()
-                self.states_processed[closest_idx] = state_processed.copy()
-                self.scores[closest_idx]           = score
-                self.steps[closest_idx]            = steps
-       
+            self.states_raw[closest_idx]       = state_tmp.copy()
+            self.states_processed[closest_idx] = state_processed.copy()
+            self.scores[closest_idx]           = score
+            self.steps[closest_idx]            = steps
+    
        
         # add new goal if not close goal present 
-        if d[closest_idx] > 1.05*threshold and self.curr_ptr < self.states_raw.shape[0]:
+        diff = ((state[0] - state[1])**2).mean()
+        print("d = ",  d[closest_idx], diff)
+        if d[closest_idx] > reach_threshold and diff > diff_threshold and self.curr_ptr < self.states_raw.shape[0]:
             self._add_new_goal(state_tmp, state_processed, score, steps)
            
             goal_added = True
