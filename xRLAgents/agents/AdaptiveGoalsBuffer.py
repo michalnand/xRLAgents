@@ -11,7 +11,7 @@ class AdaptiveGoalsBuffer():
         self.var = 10e-6
 
         self.states_raw       = numpy.zeros((buffer_size, height, width), dtype=numpy.float32)
-        state_processed       = self._features_func(numpy.zeros((height, width)))
+        state_processed       = self._features_func(numpy.zeros((1, height, width)))
         self.states_processed = numpy.zeros((buffer_size, ) + state_processed.shape, dtype=numpy.float32)
 
         self.scores = -(10**6)*numpy.ones((buffer_size, ), dtype=numpy.float32)
@@ -131,7 +131,9 @@ class AdaptiveGoalsBuffer():
 
 
     def _features_func(self, states, kernel_size = 4):
+        
         x = torch.from_numpy(states).float()
+        print(" x = ", x.shape)
         x = torch.nn.functional.avg_pool2d(x, (kernel_size, kernel_size), kernel_size)
 
         result = x.flatten(1)
