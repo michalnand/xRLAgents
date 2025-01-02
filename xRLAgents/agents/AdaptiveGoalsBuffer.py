@@ -83,7 +83,7 @@ class AdaptiveGoalsBuffer():
                 print("goal updated ", n, d_min[n], self.scores[n], self.steps[n])
 
         # new goal adding
-        # compute adaptive threshold
+        # compute adaptive threshold for new goal add
         threshold  = self.mu + self.threshold * (self.var ** 0.5)
 
         candidates = numpy.where(d_min < threshold)[0]
