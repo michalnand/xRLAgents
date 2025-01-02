@@ -71,7 +71,8 @@ class AdaptiveGoalsBuffer():
                     self.steps[closest_id] = steps[n]
                     steps_reward[n] = True
 
-                print("goal reached ", n, d_min[n], self.scores[n], self.steps[n], steps_reward[n])
+                if goal_ids[n] != 0:
+                    print("goal reached ", n, d_min[n], self.scores[n], self.steps[n], steps_reward[n])
             
             # some goal reached, update it's values, only if reached with higher score
             elif scores[n] > self.scores[closest_id]:
@@ -85,7 +86,7 @@ class AdaptiveGoalsBuffer():
         # new goal adding
         # compute adaptive threshold for new goal add
         threshold  = self.mu + self.threshold * (self.var ** 0.5)
-        
+
         candidates = numpy.where(d_min > threshold)[0]
         
         # add new goal states
