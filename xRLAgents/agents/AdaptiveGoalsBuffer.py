@@ -64,8 +64,6 @@ class AdaptiveGoalsBuffer():
         for n in candidates:
             closest_id = closests_ids[n]
 
-            print(closest_id)
-
             # check if reached only given goal
             if closest_id == goal_ids[n]:
                 goal_reached[n] = True
