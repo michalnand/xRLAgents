@@ -81,7 +81,7 @@ class AdaptiveGoalsBuffer():
                 self.scores[closest_id]           = scores[n]
                 self.steps[closest_id]            = steps[n]
 
-                print("goal updated ", n, d_min[n], self.scores[n], self.steps[n])
+                print("goal updated ", n, closest_id, d_min[n], self.scores[closest_id], self.steps[closest_id])
 
         # new goal adding
         # compute adaptive threshold for new goal add
