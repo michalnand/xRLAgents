@@ -7,7 +7,7 @@ class AdaptiveGoalsBuffer():
         self.batch_size = batch_size
         self.buffer_size = buffer_size
 
-        self.mu  = 0.0
+        self.mu  = 1.0
         self.var = 1.0
 
         self.states_raw       = numpy.zeros((buffer_size, height, width), dtype=numpy.float32)
