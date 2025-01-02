@@ -2,7 +2,7 @@ import torch
 import numpy
       
 class AdaptiveGoalsBuffer(): 
-    def __init__(self, batch_size, buffer_size, height, width, threshold, alpha = 0.01):
+    def __init__(self, batch_size, buffer_size, height, width, threshold, alpha = 0.1):
         
         self.batch_size = batch_size
         self.buffer_size = buffer_size
@@ -103,7 +103,7 @@ class AdaptiveGoalsBuffer():
                 self.curr_ptr+= 1
 
                 goal_added = True
-                print("new goal added ", n, self.curr_ptr, d_min[n], scores[n], steps[n], self.mu, self.var ** 0.5)
+                print("new goal added ", n, self.curr_ptr, d_min[n], scores[n], steps[n], self.mu, self.var ** 0.5, threshold)
 
                 break
 
