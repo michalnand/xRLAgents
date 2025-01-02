@@ -52,7 +52,7 @@ class AdaptiveGoalsBuffer():
         self.var = (1.0 - self.alpha)*self.var + self.alpha*d_min.var()
         
         # compute adaptive threshold for goal reaching
-        threshold  = self.mu + 0.1*self.threshold * (self.var ** 0.5)
+        threshold  = self.mu + 0.1*self.threshold * (self.var**0.5)
 
         # goal reaching reward
         candidates   = numpy.where(d_min < threshold)[0]
@@ -85,7 +85,7 @@ class AdaptiveGoalsBuffer():
 
         # new goal adding
         # compute adaptive threshold for new goal add
-        threshold  = self.mu + self.threshold * (self.var ** 0.5)
+        threshold  = self.mu + self.threshold * (self.var**0.5)
 
         candidates = numpy.where(d_min > threshold)[0]
         
@@ -103,7 +103,7 @@ class AdaptiveGoalsBuffer():
                 self.curr_ptr+= 1
 
                 goal_added = True
-                print("new goal added ", n, self.curr_ptr, d_min[n], self.scores[n], self.steps[n])
+                print("new goal added ", n, self.curr_ptr, d_min[n], scores[n], steps[n], self.mu, self.var ** 0.5)
 
                 break
 
