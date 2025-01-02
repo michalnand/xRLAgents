@@ -92,9 +92,12 @@ class AdaptiveGoalsBuffer():
         threshold  = self.mu + self.threshold * (self.var**0.5)
 
         candidates = numpy.where(d_min > threshold)[0]
+
         
         # add new goal states
         goal_added = False
+
+        '''
         for n in candidates:
             if self.curr_ptr < self.buffer_size:
 
@@ -110,7 +113,8 @@ class AdaptiveGoalsBuffer():
                 print("new goal added ", n, self.curr_ptr, d_min[n], scores[n], steps[n], self.mu, self.var ** 0.5, threshold)
 
                 break
-
+        '''
+        
         return goal_reached, steps_reward, goal_added
     
     def get_count(self):
