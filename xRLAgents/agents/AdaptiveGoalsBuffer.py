@@ -2,7 +2,7 @@ import torch
 import numpy
       
 class AdaptiveGoalsBuffer(): 
-    def __init__(self, batch_size, buffer_size, height, width, threshold, alpha = 0.1):
+    def __init__(self, batch_size, buffer_size, height, width, threshold, alpha = 0.01):
         
         self.batch_size = batch_size
         self.buffer_size = buffer_size
