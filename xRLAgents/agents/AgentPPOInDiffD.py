@@ -4,7 +4,7 @@ import numpy
 from .TrajectoryBufferIM  import *
 from ..training.ValuesLogger           import *
 
-from .GoalsBuffer import *
+from .AdaptiveGoalsBuffer import *  
   
 class AgentPPOInDiffD(): 
     def __init__(self, envs, Config, Model):
@@ -61,7 +61,9 @@ class AgentPPOInDiffD():
 
         self.trajectory_buffer = TrajectoryBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
 
-        self.goals_buffer      = GoalsBuffer(state_shape[1], state_shape[2], 256)
+        #self.goals_buffer      = GoalsBuffer(state_shape[1], state_shape[2], 256)
+        self.goals_buffer = AdaptiveGoalsBuffer(self.envs_count, 256, state_shape[1], state_shape[2], 0.1)
+
 
         self.episode_steps     = numpy.zeros(self.envs_count, dtype=int)
         self.episode_score     = numpy.zeros((self.envs_count, ))
@@ -80,12 +82,12 @@ class AgentPPOInDiffD():
         self.state_var = numpy.ones(self.state_shape,  dtype=numpy.float32)
 
         self.agent_mode  = numpy.zeros((self.envs_count, ))
-        self.goal_idx    = numpy.zeros((self.envs_count, ), dtype=int)
+        self.goal_ids    = numpy.zeros((self.envs_count, ), dtype=int)
         self.goal_states = numpy.zeros((self.envs_count, 1, state_shape[1], state_shape[2]))
 
         # initial goals
         for e in range(self.envs_count):
-            self.goal_idx[e], self.goal_states[e] = self.goals_buffer.get_goal()
+            self.goal_ids[e], self.goal_states[e] = self.goals_buffer.get_goal()
 
 
         # result loggers
@@ -166,37 +168,34 @@ class AgentPPOInDiffD():
 
         self.episode_score+= rewards_ext
 
-       
+        
         # add or refresh target state
         rewards_ext_g = rewards_ext.copy()
-        
-        for i in range(self.envs_count):
-            reach_threshold = 0.002
-            diff_threshold  = 0.01
-            #threshold = 0.001
-            reach_reward, steps_reward, goal_added = self.goals_buffer.step(self.goal_idx[i], states[i], self.episode_steps[i], self.episode_score[i], reach_threshold, diff_threshold)
 
+        reach_reward, steps_reward, goal_added = self.goals_buffer.step(self, states, self.episode_score[i], self.episode_steps[i], self.goal_ids[i])
+        
+        for n in range(self.envs_count):
             # reward only when agent in goal reaching mode and goal reached
-            if self.agent_mode[i] == 1 and reach_reward:    
+            if self.agent_mode[n] == 1 and reach_reward[n]:    
                 
                 # don't reward for reaching initial goal, since it is trivial
-                if self.goal_idx[i] != 0:             
+                if self.goal_ids[n] != 0:             
                     # reward for reaching goal
-                    rewards_ext_g[i]+= reach_reward*self.goal_reach_coeff
+                    rewards_ext_g[n]+= reach_reward[n]*self.goal_reach_coeff
 
                     # extra reward for faster goal reaching
                     if steps_reward:
-                        rewards_ext_g[i]+= steps_reward*self.goal_steps_coeff
+                        rewards_ext_g[n]+= steps_reward[n]*self.goal_steps_coeff
 
                 # clear goal    
-                self.goal_idx[i]    = 0 
-                self.goal_states[i] = 0.0
+                self.goal_ids[n]    = 0 
+                self.goal_states[n] = 0.0
 
                 # agent to common mode
-                self.agent_mode[i] = 0
+                self.agent_mode[n] = 0
 
                 # store fot statistics
-                self.goal_reached_flag[i] = 1.0 
+                self.goal_reached_flag[n] = 1.0 
 
                 #print("goal reached ", i, reach_reward, steps_reward, self.episode_steps[i], (self.agent_mode*1.0).mean())
 
@@ -224,7 +223,7 @@ class AgentPPOInDiffD():
 
             if self.goals_buffer.get_count() > 0:
                 # choose new random goal state
-                self.goal_idx[i], self.goal_states[i] = self.goals_buffer.get_goal()
+                self.goal_ids[i], self.goal_states[i] = self.goals_buffer.get_goal()
 
                 # goal reaching mode
                 self.agent_mode[i] = 1      
