@@ -39,7 +39,7 @@ class GoalsBuffer():
         return goal_idx, numpy.expand_dims(self.states_raw[goal_idx], 0)
 
 
-    def step(self, goal_idx, state, steps, score, reach_threshold = 0.002, diff_threshold = 0.0001):
+    def step(self, goal_idx, state, steps, score, reach_threshold = 0.002, diff_threshold = 0.01):
         state_tmp = state[0]
         state_processed = self._preprocess_frame(state_tmp)
 
