@@ -2,7 +2,7 @@ import torch
 import numpy
       
 class AdaptiveGoalsBuffer(): 
-    def __init__(self, batch_size, buffer_size, height, width, threshold, alpha = 0.01):
+    def __init__(self, batch_size, buffer_size, height, width, threshold, alpha = 0.002):
         
         self.batch_size = batch_size
         self.buffer_size = buffer_size
@@ -114,7 +114,7 @@ class AdaptiveGoalsBuffer():
 
                 break
         '''
-        
+
         return goal_reached, steps_reward, goal_added
     
     def get_count(self):
