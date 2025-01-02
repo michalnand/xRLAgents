@@ -85,8 +85,8 @@ class AdaptiveGoalsBuffer():
         # new goal adding
         # compute adaptive threshold for new goal add
         threshold  = self.mu + self.threshold * (self.var ** 0.5)
-
-        candidates = numpy.where(d_min < threshold)[0]
+        
+        candidates = numpy.where(d_min > threshold)[0]
         
         # add new goal states
         goal_added = False
