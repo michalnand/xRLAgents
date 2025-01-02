@@ -43,7 +43,7 @@ class AdaptiveGoalsBuffer():
         # shape : (batch_size, )
         # closest goal IDs and its distance
         closests_ids = numpy.argmin(d, axis=0)[0]
-        d_min        = numpy.min(d, axis=0)
+        d_min        = numpy.min(d, axis=0)[0]
 
         print("closests_ids = ", closests_ids)
         print("d_min = ", d_min)
@@ -109,6 +109,9 @@ class AdaptiveGoalsBuffer():
                 break
 
         return goal_reached, steps_reward, goal_added
+    
+    def get_count(self):
+        return self.curr_ptr
 
 
     # randomly select one goal from buffer
