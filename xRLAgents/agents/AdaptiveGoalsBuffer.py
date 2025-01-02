@@ -103,7 +103,7 @@ class AdaptiveGoalsBuffer():
                 self.curr_ptr+= 1
 
                 goal_added = True
-                print("new goal added ", n, d_min[n], self.scores[n], self.steps[n])
+                print("new goal added ", n, self.curr_ptr, d_min[n], self.scores[n], self.steps[n])
 
                 break
 
