@@ -8,7 +8,7 @@ class AdaptiveGoalsBuffer():
         self.buffer_size = buffer_size
 
         self.mu  = 0.0
-        self.var = 10e-6
+        self.var = 1.0
 
         self.states_raw       = numpy.zeros((buffer_size, height, width), dtype=numpy.float32)
         state_processed       = self._features_func(numpy.zeros((1, height, width)))
@@ -38,16 +38,14 @@ class AdaptiveGoalsBuffer():
         # each by each distances
         # shape : (buffer_size, batch_size)
         d = numpy.expand_dims(self.states_processed, 1) - numpy.expand_dims(states_processed, 0)
-        d = (d**2).mean(axis=-1)
+        d = (d**2).mean(axis=-1)    
 
         # shape : (batch_size, )
         # closest goal IDs and its distance
         closests_ids = numpy.argmin(d, axis=0)[0]
         d_min        = numpy.min(d, axis=0)[0]
 
-        print("closests_ids = ", closests_ids)
-        print("d_min = ", d_min)
-
+       
 
         # estimate mean and var using EMA
         self.mu  = (1.0 - self.alpha)*self.mu  + self.alpha*d_min.mean()
