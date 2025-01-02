@@ -45,6 +45,8 @@ class AdaptiveGoalsBuffer():
         closests_ids = numpy.argmin(d, axis=0)
         d_min        = numpy.min(d, axis=0)
 
+        print("closests_ids = ", closests_ids)
+
         # estimate mean and var using EMA
         self.mu  = (1.0 - self.alpha)*self.mu  + self.alpha*d_min.mean()
         self.var = (1.0 - self.alpha)*self.var + self.alpha*d_min.var()
@@ -137,7 +139,6 @@ class AdaptiveGoalsBuffer():
     def _features_func(self, states, kernel_size = 4):
         
         x = torch.from_numpy(states).float()
-        print(" x = ", x.shape)
         x = torch.nn.functional.avg_pool2d(x, (kernel_size, kernel_size), kernel_size)
 
         result = x.flatten(1)
