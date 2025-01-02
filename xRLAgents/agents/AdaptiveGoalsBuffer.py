@@ -53,8 +53,7 @@ class AdaptiveGoalsBuffer():
         # compute adaptive threshold for goal reaching
         threshold  = self.mu + 0.1*self.threshold * (self.var**0.5)
 
-
-        # goal reaching reward
+        # goal reaching
         candidates   = numpy.where(d_min < threshold)[0]
 
         goal_reached = numpy.zeros(self.batch_size, dtype=bool)
@@ -64,6 +63,7 @@ class AdaptiveGoalsBuffer():
 
             # check if reached only given goal
             if closest_id == goal_ids[n]:
+                # goal reaching reward
                 goal_reached[n] = True
 
                 # reward for less steps to reach goal
@@ -93,7 +93,6 @@ class AdaptiveGoalsBuffer():
         # add new goal states
         goal_added = False
 
-        
         for n in candidates:
             if self.curr_ptr < self.buffer_size:
 
@@ -104,6 +103,8 @@ class AdaptiveGoalsBuffer():
                 self.steps[self.curr_ptr]  = steps[n]
 
                 self.curr_ptr+= 1
+
+                self.mu = max(self.mu, d_min[n])
 
                 goal_added = True
                 print("new goal added ", n, self.curr_ptr, d_min[n], scores[n], steps[n], self.mu, self.var ** 0.5, threshold)
