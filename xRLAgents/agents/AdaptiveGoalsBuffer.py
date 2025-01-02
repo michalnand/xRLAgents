@@ -31,8 +31,8 @@ class AdaptiveGoalsBuffer():
 
         # initialisation
         if  self.curr_ptr == 0:
-            self.states_raw[:]       = states_tmp[0].copy()
-            self.states_processed[:] = states_processed[0].copy()
+            self.states_raw[0]       = states_tmp[0].copy()
+            self.states_processed[0] = states_processed[0].copy()
             self.curr_ptr+= 1
 
         # each by each distances
