@@ -42,10 +42,12 @@ class AdaptiveGoalsBuffer():
 
         # shape : (batch_size, )
         # closest goal IDs and its distance
-        closests_ids = numpy.argmin(d, axis=0)
+        closests_ids = numpy.argmin(d, axis=0)[0]
         d_min        = numpy.min(d, axis=0)
 
         print("closests_ids = ", closests_ids)
+        print("d_min = ", d_min)
+
 
         # estimate mean and var using EMA
         self.mu  = (1.0 - self.alpha)*self.mu  + self.alpha*d_min.mean()
