@@ -60,6 +60,8 @@ class AdaptiveGoalsBuffer():
         for n in candidates:
             closest_id = closests_ids[n]
 
+            print(closest_id)
+
             # check if reached only given goal
             if closest_id == goal_ids[n]:
                 goal_reached[n] = True
@@ -96,6 +98,8 @@ class AdaptiveGoalsBuffer():
 
                 self.scores[n] = scores[n]
                 self.steps[n]  = steps[n]
+
+                self.curr_ptr+= 1
 
                 goal_added = True
                 print("new goal added ", n, d_min[n], self.scores[n], self.steps[n])
