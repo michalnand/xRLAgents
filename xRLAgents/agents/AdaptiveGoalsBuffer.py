@@ -3,7 +3,7 @@ import numpy
 
 
 class AdaptiveGoalsBuffer(): 
-    def __init__(self, batch_size, buffer_size, height, width, threshold, alpha = 0.99):
+    def __init__(self, batch_size, buffer_size, height, width, add_threshold, reach_threshold,  alpha = 0.99):
         self.batch_size     = batch_size
         self.buffer_size    = buffer_size  
 
@@ -18,7 +18,8 @@ class AdaptiveGoalsBuffer():
         self.scores = -(10**6)*numpy.ones((buffer_size, ), dtype=numpy.float32)
         self.steps  = numpy.zeros((buffer_size, ), dtype=int)
 
-        self.threshold  = threshold
+        self.add_threshold    = add_threshold
+        self.reach_threshold  = reach_threshold
         self.alpha      = alpha
 
         self.curr_ptr   = 0
@@ -58,7 +59,7 @@ class AdaptiveGoalsBuffer():
 
         # new goal add
         # compute new state likelihoods
-        likelihoods = numpy.exp(-0.5 * ((states_processed - self.states_processed_mu[closests_ids]) ** 2) / (self.states_processed_var[closests_ids] + 1e-6))
+        likelihoods = numpy.exp(-0.5 * ((states_processed - self.states_processed_mu[closests_ids]) ** 2) / (self.states_processed_var[closests_ids] + 1e-2))
         likelihoods = numpy.mean(likelihoods)
 
         #print("likelihoods = ", likelihoods.shape) 
@@ -66,7 +67,9 @@ class AdaptiveGoalsBuffer():
 
 
         # goal reaching
-        candidates   = numpy.where(likelihoods > self.threshold)[0]
+        candidates   = numpy.where(d_min < self.reach_threshold)[0]
+
+        print(d_min)
 
         goal_reached = numpy.zeros(self.batch_size, dtype=bool)
         steps_reward = numpy.zeros(self.batch_size, dtype=bool)
@@ -102,7 +105,7 @@ class AdaptiveGoalsBuffer():
         # add new goal states
         goal_added = False
 
-        candidates = numpy.where(likelihoods < 0.9*self.threshold)[0]
+        candidates = numpy.where(likelihoods < self.add_threshold)[0]
 
 
         #print("candidates = ", len(candidates)) 
