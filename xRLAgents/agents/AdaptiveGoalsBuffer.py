@@ -67,9 +67,11 @@ class AdaptiveGoalsBuffer():
 
 
         # goal reaching
-        candidates = numpy.where(d_min < self.reach_threshold)[0]
+        candidates = numpy.where(likelihoods < self.reach_threshold)[0]
 
-        print(likelihoods)
+        print(candidates)
+        print(likelihoods[candidates])
+        print("\n\n")
 
 
         goal_reached = numpy.zeros(self.batch_size, dtype=bool)
