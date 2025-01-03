@@ -3,7 +3,7 @@ import numpy
 
 
 class AdaptiveGoalsBuffer(): 
-    def __init__(self, batch_size, buffer_size, height, width, threshold):
+    def __init__(self, batch_size, buffer_size, height, width, threshold, alpha = 0.99):
         self.batch_size     = batch_size
         self.buffer_size    = buffer_size  
 
@@ -19,9 +19,10 @@ class AdaptiveGoalsBuffer():
         self.steps  = numpy.zeros((buffer_size, ), dtype=int)
 
         self.threshold  = threshold
-
+        self.alpha      = alpha
+        
         self.curr_ptr   = 0
-        self.alpha     = 0.99
+        
 
     def step(self, states, goal_ids, scores, steps):
         # take only first frame
