@@ -41,7 +41,7 @@ class FeaturesExtractor:
         
         
         # compute historgram
-        result = torch.zeros((x.shape[0], self.n_bins, x.shape[2], x.shape[3]))
+        result = torch.zeros((x.shape[0], self.n_bins, x.shape[2], x.shape[3]), device=self.device)
 
         for b in range(self.n_bins):
             result[:, b, :, :]+= magnitude*(orientation[:, :, :] == b)
