@@ -4,27 +4,29 @@ import numpy
 
 
 class FeaturesExtractor:
-    def __init__(self, n_size = 8, n_bins = 8):
+    def __init__(self, n_size = 8, n_bins = 8, device="cpu"):
         self.n_size     = n_size    
         self.n_bins     = n_bins
+
+        self.device     = device
 
         self.sobel_x = torch.tensor([[[
             [-1, 0, 1],
             [-2, 0, 2],
             [-1, 0, 1]
-        ]]], dtype=torch.float32)
+        ]]], dtype=torch.float32).to(self.device)
 
         self.sobel_y = torch.tensor([[[
             [-1, -2, -1],
             [ 0,  0,  0],
             [ 1,  2,  1]
-        ]]], dtype=torch.float32)
+        ]]], dtype=torch.float32).to(self.device)
     
     def __call__(self, x):
         return self.forward(x)
 
     def forward(self, x):        
-        x = x.unsqueeze(1).float()
+        x = x.unsqueeze(1).float().to(self.device)
 
         gradient_x =  torch.nn.functional.conv2d(x, self.sobel_x, padding=1)
         gradient_y =  torch.nn.functional.conv2d(x, self.sobel_y, padding=1)
