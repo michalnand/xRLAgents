@@ -20,6 +20,8 @@ class FeaturesExtractor:
             [ 1,  2,  1]
         ]]], dtype=torch.float32)
     
+    def __call__(self, x):
+        return self.forward(x)
 
     def forward(self, x):        
         x = x.unsqueeze(1).float()
