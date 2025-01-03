@@ -86,7 +86,7 @@ class AdaptiveGoalsBuffer():
                     steps_reward[n] = True
 
                 if goal_ids[n] != 0:
-                    print("goal reached ", n, closest_id, d_min[n], self.scores[n], self.steps[n], steps_reward[n])
+                    print("\ngoal reached ", n, closest_id, d_min[n], self.scores[n], self.steps[n], steps_reward[n])
             
             # some goal reached, update it's values, only if reached with higher score
             elif scores[n] > self.scores[closest_id]:
@@ -95,7 +95,7 @@ class AdaptiveGoalsBuffer():
                 self.scores[closest_id]              = scores[n]
                 self.steps[closest_id]               = steps[n]
 
-                print("goal updated ", n, closest_id, d_min[n], self.scores[closest_id], self.steps[closest_id])
+                print("\ngoal updated ", n, closest_id, d_min[n], self.scores[closest_id], self.steps[closest_id])
 
 
 
@@ -110,7 +110,7 @@ class AdaptiveGoalsBuffer():
         #print("candidates = ", len(candidates)) 
 
         for n in candidates:
-            if self.curr_ptr < self.buffer_size:
+            if self.curr_ptr < self.buffer_size and steps[n] != 0:
 
                 self.states_raw[self.curr_ptr]           = states_tmp[n].copy()
                 self.states_processed_mu[self.curr_ptr]  = states_processed[n].copy()
@@ -122,7 +122,7 @@ class AdaptiveGoalsBuffer():
                 self.curr_ptr+= 1
 
                 goal_added = True
-                print("new goal added ", n, self.curr_ptr, d_min[n], scores[n], steps[n], likelihoods[n])
+                print("\nnew goal added ", n, self.curr_ptr, d_min[n], scores[n], steps[n], likelihoods[n])
 
                 break
         
