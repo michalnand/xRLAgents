@@ -104,7 +104,6 @@ class AdaptiveGoalsBuffer():
 
         candidates = numpy.where(likelihoods < 0.9*self.threshold)[0]
 
-        print(likelihoods)
 
         #print("candidates = ", len(candidates)) 
 
