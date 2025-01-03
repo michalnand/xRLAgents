@@ -67,7 +67,7 @@ class AdaptiveGoalsBuffer():
 
 
         # goal reaching
-        candidates = numpy.where(likelihoods < self.reach_threshold)[0]
+        candidates = numpy.where(likelihoods > self.reach_threshold)[0]
 
         print(candidates)
         print(likelihoods[candidates])
