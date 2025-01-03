@@ -69,7 +69,7 @@ class AdaptiveGoalsBuffer():
         # goal reaching
         candidates   = numpy.where(d_min < self.reach_threshold)[0]
 
-        print(d_min)
+        print(d_min.mean(), d_min.std())
 
         goal_reached = numpy.zeros(self.batch_size, dtype=bool)
         steps_reward = numpy.zeros(self.batch_size, dtype=bool)
