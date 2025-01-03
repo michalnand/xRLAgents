@@ -163,15 +163,17 @@ class AdaptiveGoalsBuffer():
     
     def save(self, prefix):
         numpy.save(prefix + "raw.npy", self.states_raw)
-        numpy.save(prefix + "processed.npy", self.states_processed)
+        numpy.save(prefix + "processed_mu.npy", self.states_processed_mu)
+        numpy.save(prefix + "processed_var.npy", self.states_processed_var)
         numpy.save(prefix + "scores.npy", self.scores)
         numpy.save(prefix + "steps.npy", self.steps)
 
     def load(self, prefix):
-        self.states_raw       = numpy.load(prefix + "raw.npy")
-        self.states_processed = numpy.load(prefix + "processed.npy", self.states_processed)
-        self.scores           = numpy.load(prefix + "scores.npy", self.scores)
-        self.steps            = numpy.load(prefix + "steps.npy", self.steps)
+        self.states_raw             = numpy.load(prefix + "raw.npy")
+        self.states_processed_mu    = numpy.load(prefix + "processed_mu.npy")
+        self.states_processed_var   = numpy.load(prefix + "processed_var.npy")
+        self.scores                 = numpy.load(prefix + "scores.npy")
+        self.steps                  = numpy.load(prefix + "steps.npy")
 
         # count number of real stored states
         self.curr_ptr = 0
