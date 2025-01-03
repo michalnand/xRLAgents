@@ -8,7 +8,7 @@ class AdaptiveGoalsBuffer():
         self.buffer_size    = buffer_size  
 
 
-        state_processed       = self._features_func(numpy.zeros((1, height, width)))
+        state_processed       = self._features_func(numpy.zeros((height, width)))
 
         self.states_raw           = numpy.zeros((buffer_size, height, width), dtype=numpy.float32)
         self.states_processed_mu  = numpy.zeros((buffer_size, ) + state_processed.shape, dtype=numpy.float32)
