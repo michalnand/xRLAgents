@@ -36,6 +36,7 @@ class AdaptiveGoalsBuffer():
             self.states_processed_var[0]    = 1.0
             self.curr_ptr+= 1
 
+        print("states_processed_mu ", self.states_processed_mu.shape, states_processed.shape)
         # each by each distances
         # shape : (buffer_size, batch_size)
         d = numpy.expand_dims(self.states_processed_mu, 1) - numpy.expand_dims(states_processed, 0)
