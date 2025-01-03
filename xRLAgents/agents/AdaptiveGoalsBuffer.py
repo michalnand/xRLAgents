@@ -12,7 +12,7 @@ class AdaptiveGoalsBuffer():
 
         self.states_raw           = numpy.zeros((buffer_size, height, width), dtype=numpy.float32)
         self.states_processed_mu  = numpy.zeros((buffer_size, ) + state_processed.shape[1:], dtype=numpy.float32)
-        self.states_processed_var = numpy.ones((buffer_size, ) + state_processed.shape, dtype=numpy.float32)
+        self.states_processed_var = numpy.ones((buffer_size, ) + state_processed.shape[1:], dtype=numpy.float32)
 
 
         self.scores = -(10**6)*numpy.ones((buffer_size, ), dtype=numpy.float32)
@@ -49,8 +49,6 @@ class AdaptiveGoalsBuffer():
         d_min        = numpy.min(d, axis=0)
 
         print("closests_ids = ", closests_ids.shape, d_min.shape) 
-
-        print(self.states_processed_mu[closests_ids].shape, states_processed.shape, self.states_processed_var[closests_ids].shape, (states_processed - self.states_processed_mu[closests_ids]).shape)
 
         # update goals buffer statistics
         self.states_processed_mu[closests_ids]  = self.alpha*self.states_processed_mu[closests_ids]  + (1.0 - self.alpha)*states_processed
