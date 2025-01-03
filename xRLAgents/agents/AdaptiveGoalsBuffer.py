@@ -62,7 +62,7 @@ class AdaptiveGoalsBuffer():
         self.batch_size = batch_size
         self.buffer_size = buffer_size
 
-        self.features_extractor = FeaturesExtractor(8, 4)
+        self.features_extractor = FeaturesExtractor(8, 4, "cuda")
 
         #self.mu  = 1.0
         #self.var = 1.0
