@@ -20,7 +20,7 @@ class AdaptiveGoalsBuffer():
 
         self.threshold  = threshold
         self.alpha      = alpha
-        
+
         self.curr_ptr   = 0
         
 
@@ -154,6 +154,7 @@ class AdaptiveGoalsBuffer():
 
 
     def _features_func(self, x):
+        x = torch.from_numpy(x)
         z = torch.nn.functional.avg_pool2d(x, (8, 8), 8)
         z = z.flatten(1)
 
