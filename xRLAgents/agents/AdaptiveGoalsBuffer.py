@@ -60,7 +60,7 @@ class AdaptiveGoalsBuffer():
         # new goal add
         # compute new state likelihoods
         likelihoods = numpy.exp(-0.5 * ((states_processed - self.states_processed_mu[closests_ids]) ** 2) / (self.states_processed_var[closests_ids] + 1e-2))
-        likelihoods = numpy.mean(likelihoods)
+        likelihoods = numpy.mean(likelihoods, dim=-1)
 
         #print("likelihoods = ", likelihoods.shape) 
 
