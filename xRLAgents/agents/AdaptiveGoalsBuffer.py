@@ -102,7 +102,7 @@ class AdaptiveGoalsBuffer():
         # add new goal states
         goal_added = False
 
-        candidates = numpy.where(likelihoods < 0.5*self.threshold)[0]
+        candidates = numpy.where(likelihoods < 0.9*self.threshold)[0]
 
         print(likelihoods)
 
