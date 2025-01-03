@@ -50,7 +50,7 @@ class AdaptiveGoalsBuffer():
 
         print("closests_ids = ", closests_ids.shape, d_min.shape) 
 
-        print(self.states_processed_mu[closests_ids].shape, states_processed.shape)
+        print(self.states_processed_mu[closests_ids].shape, states_processed.shape, self.states_processed_var[closests_ids].shape, (states_processed - self.states_processed_mu[closests_ids]).shape)
 
         # update goals buffer statistics
         self.states_processed_mu[closests_ids]  = self.alpha*self.states_processed_mu[closests_ids]  + (1.0 - self.alpha)*states_processed
