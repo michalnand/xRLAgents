@@ -86,7 +86,7 @@ class AdaptiveGoalsBuffer():
                     steps_reward[n] = True
 
                 if goal_ids[n] != 0:
-                    print("\goal reached ", n, closest_id, self.scores[closest_id], self.steps[closest_id])
+                    print("\ngoal reached ", n, closest_id, self.scores[closest_id], self.steps[closest_id])
             
             # some goal reached, update it's values, only if reached with higher score
             elif scores[n] > self.scores[closest_id]:
