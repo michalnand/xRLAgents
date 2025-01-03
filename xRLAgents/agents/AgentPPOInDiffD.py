@@ -62,7 +62,7 @@ class AgentPPOInDiffD():
         self.trajectory_buffer = TrajectoryBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
 
         #self.goals_buffer      = GoalsBuffer(state_shape[1], state_shape[2], 256)
-        self.goals_buffer = AdaptiveGoalsBuffer(self.envs_count, 1024, state_shape[1], state_shape[2], 2.0)
+        self.goals_buffer = AdaptiveGoalsBuffer(self.envs_count, 1024, state_shape[1], state_shape[2], 0.001)
 
 
         self.episode_steps     = numpy.zeros(self.envs_count, dtype=int)
