@@ -36,32 +36,32 @@ class AdaptiveGoalsBuffer():
             self.states_processed_var[0]    = 1.0
             self.curr_ptr+= 1
 
-        print("states_processed_mu ", self.states_processed_mu.shape, states_processed.shape)
+        #print("states_processed_mu ", self.states_processed_mu.shape, states_processed.shape)
         # each by each distances
         # shape : (buffer_size, batch_size)
         d = numpy.expand_dims(self.states_processed_mu, 1) - numpy.expand_dims(states_processed, 0)
         d = (d**2).mean(axis=-1)   
-        print("d = ", d.shape) 
+        #print("d = ", d.shape) 
 
         # shape : (batch_size, )
         # closest goal IDs and its distance
         closests_ids = numpy.argmin(d, axis=0)
         d_min        = numpy.min(d, axis=0)
 
-        print("closests_ids = ", closests_ids.shape, d_min.shape) 
+        #print("closests_ids = ", closests_ids.shape, d_min.shape) 
 
         # update goals buffer statistics
         self.states_processed_mu[closests_ids]  = self.alpha*self.states_processed_mu[closests_ids]  + (1.0 - self.alpha)*states_processed
         self.states_processed_var[closests_ids] = self.alpha*self.states_processed_var[closests_ids] + (1.0 - self.alpha)*((states_processed - self.states_processed_mu[closests_ids])**2)
 
-        print("mu var = ", self.states_processed_mu.shape, self.states_processed_var.shape) 
+        #print("mu var = ", self.states_processed_mu.shape, self.states_processed_var.shape) 
 
         # new goal add
         # compute new state likelihoods
         likelihoods = numpy.exp(-0.5 * ((states_processed - self.states_processed_mu[closests_ids]) ** 2) / (self.states_processed_var[closests_ids] + 1e-6))
         likelihoods = numpy.mean(likelihoods)
 
-        print("likelihoods = ", likelihoods.shape) 
+        #print("likelihoods = ", likelihoods.shape) 
 
 
 
@@ -104,7 +104,7 @@ class AdaptiveGoalsBuffer():
 
         candidates = numpy.where(likelihoods < 0.5*self.threshold)[0]
 
-        print("candidates = ", len(candidates)) 
+        #print("candidates = ", len(candidates)) 
 
         for n in candidates:
             if self.curr_ptr < self.buffer_size:
