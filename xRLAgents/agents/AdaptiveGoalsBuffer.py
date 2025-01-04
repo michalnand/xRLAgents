@@ -210,10 +210,10 @@ class AdaptiveGoalsBuffer():
 
         p = self._get_goals_probs(self.temperature) 
 
-        self.log_goals_buffer.add("likelihoods_mean", round(likelihoods.mean(), 6))
-        self.log_goals_buffer.add("likelihoods_std",  round(likelihoods.std(), 6))
+        self.log_goals_buffer.add("likelihoods_mean", round(likelihoods.mean(), 6), 1.0)
+        self.log_goals_buffer.add("likelihoods_std",  round(likelihoods.std(), 6), 1.0)
 
         for n in range(count):
-            self.log_goals_buffer.add("p" + str(n), round(p[n], 5))
-            self.log_goals_buffer.add("sc" + str(n), self.scores[n])
-            self.log_goals_buffer.add("st" + str(n), self.steps[n])
+            self.log_goals_buffer.add("p" + str(n), round(p[n], 5), 1.0)
+            self.log_goals_buffer.add("sc" + str(n), self.scores[n], 1.0)
+            self.log_goals_buffer.add("st" + str(n), self.steps[n], 1.0)
