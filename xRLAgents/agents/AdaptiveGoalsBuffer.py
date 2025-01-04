@@ -137,7 +137,7 @@ class AdaptiveGoalsBuffer():
     # higher score leads to more promissing goal
     # more far away the goal is, more promissing goal
     def get_goal(self, temperature = 10.0):
-        tmp = (1.0 + self.scores)*(1.0 + numpy.log(self.steps+1.0))
+        tmp = (1.0 + self.scores)*(1.0 + numpy.log(self.steps + 1.0))
         tmp = numpy.array(tmp, dtype=numpy.float64)
 
         # normalise to sum equal to 1
