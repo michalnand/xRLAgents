@@ -254,7 +254,7 @@ class AgentPPOInDiffD():
         self.model.load_state_dict(torch.load(result_path + "/model.pt", map_location = self.device))
 
     def get_logs(self):
-        return [self.log_rewards_int, self.log_loss_ppo, self.log_loss_diffusion, self.log_loss_im_ssl, self.log_goals]
+        return [self.log_rewards_int, self.log_loss_ppo, self.log_loss_diffusion, self.log_loss_im_ssl, self.log_goals, self.goals_buffer.get_log()]
 
     def train(self): 
         samples_count = self.steps*self.envs_count

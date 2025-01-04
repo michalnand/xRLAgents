@@ -109,10 +109,12 @@ class RLLogger:
 
         if agent_logs is not None:
             for log in agent_logs:
-                result_str+= log.get_named_str()
+                if log.add_to_summary():
+                    result_str+= log.get_named_str()
 
         if envs_logs is not None:
             for log in envs_logs:
-                result_str+= log.get_named_str()
+                if log.add_to_summary():
+                    result_str+= log.get_named_str()
 
         return result_str

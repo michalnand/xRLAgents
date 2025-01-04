@@ -1,5 +1,6 @@
 import torch 
 import numpy
+from ..training.ValuesLogger           import *
 
 
 class AdaptiveGoalsBuffer(): 
@@ -23,7 +24,12 @@ class AdaptiveGoalsBuffer():
         self.alpha      = alpha
 
         self.curr_ptr   = 0
-        
+        self.steps_cnt  = 0
+
+        self.log_goals_buffer = ValuesLogger("goals_buffer", False)
+
+    def get_log(self):
+        return self.log_goals_buffer
 
     def step(self, states, goal_ids, scores, steps):
         # take only first frame
@@ -126,6 +132,10 @@ class AdaptiveGoalsBuffer():
 
                 break
         
+        if self.steps_cnt%128 == 0:
+            self._update_log()
+        self.steps_cnt+= 1
+
         return goal_reached, steps_reward, goal_added
 
     def get_count(self):
@@ -137,14 +147,8 @@ class AdaptiveGoalsBuffer():
     # higher score leads to more promissing goal
     # more far away the goal is, more promissing goal
     def get_goal(self, temperature = 10.0):
-        tmp = (1.0 + self.scores)*(1.0 + numpy.log(self.steps + 1.0))
-        tmp = numpy.array(tmp, dtype=numpy.float64)
-
-        # normalise to sum equal to 1
-        tmp = numpy.exp((tmp - numpy.max(tmp))/temperature)
-        sum = numpy.sum(tmp)
-
-        normalised = tmp/sum
+        normalised = self._get_goals_probs(temperature)
+        
         normalised = normalised.round(10)
         diff = 1.0 - numpy.sum(normalised)
 
@@ -152,9 +156,21 @@ class AdaptiveGoalsBuffer():
         max_index = numpy.argmax(normalised)
         normalised[max_index]+= diff
 
-        goal_idx = numpy.random.choice(tmp.shape[0], p=normalised)
+        goal_idx = numpy.random.choice(normalised.shape[0], p=normalised)
 
         return goal_idx, numpy.expand_dims(self.states_raw[goal_idx], 0)
+
+    def _get_goals_probs(self, temperature):
+        tmp = (1.0 + self.scores)*(1.0 + numpy.log(self.steps + 1.0))
+        tmp = numpy.array(tmp, dtype=numpy.float64)
+
+        # normalise to sum equal to 1
+        tmp = numpy.exp((tmp - numpy.max(tmp))/temperature)
+        sum = numpy.sum(tmp)
+
+        result = tmp/sum
+
+        return result
 
 
     def _features_func(self, x):
@@ -185,3 +201,17 @@ class AdaptiveGoalsBuffer():
             if self.states_raw[n].sum() < 10e-6:
                 break
 
+    
+    def _update_log(self, likelihoods):
+        # round to multiply by 32
+        count = ((self.curr_ptr-1+32)//32)*32
+
+        p = self._get_goals_probs() 
+
+        self.log_goals_buffer.add("likelihoods_mean", round(likelihoods.mean(), 6))
+        self.log_goals_buffer.add("likelihoods_std",  round(likelihoods.std(), 6))
+
+        for n in range(count):
+            self.log_goals_buffer.add("p" + str(n), round(p[n], 5))
+            self.log_goals_buffer.add("sc" + str(n), self.scores[n])
+            self.log_goals_buffer.add("st" + str(n), self.steps[n])

@@ -1,9 +1,14 @@
 
 
 class ValuesLogger:
-    def __init__(self, logger_name = "values_logger"):
+    def __init__(self, logger_name = "values_logger", add_to_summary = True):
         self.logger_name = logger_name
         self.values = {}
+
+        self._add_to_summary = add_to_summary
+
+    def add_to_summary(self):
+        return self._add_to_summary
 
     def add(self, name, value, smoothing = 0.1):
         if name in self.values:
