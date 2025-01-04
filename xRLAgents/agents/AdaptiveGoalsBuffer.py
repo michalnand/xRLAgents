@@ -118,7 +118,7 @@ class AdaptiveGoalsBuffer():
         #print("candidates = ", len(candidates)) 
 
         for n in candidates:
-            if self.curr_ptr < self.buffer_size and steps[n] != 0:
+            if self.curr_ptr < self.buffer_size: # and steps[n] != 0:
 
                 self.states_raw[self.curr_ptr]           = states_tmp[n].copy()
                 self.states_processed_mu[self.curr_ptr]  = states_processed[n].copy()
