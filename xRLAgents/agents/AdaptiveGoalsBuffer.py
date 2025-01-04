@@ -26,6 +26,8 @@ class AdaptiveGoalsBuffer():
         self.curr_ptr   = 0
         self.steps_cnt  = 0
 
+        self.temperature = 10.0
+
         self.log_goals_buffer = ValuesLogger("goals_buffer", False)
 
     def get_log(self):
@@ -146,8 +148,8 @@ class AdaptiveGoalsBuffer():
     # selection probability is given by scores values and num of steps to reach
     # higher score leads to more promissing goal
     # more far away the goal is, more promissing goal
-    def get_goal(self, temperature = 10.0):
-        normalised = self._get_goals_probs(temperature)
+    def get_goal(self):
+        normalised = self._get_goals_probs(self.temperature)
         
         normalised = normalised.round(10)
         diff = 1.0 - numpy.sum(normalised)
@@ -206,7 +208,7 @@ class AdaptiveGoalsBuffer():
         # round to multiply by 32
         count = ((self.curr_ptr-1+32)//32)*32
 
-        p = self._get_goals_probs() 
+        p = self._get_goals_probs(self.temperature) 
 
         self.log_goals_buffer.add("likelihoods_mean", round(likelihoods.mean(), 6))
         self.log_goals_buffer.add("likelihoods_std",  round(likelihoods.std(), 6))
