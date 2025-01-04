@@ -133,7 +133,7 @@ class AdaptiveGoalsBuffer():
                 break
         
         if self.steps_cnt%128 == 0:
-            self._update_log()
+            self._update_log(likelihoods)
         self.steps_cnt+= 1
 
         return goal_reached, steps_reward, goal_added
