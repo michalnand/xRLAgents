@@ -372,7 +372,6 @@ class AgentPPOInDiff():
 
         # compute differences
         diff = torch.zeros((x.shape[0], ch-1, x.shape[2], x.shape[3]), device=x.device, dtype=torch.float32)
-        print(">>> ", x.shape, diff.shape)
         for i in range(ch-1):
             diff[:, i] = x[:, i] - x[:, i+1]
 
@@ -385,5 +384,5 @@ class AgentPPOInDiff():
         diff_masked = diff*mask
 
         # create output
-        result = torch.stack([x[:, 0].usqueeze(1), diff_masked], dim=1)
+        result = torch.stack([x[:, 0].unsqueeze(1), diff_masked], dim=1)
         return result
