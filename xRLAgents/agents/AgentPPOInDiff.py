@@ -370,6 +370,7 @@ class AgentPPOInDiff():
     def _state_diff_mask_normalisation(self, x, kernel_size = 3):
         ch = x.shape[1]
 
+        # compute differences
         diff = torch.zeros((x.shape[0], ch-1, x.shape[2], x.shape[3]), device=x.device, dtype=torch.float32)
         print(">>> ", x.shape, diff.shape)
         for i in range(ch-1):
