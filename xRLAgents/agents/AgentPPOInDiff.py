@@ -373,9 +373,7 @@ class AgentPPOInDiff():
         diff = torch.zeros((x.shape[0], ch-1, x.shape[2], x.shape[3]), device=x.device, dtype=torch.float32)
         print(">>> ", x.shape, diff.shape)
         for i in range(ch-1):
-            d = (x[:, i] - x[:, i+1]).unsqueeze(1)
-            print("AAA ", d.shape)
-            diff[:, i] = d
+            diff[:, i] = x[:, i] - x[:, i+1]
 
         # dilate mask
         mask = torch.abs(diff)
