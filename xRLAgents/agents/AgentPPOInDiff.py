@@ -385,5 +385,5 @@ class AgentPPOInDiff():
         diff_masked = diff*mask
 
         # create output
-        result = torch.stack([x[:, 0].usuqeeze(1), diff_masked], dim=1)
+        result = torch.stack([x[:, 0].usqueeze(1), diff_masked], dim=1)
         return result
