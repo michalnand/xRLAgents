@@ -40,6 +40,11 @@ class AgentPPOInDiff():
 
         self.state_normalise    = config.state_normalise
 
+        if hasattr(config, "state_diff_mask"):
+            self.state_diff_mask = config.state_diff_mask
+        else:
+            self.state_diff_mask = False
+
 
         self.envs_count         = len(envs)
         self.state_shape        = self.envs.observation_space.shape
@@ -103,6 +108,7 @@ class AgentPPOInDiff():
         print("alpha_inf            ", self.alpha_inf)
         print("denoising_steps      ", self.denoising_steps)
         print("state_normalise      ", self.state_normalise)
+        print("state_diff_mask      ", self.state_diff_mask)
 
         print("\n\n")
         
@@ -115,6 +121,9 @@ class AgentPPOInDiff():
         states_norm = self._state_normalise(states, training_enabled)   
 
         states_t = torch.tensor(states_norm, dtype=torch.float).to(self.device)
+
+        if self.state_diff_mask:
+            states_t = self._state_diff_mask_normalisation(states_t)
 
         # obtain model output, logits and values
         logits_t, values_ext_t, values_int_t  = self.model.forward(states_t)
@@ -356,3 +365,23 @@ class AgentPPOInDiff():
             states_norm = states
         
         return states_norm
+    
+
+    def _state_diff_mask_normalisation(self, x, kernel_size = 3):
+        ch = x.shape[1]
+
+        diff = torch.zeros((x.shape[0], ch-1, x.shape[2], x.shape[3]), device=x.device, dtype=torch.float32)
+        for i in range(ch-1):
+            diff[i] = x[:, i] - x[:, i+1]
+
+        # dilate mask
+        mask = torch.abs(diff)
+        mask = (mask > 1e-4).float()
+        mask = torch.nn.functional.max_pool2d(mask, kernel_size, stride=1, padding=kernel_size//2)
+
+        # apply mask
+        diff_masked = diff*mask
+
+        # create output
+        result = torch.stack([x[:, 0].usuqeeze(1), diff_masked], dim=1)
+        return result
