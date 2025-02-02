@@ -154,6 +154,8 @@ class AgentAetherMind():
         # optional, for state mean and variance normalisation        
         self.state_mean  = numpy.zeros(self.state_shape, dtype=numpy.float32)
 
+        print("self.state_mean ", self.state_mean.shape)
+
         for e in range(self.n_envs):
             state, _ = self.envs.reset(e)
             self.state_mean+= numpy.expand_dims(state[:, 0], 1).copy()
