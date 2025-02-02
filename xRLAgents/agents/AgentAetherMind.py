@@ -38,7 +38,7 @@ class ContextualState:
 
     def step(self, state, contextual_states, refresh_indices, refresh_all = False):
         self.state_t        = torch.roll(self.state_t, 1, 1)
-        self.state_t[:, 0]  = state[0].detach()
+        self.state_t[:, 0]  = state[:, 0].detach()
 
         # add current features on first position
         # if required refresh all, forward is passed turth all stored states
@@ -48,7 +48,7 @@ class ContextualState:
             count = 1
         
         for n in range(count):
-            z = self.model_forward_func(self.state_t[:, n].unsqueeze(0))
+            z = self.model_forward_func(self.state_t[:, n].unsqueeze(1))
             self.contextual_state[:, n] = z.detach().clone()
 
         # if required refresh all, new features are computed for whole contextual buffer
