@@ -9,6 +9,11 @@ class TrajectoryBufferIM:
         self.envs_count     = envs_count
       
         self.clear()   
+
+        print("TrajectoryBufferIM")
+        print("states : ", self.states.shape)
+        print("logits : ", self.logits.shape)
+        print("\n")
     
 
     def add(self, state, logits, values_ext, values_int, actions, rewards_ext, rewards_int, dones, episode_steps, mode = None):  

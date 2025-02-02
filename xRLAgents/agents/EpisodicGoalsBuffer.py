@@ -2,10 +2,10 @@ import torch
 
 class FeaturesExtractor:    
 
-    def __init__(self, batch_size, height, width, n_frames):
+    def __init__(self, batch_size, state_shape, n_frames):
 
         self.n_frames   = n_frames
-        self.buffer     = torch.zeros((n_frames, batch_size, height, width), dtype=torch.float32)
+        self.buffer     = torch.zeros((n_frames, batch_size, ) + state_shape, dtype=torch.float32)
 
     def reset(self, env_id):
         self.buffer[:, env_id] = 0.0
@@ -14,8 +14,8 @@ class FeaturesExtractor:
         self.buffer[:] = 0.0
 
     def step(self, states):
-        self.buffer = torch.roll(self.buffer, 1, dims=0) 
-        self.buffer[0] = states.detach().clone()
+        self.buffer     = torch.roll(self.buffer, 1, dims=0) 
+        self.buffer[0]  = states.detach().clone()
 
         a = self.buffer[0:self.n_frames//2]
         b = self.buffer[self.n_frames//2:]
@@ -32,18 +32,18 @@ class FeaturesExtractor:
 
 class EpisodicGoalsBuffer:
 
-    def __init__(self, buffer_size, batch_size, height, width, n_frames = 2, alpha = 0.1, add_threshold = 0.85):
+    def __init__(self, buffer_size, batch_size, state_shape, n_frames = 2, alpha = 0.1, add_threshold = 0.85):
 
-        self.fe = FeaturesExtractor(batch_size, height, width, n_frames)
+        self.fe = FeaturesExtractor(batch_size, state_shape, n_frames)
 
-        dummy_state = torch.randn((1, height, width))
+        dummy_state = torch.randn(state_shape)
         features    = self.fe.step(dummy_state)
         n_features  = features.shape[-1]
 
         self.features_mu  = torch.zeros((batch_size, buffer_size, n_features))
         self.features_var = torch.ones((batch_size, buffer_size, n_features))
 
-        self.key_states = torch.zeros((batch_size, buffer_size, height, width))
+        self.key_states = torch.zeros((batch_size, buffer_size, ) + state_shape)
         self.ptrs       = torch.zeros((batch_size, ), dtype=int)
 
         self.buffer_size = buffer_size
@@ -51,6 +51,12 @@ class EpisodicGoalsBuffer:
 
         self.alpha         = alpha
         self.add_threshold = add_threshold
+
+        print("EpisodicGoalsBuffer")
+        print("features_mu  : ", self.features_mu)
+        print("features_var : ", self.features_var)
+        print("key_states   : ", self.key_states)
+        print("\n")
 
 
     def reset(self, env_id):

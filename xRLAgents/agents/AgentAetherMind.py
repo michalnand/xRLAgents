@@ -122,8 +122,6 @@ class AgentAetherMind():
         self.model = Model(self.state_shape, self.actions_count)
         self.model.to(self.device)
 
-        print(self.model)
-
         
 
         # initialise optimizer and trajectory buffer
@@ -133,7 +131,7 @@ class AgentAetherMind():
 
         self.states_action_buffer = StatesActionBuffer(self.steps, self.state_shape, self.n_envs)
 
-        self.trajectory_buffer = TrajectoryBufferIM(self.steps, self.state_shape, self.actions_count, self.n_envs)
+        self.trajectory_buffer  = TrajectoryBufferIM(self.steps, self.state_shape, self.actions_count, self.n_envs)
 
         # contextual buffer for creating context, and refreshing features
         self.goals_buffer       = EpisodicGoalsBuffer(context_size, self.n_envs, self.state_shape[1], self.state_shape[2], n_frames = 2, alpha = 0.1, add_threshold = add_threshold)
