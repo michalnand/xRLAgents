@@ -127,7 +127,7 @@ class AgentAetherMind():
         
 
         # initialise optimizer and trajectory buffer
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
 
         # initialise buffers
 
