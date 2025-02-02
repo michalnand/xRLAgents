@@ -57,7 +57,6 @@ class ContextualState:
         if refresh_all:
             for n in range(self.context_size):
                 x = contextual_states[:, n].to(self.device)
-                print("x = ", refresh_all, x.shape)
                 z = self.model_forward_func(x)
                 self.contextual_buffer[:, n + self.frame_stacking] = z.detach()
         else:
@@ -68,7 +67,6 @@ class ContextualState:
                 idx = refresh_indices[n]
                 if idx > -1:
                     x = contextual_states[n, idx].unsqueeze(0).to(self.device)
-                    print("contextual_states = ", n, idx, contextual_states.shape, x.shape)
                     z = self.model_forward_func(x)
                     self.contextual_buffer[n, idx + self.frame_stacking] = z.squeeze(0).detach()
 
