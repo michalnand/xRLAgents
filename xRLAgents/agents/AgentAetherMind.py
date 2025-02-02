@@ -227,13 +227,12 @@ class AgentAetherMind():
 
         print("contextual_state = ", contextual_state.shape)
 
-        # returns (n_envs, channels + context_size, n_features)
-        z = self.model.forward_features(contextual_state).detach()
-
-        print("z = ", z.shape)
-
         # obtain model output, logits and values, use abstract state space z
-        logits_t, values_ext_t, values_int_t  = self.model.forward(z)
+        logits_t, values_ext_t, values_int_t  = self.model.forward(contextual_state)
+
+        print("logits_t     = ", logits_t.shape)
+        print("values_ext_t = ", values_ext_t.shape)
+        print("values_int_t = ", values_int_t.shape)
 
         # sample action, probs computed from logits
         actions = self._sample_actions(logits_t)
@@ -247,7 +246,7 @@ class AgentAetherMind():
         print("rewards_ext_goals = ", rewards_ext_goals.shape)
 
         # obtain only current state, located on first position
-        z_tmp = z[:, 0].detach()
+        z_tmp = contextual_state[:, 0].detach()
 
         rewards_int, _     = self._internal_motivation(z_tmp, self.alpha_inf, self.alpha_inf, self.denoising_steps)
         rewards_int        = rewards_int.detach().cpu().numpy()
@@ -261,7 +260,7 @@ class AgentAetherMind():
             self.states_action_buffer.add(states_t, actions) 
             
             # put trajectory into policy buffer
-            self.trajectory_buffer.add(z, logits_t, values_ext_t, values_int_t, actions, rewards_ext_goals, rewards_int_scaled, dones, self.episode_steps)
+            self.trajectory_buffer.add(contextual_state, logits_t, values_ext_t, values_int_t, actions, rewards_ext_goals, rewards_int_scaled, dones, self.episode_steps)
 
             # if buffer is full, run training loop
             if self.trajectory_buffer.is_full():
