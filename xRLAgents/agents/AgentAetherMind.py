@@ -21,20 +21,20 @@ class ContextualState:
         x = torch.randn((1, 1, state_shape[1], state_shape[2])).to(device)
         z = self.model_forward_func(x).detach()
         
-        n_features = z.shape[-1]
+        self.n_features = z.shape[-1]
         
-        self.contextual_state = torch.zeros((n_envs, context_size + frame_stacking, n_features), dtype=torch.float32, device=device)
+        self.contextual_buffer = torch.zeros((n_envs, context_size + frame_stacking, self.n_features), dtype=torch.float32, device=device)
 
         print("ContextualState")
-        print("n_features       : ", n_features)
+        print("n_features       : ", self.n_features)
         print("state_t          : ", self.state_t.shape)
-        print("contextual_state : ", self.contextual_state.shape)
+        print("contextual_state : ", self.contextual_buffer.shape)
         print("\n")
 
 
     def reset(self, env_id):
         self.state_t[env_id]          = 0.0
-        self.contextual_state[env_id] = 0.0
+        self.contextual_buffer[env_id] = 0.0
 
     def step(self, state, contextual_states, refresh_indices, refresh_all = False):
         self.state_t        = torch.roll(self.state_t, 1, 1)
@@ -49,14 +49,14 @@ class ContextualState:
         
         for n in range(count):
             z = self.model_forward_func(self.state_t[:, n].unsqueeze(1))
-            self.contextual_state[:, n] = z.detach().clone()
+            self.contextual_buffer[:, n] = z.detach().clone()
 
         # if required refresh all, new features are computed for whole contextual buffer
         # env-wise batching for faster processing
         if refresh_all:
             for n in range(self.context_size):
                 z = self.model_forward_func(contextual_states[:, n].unsqueeze(0))
-                self.contextual_state[:, n + self.frame_stacking] = z.detach()
+                self.contextual_buffer[:, n + self.frame_stacking] = z.detach()
         else:
         # udpate only places where new context added
         # this is sparse event and can be processed in for loop one by one
@@ -65,9 +65,9 @@ class ContextualState:
                 idx = refresh_indices[n]
                 if idx > -1:
                     z = self.model_forward_func(contextual_states[n, idx].unsqueeze(0).unsqueeze(1))
-                    self.contextual_state[n, idx + self.frame_stacking] = z.squeeze(0).detach()
+                    self.contextual_buffer[n, idx + self.frame_stacking] = z.squeeze(0).detach()
 
-        return self.contextual_state
+        return self.contextual_buffer
 
 
 
@@ -135,15 +135,14 @@ class AgentAetherMind():
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
 
         # initialise buffers
-
         self.states_action_buffer = StatesActionBuffer(self.steps, self.state_shape, self.n_envs)
-
-        self.trajectory_buffer  = TrajectoryBufferIM(self.steps, self.state_shape, self.actions_count, self.n_envs)
 
         # contextual buffer for creating context, and refreshing features
         self.goals_buffer       = EpisodicGoalsBuffer(context_size, self.n_envs, self.state_shape, n_frames = 2, alpha = 0.1, add_threshold = add_threshold)
-        self.contextual_state   = ContextualState(self.n_envs, self.model.forward_features, self.state_shape, context_size, frame_stacking, self.device)
+        self.contextual_buffer  = ContextualState(self.n_envs, self.model.forward_features, self.state_shape, context_size, frame_stacking, self.device)
     
+
+        self.trajectory_buffer  = TrajectoryBufferIM(self.steps, (self.n_envs, frame_stacking+context_size, self.contextual_buffer.n_features), self.actions_count, self.n_envs)
 
 
         self.episode_steps     = numpy.zeros(self.n_envs, dtype=int)
@@ -212,7 +211,7 @@ class AgentAetherMind():
     
 
     def reset_contextual_state(self, env_id):
-        self.contextual_state[env_id, :] = 0.0
+        self.contextual_buffer[env_id, :] = 0.0
 
     def step(self, states, training_enabled):     
 
@@ -223,7 +222,7 @@ class AgentAetherMind():
         # this need optimisation, run only on states which change
         key_states, goal_rewards_t, refresh_indices = self.goals_buffer.step(states_t)
 
-        contextual_state = self.contextual_state.step(states_t, key_states, refresh_indices, self.refresh_all)
+        contextual_state = self.contextual_buffer.step(states_t, key_states, refresh_indices, self.refresh_all)
 
         print("contextual_state = ", contextual_state.shape)
 
@@ -278,7 +277,7 @@ class AgentAetherMind():
         for i in dones_idx:
             self.episode_steps[i] = 0
             self.goals_buffer.reset(i)
-            self.contextual_state.reset(i)
+            self.contextual_buffer.reset(i)
 
 
         self.log_rewards_goal.add("mean", rewards_goal.mean())
