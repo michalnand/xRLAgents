@@ -172,6 +172,7 @@ class AgentAetherMind():
         self.log_loss_ppo       = ValuesLogger("loss_ppo")
         self.log_loss_diffusion = ValuesLogger("loss_diffusion")
         self.log_loss_im_ssl    = ValuesLogger("loss_im_ssl")
+        self.log_goals          = ValuesLogger("goals")
 
 
         # print parameters summary
@@ -223,7 +224,7 @@ class AgentAetherMind():
         states_t    = states_t[:, 0].unsqueeze(1)
 
         # this need optimisation, run only on states which change
-        key_states, goal_rewards_t, refresh_indices = self.goals_buffer.step(states_t)
+        key_states, goal_rewards_t, refresh_indices, goals_stats = self.goals_buffer.step(states_t)
 
         contextual_state = self.contextual_buffer.step(states_t, key_states, refresh_indices, self.refresh_all)
 
@@ -288,6 +289,10 @@ class AgentAetherMind():
         self.log_rewards_int.add("mean", rewards_int.mean())
         self.log_rewards_int.add("std",  rewards_int.std())
 
+        for key in goals_stats:
+            self.log_goals.add(str(key), goals_stats[key])
+
+
     
         return states_new, rewards_ext, dones, infos
     
@@ -299,7 +304,7 @@ class AgentAetherMind():
         self.model.load_state_dict(torch.load(result_path + "/model.pt", map_location = self.device))
 
     def get_logs(self):
-        return [self.log_rewards_goal, self.log_rewards_int, self.log_loss_ppo, self.log_loss_diffusion, self.log_loss_im_ssl]
+        return [self.log_rewards_goal, self.log_rewards_int, self.log_loss_ppo, self.log_loss_diffusion, self.log_loss_im_ssl, self.log_goals]
 
     def train(self): 
         samples_count = self.steps*self.n_envs

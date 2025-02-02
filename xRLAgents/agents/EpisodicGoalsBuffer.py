@@ -108,4 +108,10 @@ class EpisodicGoalsBuffer:
                 # new key state discovered, generate reward
                 rewards[n] = 1.0
 
-        return self.key_states, rewards, refresh_indices
+        stats = {}
+        tmp = self.ptrs.float().detach().numpy()
+        stats["mean"] = tmp.mean()
+        stats["std"]  = tmp.std()
+        stats["max"]  = tmp.max()
+
+        return self.key_states, rewards, refresh_indices, stats
