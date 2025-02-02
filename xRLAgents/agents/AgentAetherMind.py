@@ -64,6 +64,7 @@ class ContextualState:
             for n in range(self.n_envs):
                 idx = refresh_indices[n]
                 if idx > -1:
+                    print("contextual_states = ", contextual_states.shape)
                     z = self.model_forward_func(contextual_states[n, idx].unsqueeze(0).unsqueeze(1))
                     self.contextual_buffer[n, idx + self.frame_stacking] = z.squeeze(0).detach()
 
@@ -221,8 +222,6 @@ class AgentAetherMind():
 
         # this need optimisation, run only on states which change
         key_states, goal_rewards_t, refresh_indices = self.goals_buffer.step(states_t)
-
-        print("key_states ", key_states.shape)
 
         contextual_state = self.contextual_buffer.step(states_t, key_states, refresh_indices, self.refresh_all)
 
