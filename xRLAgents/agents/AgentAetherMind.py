@@ -64,8 +64,9 @@ class ContextualState:
             for n in range(self.n_envs):
                 idx = refresh_indices[n]
                 if idx > -1:
-                    print("contextual_states = ", contextual_states.shape)
-                    z = self.model_forward_func(contextual_states[n, idx].unsqueeze(0).unsqueeze(1))
+                    x = contextual_states[n, idx].unsqueeze(0).unsqueeze(1)
+                    print("contextual_states = ", n, idx, contextual_states.shape, x.shape)
+                    z = self.model_forward_func(x)
                     self.contextual_buffer[n, idx + self.frame_stacking] = z.squeeze(0).detach()
 
         return self.contextual_buffer
