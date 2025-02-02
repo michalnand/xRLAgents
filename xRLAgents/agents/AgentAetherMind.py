@@ -223,11 +223,7 @@ class AgentAetherMind():
         # this need optimisation, run only on states which change
         key_states, goal_rewards_t, refresh_indices = self.goals_buffer.step(states_t)
 
-        self.contextual_state.step(states_t, key_states, refresh_indices, self.refresh_all)
-
-       
-        # concatenate current state wit context
-        contextual_state = torch.concatenate([states_t, key_states], dim=1)
+        contextual_state = self.contextual_state.step(states_t, key_states, refresh_indices, self.refresh_all)
 
         print("contextual_state = ", contextual_state.shape)
 
