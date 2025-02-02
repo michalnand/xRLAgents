@@ -27,8 +27,8 @@ class ContextualState:
 
         print("ContextualState")
         print("n_features       : ", n_features)
-        print("state_t          : ", self.state_t)
-        print("contextual_state : ", self.contextual_state)
+        print("state_t          : ", self.state_t.shape)
+        print("contextual_state : ", self.contextual_state.shape)
         print("\n")
 
 
