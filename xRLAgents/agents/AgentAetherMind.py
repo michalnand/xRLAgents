@@ -99,7 +99,6 @@ class AgentAetherMind():
         self.alpha_max            = config.alpha_max
         self.alpha_inf            = config.alpha_inf
         self.denoising_steps      = config.denoising_steps
-        self.im_distance_func     = config.im_distance_func
 
         self.state_normalise    = config.state_normalise
 
