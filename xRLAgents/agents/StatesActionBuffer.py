@@ -11,6 +11,11 @@ class StatesActionBuffer:
         self.state_shape = state_shape
 
         self.clear()
+
+        print("creating StatesActionBuffer")
+        print("states  : ", self.states.shape)
+        print("actions : ", self.actions.shape)
+        print("\n")
         
     def is_full(self):
         if self.ptr >= self.buffer_size:

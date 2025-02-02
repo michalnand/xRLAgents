@@ -131,7 +131,7 @@ class AgentAetherMind():
 
         # initialise buffers
 
-        self.states_action_buffer = StatesActionBuffer(self.steps, self.state_shape, self.actions_count, self.n_envs)
+        self.states_action_buffer = StatesActionBuffer(self.steps, self.state_shape, self.n_envs)
 
         self.trajectory_buffer = TrajectoryBufferIM(self.steps, self.state_shape, self.actions_count, self.n_envs)
 
