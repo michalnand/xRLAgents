@@ -64,6 +64,7 @@ class EpisodicGoalsBuffer:
 
         self.features_mu[env_id,  :] = 0.0
         self.features_var[env_id, :] = 1.0
+        self.ptrs[env_id]            = 0
 
     def step(self, states):
         batch_size  = states.shape[0]
