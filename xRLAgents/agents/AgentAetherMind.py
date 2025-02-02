@@ -224,7 +224,7 @@ class AgentAetherMind():
 
         contextual_state = self.contextual_buffer.step(states_t, key_states, refresh_indices, self.refresh_all)
 
-        print("contextual_state = ", contextual_state.shape)
+        #print("contextual_state = ", contextual_state.shape)
 
         # obtain model output, logits and values, use abstract state space z
         logits_t, values_ext_t, values_int_t  = self.model.forward(contextual_state)
@@ -239,7 +239,6 @@ class AgentAetherMind():
 
         rewards_goal      = goal_rewards_t.detach().cpu().numpy()
         rewards_ext_goals = self.reward_ext_coeff*rewards_ext + self.reward_goal_coeff*rewards_goal
-        print("rewards_ext_goals = ", rewards_ext_goals.shape)
 
         # obtain only current state, located on first position
         z_tmp = contextual_state[:, 0].detach()
