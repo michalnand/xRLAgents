@@ -142,7 +142,7 @@ class AgentAetherMind():
         self.contextual_buffer  = ContextualState(self.n_envs, self.model.forward_features, self.state_shape, context_size, frame_stacking, self.device)
     
 
-        self.trajectory_buffer  = TrajectoryBufferIM(self.steps, (self.n_envs, frame_stacking+context_size, self.contextual_buffer.n_features), self.actions_count, self.n_envs)
+        self.trajectory_buffer  = TrajectoryBufferIM(self.steps, (frame_stacking+context_size, self.contextual_buffer.n_features), self.actions_count, self.n_envs)
 
 
         self.episode_steps     = numpy.zeros(self.n_envs, dtype=int)
