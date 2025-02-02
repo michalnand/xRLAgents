@@ -191,7 +191,6 @@ class AgentAetherMind():
         print("alpha_max            ", self.alpha_max)
         print("alpha_inf            ", self.alpha_inf)
         print("denoising_steps      ", self.denoising_steps)
-        print("im_distance_func     ", self.im_distance_func)
         print("state_normalise      ", self.state_normalise)
         print("frame_stacking       ", frame_stacking)
         print("context_size         ", context_size)
@@ -380,7 +379,7 @@ class AgentAetherMind():
             z_denoised = z_denoised - noise_hat
 
         # denoising novelty
-        novelty = self.im_distance_func((z_target - z_denoised).detach())
+        novelty    = ((z_target - z_denoised)**2).mean(dim=1)
         
         # MSE noise loss prediction
         noise_pred = z_noised - z_denoised
