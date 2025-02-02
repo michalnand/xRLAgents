@@ -156,7 +156,7 @@ class AgentAetherMind():
 
         for e in range(self.n_envs):
             state, _ = self.envs.reset(e)
-            self.state_mean+= state.copy()
+            self.state_mean+= state[:, 0].unsqueeze(0).copy()
 
         self.state_mean/= self.n_envs
         self.state_var = numpy.ones(self.state_shape,  dtype=numpy.float32)

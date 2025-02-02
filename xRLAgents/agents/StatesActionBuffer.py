@@ -12,7 +12,7 @@ class StatesActionBuffer:
 
         self.clear()
 
-        print("creating StatesActionBuffer")
+        print("StatesActionBuffer")
         print("states  : ", self.states.shape)
         print("actions : ", self.actions.shape)
         print("\n")
