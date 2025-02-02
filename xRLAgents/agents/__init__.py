@@ -16,5 +16,6 @@ from .AgentPPOInDiffB       import *
 from .AgentPPOInDiffC       import *
 from .AgentPPOInDiffD       import *
 
+from .AgentAetherMind       import *
 
 from .loss_self_supervised  import *
