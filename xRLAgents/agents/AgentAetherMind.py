@@ -18,12 +18,19 @@ class ContextualState:
         self.model_forward_func = model_forward_func
         self.state_t = torch.zeros((n_envs, frame_stacking, state_shape[1], state_shape[2]), dtype=torch.float32, device=device)
 
-        x = torch.randn((1, 1, state_shape[1], state_shape[2]))
+        x = torch.randn((1, 1, state_shape[1], state_shape[2])).to(device)
         z = self.model_forward_func(x).detach()
         
         n_features = z.shape[-1]
         
         self.contextual_state = torch.zeros((n_envs, context_size + frame_stacking, n_features), dtype=torch.float32, device=device)
+
+        print("ContextualState")
+        print("n_features       : ", n_features)
+        print("state_t          : ", self.state_t)
+        print("contextual_state : ", self.contextual_state)
+        print("\n")
+
 
     def reset(self, env_id):
         self.state_t[env_id]          = 0.0
