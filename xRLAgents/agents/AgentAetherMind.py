@@ -230,9 +230,6 @@ class AgentAetherMind():
         # obtain model output, logits and values, use abstract state space z
         logits_t, values_ext_t, values_int_t  = self.model.forward(contextual_state)
 
-        print("logits_t     = ", logits_t.shape)
-        print("values_ext_t = ", values_ext_t.shape)
-        print("values_int_t = ", values_int_t.shape)
 
         # sample action, probs computed from logits
         actions = self._sample_actions(logits_t)
@@ -368,9 +365,8 @@ class AgentAetherMind():
 
     # state denoising ability novely detection
     def _internal_motivation(self, states, alpha_min, alpha_max, denoising_steps):
-        
         # obtain taget features from states and noised states
-        z_target  = self.model.forward_im_features(states).detach()
+        z_target  = states.detach() 
 
         # add noise into features
         z_noised, noise, alpha = self.im_noise(z_target, alpha_min, alpha_max)
