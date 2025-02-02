@@ -222,6 +222,8 @@ class AgentAetherMind():
         # this need optimisation, run only on states which change
         key_states, goal_rewards_t, refresh_indices = self.goals_buffer.step(states_t)
 
+        print("key_states ", key_states.shape)
+
         contextual_state = self.contextual_buffer.step(states_t, key_states, refresh_indices, self.refresh_all)
 
         #print("contextual_state = ", contextual_state.shape)
