@@ -14,6 +14,7 @@ class ContextualState:
         self.n_envs         = n_envs
         self.context_size   = context_size
         self.frame_stacking = frame_stacking
+        self.device         = device
 
         self.model_forward_func = model_forward_func
         self.state_t = torch.zeros((n_envs, frame_stacking, state_shape[1], state_shape[2]), dtype=torch.float32, device=device)
@@ -64,7 +65,7 @@ class ContextualState:
             for n in range(self.n_envs):
                 idx = refresh_indices[n]
                 if idx > -1:
-                    x = contextual_states[n, idx].unsqueeze(0)
+                    x = contextual_states[n, idx].unsqueeze(0).to(self.device)
                     print("contextual_states = ", n, idx, contextual_states.shape, x.shape)
                     z = self.model_forward_func(x)
                     self.contextual_buffer[n, idx + self.frame_stacking] = z.squeeze(0).detach()
