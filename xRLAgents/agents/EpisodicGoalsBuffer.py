@@ -53,9 +53,9 @@ class EpisodicGoalsBuffer:
         self.add_threshold = add_threshold
 
         print("EpisodicGoalsBuffer")
-        print("features_mu  : ", self.features_mu)
-        print("features_var : ", self.features_var)
-        print("key_states   : ", self.key_states)
+        print("features_mu  : ", self.features_mu.shape)
+        print("features_var : ", self.features_var.shape)
+        print("key_states   : ", self.key_states.shape)
         print("\n")
 
 
