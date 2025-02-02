@@ -141,7 +141,7 @@ class AgentAetherMind():
         self.states_action_buffer = StatesActionBuffer(self.steps, self.state_shape, self.n_envs)
 
         # contextual buffer for creating context, and refreshing features
-        self.goals_buffer       = EpisodicGoalsBuffer(context_size, self.n_envs, self.state_shape, n_frames = 2, alpha = 0.1, add_threshold = add_threshold)
+        self.goals_buffer       = EpisodicGoalsBuffer(context_size, self.n_envs, self.state_shape, n_frames = 2, alpha = 0.01, add_threshold = add_threshold)
         self.contextual_buffer  = ContextualState(self.n_envs, self.model.forward_features, self.state_shape, context_size, frame_stacking, self.device)
     
 
