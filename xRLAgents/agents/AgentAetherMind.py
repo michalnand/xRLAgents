@@ -56,7 +56,7 @@ class ContextualState:
         # env-wise batching for faster processing
         if refresh_all:
             for n in range(self.context_size):
-                x = contextual_states[:, n].unsqueeze(0).to(self.device)
+                x = contextual_states[:, n].to(self.device)
                 print("x = ", refresh_all, x.shape)
                 z = self.model_forward_func(x)
                 self.contextual_buffer[:, n + self.frame_stacking] = z.detach()
