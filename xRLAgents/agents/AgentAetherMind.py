@@ -10,15 +10,15 @@ from .EpisodicGoalsBuffer import *
 
 class ContextualState:
 
-    def __init__(self, n_envs, model_forward_func, state_size, context_size, frame_stacking, device):
+    def __init__(self, n_envs, model_forward_func, state_shape, context_size, frame_stacking, device):
         self.n_envs         = n_envs
         self.context_size   = context_size
         self.frame_stacking = frame_stacking
 
         self.model_forward_func = model_forward_func
-        self.state_t = torch.zeros((n_envs, frame_stacking, state_size), dtype=torch.float32, device=device)
+        self.state_t = torch.zeros((n_envs, frame_stacking, state_shape[1], state_shape[2]), dtype=torch.float32, device=device)
 
-        x = torch.randn((1, 1, ) + state_size)
+        x = torch.randn((1, 1, state_shape[1], state_shape[2]))
         z = self.model_forward_func(x).detach()
         
         n_features = z.shape[-1]
