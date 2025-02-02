@@ -158,7 +158,7 @@ class AgentAetherMind():
 
         for e in range(self.n_envs):
             state, _ = self.envs.reset(e)
-            state = numpy.expand_dims(state[0], 1)
+            state = numpy.expand_dims(state[0], 0)
             print("state = ", state.shape)
             self.state_mean+= state.copy()
 
