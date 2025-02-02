@@ -56,7 +56,9 @@ class ContextualState:
         # env-wise batching for faster processing
         if refresh_all:
             for n in range(self.context_size):
-                z = self.model_forward_func(contextual_states[:, n].unsqueeze(0))
+                x = contextual_states[:, n].unsqueeze(0).to(self.device)
+                print("x = ", refresh_all, x.shape)
+                z = self.model_forward_func(x)
                 self.contextual_buffer[:, n + self.frame_stacking] = z.detach()
         else:
         # udpate only places where new context added
