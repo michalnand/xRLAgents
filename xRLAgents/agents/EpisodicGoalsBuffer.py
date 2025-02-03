@@ -2,29 +2,40 @@ import torch
 
 class FeaturesExtractor:    
 
-    def __init__(self, batch_size, state_shape, n_frames):
+    def __init__(self):
 
-        self.n_frames   = n_frames
-        self.buffer     = torch.zeros((n_frames, batch_size, ) + state_shape, dtype=torch.float32)
+        self.state_prev = None
+        self.state_curr = None
 
     def reset(self, env_id):
-        self.buffer[:, env_id] = 0.0
+        self.state_prev[:, env_id] = 0.0
+        self.state_curr[:, env_id] = 0.0
 
-    def clear(self):
-        self.buffer[:] = 0.0
+    def clear(self):    
+        self.state_prev[:] = 0.0
+        self.state_curr[:] = 0.0
 
     def step(self, states):
-        self.buffer     = torch.roll(self.buffer, 1, dims=0) 
-        self.buffer[0]  = states.detach().clone()
+      
 
-        a = self.buffer[0:self.n_frames//2]
-        b = self.buffer[self.n_frames//2:]
+        if self.state_prev is None:
+            self.state_prev = states.detach().clone()
+        
+        if self.state_curr is None:
+            self.state_curr = states.detach().clone()
 
-        diff = a.mean(dim=0) - b.mean(dim=0)
+
+        self.state_prev = self.state_curr.clone()
+        self.state_curr = states.detach().clone()
+
+
+        diff = self.state_curr - self.state_prev
         z = torch.abs(diff)
         z = torch.nn.functional.avg_pool2d(z, (2, 2), stride=(2, 2))
         z = z.flatten(1)
         
+        print("z = ", z.shape)
+
         return z
 
 
@@ -35,7 +46,7 @@ class EpisodicGoalsBuffer:
     def __init__(self, buffer_size, batch_size, state_shape, n_frames = 2, alpha = 0.1, add_threshold = 0.9, device = "cpu"):
 
         self.device = device
-        self.fe = FeaturesExtractor(batch_size, state_shape, n_frames)
+        self.fe = FeaturesExtractor()
 
         self.downsample = int(buffer_size**0.5)
 
