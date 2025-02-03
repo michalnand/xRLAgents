@@ -16,17 +16,15 @@ class FeaturesExtractor:
         self.state_curr[:] = 0.0
 
     def step(self, states):
-      
-
+        print("states ", states.shape, states.device)
         if self.state_prev is None:
             self.state_prev = states.detach().clone()
         
         if self.state_curr is None:
             self.state_curr = states.detach().clone()
 
-
         self.state_prev = self.state_curr.clone()
-        self.state_curr = states.detach().clone()
+        self.state_curr = states.clone()
 
 
         diff = self.state_curr - self.state_prev
