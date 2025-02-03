@@ -65,7 +65,7 @@ class AgentAetherMindAlpha():
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
 
         # contextual buffer for creating context, and refreshing features
-        self.episodic_goals_buffer = EpisodicGoalsBuffer(context_size, self.n_envs, (1, state_shape[1], state_shape[2]), n_frames = 2, alpha = 0.1, add_threshold = add_threshold)
+        self.episodic_goals_buffer = EpisodicGoalsBuffer(context_size, self.n_envs, (1, state_shape[1], state_shape[2]), n_frames = 2, alpha = 0.1, add_threshold = add_threshold, device=self.device)
     
         self.trajectory_buffer      = TrajectoryBufferIM(self.steps, self.state_shape, self.actions_count, self.n_envs)
 
