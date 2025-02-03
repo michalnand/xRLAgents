@@ -335,17 +335,14 @@ class AgentAetherMind():
             
             states_now, states_next, actions = self.states_action_buffer.sample_state_pairs(self.ss_batch_size, self.device)
             
-            print(">>> ", batch_idx, states_now.shape, states_next.shape)
-            # obtain features
+            # obtain features for diffusion model
             z_now   = self.model.forward_features(states_now)
-            z_next  = self.model.forward_features(states_next)
 
             # internal motivation loss, MSE diffusion    
             _, loss_diffusion  = self._internal_motivation(z_now.detach(), self.alpha_min, self.alpha_max, self.denoising_steps)
 
-            print(">>> ", z_now.shape, z_next.shape)
             # self supervised target regularisation
-            loss_ssl, info_ssl = self.im_ssl_loss(self.model, z_now, z_next, actions)
+            loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_now, states_next, actions)
 
             # final IM loss
             loss_im = loss_diffusion.mean() + loss_ssl
