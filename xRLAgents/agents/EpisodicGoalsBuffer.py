@@ -86,7 +86,6 @@ class EpisodicGoalsBuffer:
         batch_size  = states.shape[0]
         features    = self.fe.step(states.to(self.device))
 
-        print(features.device,  self.features_mu.device)
 
         dist = features.unsqueeze(1) - self.features_mu
         dist = torch.abs(dist).mean(dim=-1)
