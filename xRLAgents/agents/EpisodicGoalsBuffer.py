@@ -50,7 +50,7 @@ class EpisodicGoalsBuffer:
 
         self.downsample = int(buffer_size**0.5)
 
-        dummy_state = torch.randn(state_shape)
+        dummy_state = torch.randn(state_shape).to(self.device)
         features    = self.fe.step(dummy_state)
         n_features  = features.shape[-1]
 
