@@ -140,7 +140,7 @@ class AgentAetherMindAlpha():
         key_states, tiled_state, rewards_goal, refresh_indices, goals_stats = self.episodic_goals_buffer.step(states_curr)
 
         # add context to state
-        contextual_state = torch.concatenate([states_norm, tiled_state], dim=0).to(self.device)
+        contextual_state = torch.concatenate([states_norm, tiled_state], dim=1).to(self.device)
 
         print("contextual_state = ", states_norm.shape, states_curr.shape, contextual_state.shape, tiled_state.shape)
 
