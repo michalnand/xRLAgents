@@ -332,7 +332,7 @@ class AgentAetherMind():
         #main features and IM training loop
         for batch_idx in range(batch_count):    
             
-            states_now, states_next, actions = self.states_action_buffer.sample_states_pairs(self.ss_batch_size, self.device)
+            states_now, states_next, actions = self.states_action_buffer.sample_state_pairs(self.ss_batch_size, self.device)
             
             # obtain features
             z_now   = self.model.forward_features(states_now)
