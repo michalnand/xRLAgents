@@ -45,6 +45,7 @@ class AgentAetherMindAlpha():
         self.denoising_steps      = config.denoising_steps
 
         self.state_normalise    = config.state_normalise
+        self.joined_training    = config.joined_training
 
         context_size        = config.context_size
         add_threshold       = config.add_threshold
@@ -169,7 +170,10 @@ class AgentAetherMindAlpha():
             if self.trajectory_buffer.is_full():
                 self.trajectory_buffer.compute_returns(self.gamma_ext, self.gamma_int)
                 
-                self.train()
+                if self.joined_training:
+                    self.train_join()
+                else:
+                    self.train()
 
                 self.trajectory_buffer.clear()
           
@@ -415,7 +419,9 @@ class AgentAetherMindAlpha():
 
         return loss_policy, loss_entropy
 
-    #def _state_normalise(self, states, training_enabled, alpha = 0.99): 
+
+
+    def _state_normalise(self, states, training_enabled, alpha = 0.99): 
 
         if self.state_normalise:
             #update running stats only during training
