@@ -3,8 +3,12 @@ import numpy
 
 from .TrajectoryBufferIM  import *
 from ..training.ValuesLogger           import *
-  
-class AgentPPOInDiff(): 
+
+from .StatesActionBuffer  import *
+from .EpisodicGoalsBuffer import *
+
+
+class AgentAetherMindAlpha(): 
     def __init__(self, envs, Config, Model):
         self.envs = envs
  
@@ -22,6 +26,8 @@ class AgentPPOInDiff():
         self.adv_ext_coeff      = config.adv_ext_coeff
         self.adv_int_coeff      = config.adv_int_coeff
         self.val_coeff          = config.val_coeff
+        self.reward_ext_coeff   = config.reward_ext_coeff
+        self.reward_goal_coeff  = config.reward_goal_coeff
         self.reward_int_coeff   = config.reward_int_coeff
 
         self.steps              = config.steps
@@ -30,7 +36,7 @@ class AgentPPOInDiff():
         
         self.training_epochs    = config.training_epochs
         
-        self.learning_rate        = config.learning_rate
+        learning_rate             = config.learning_rate
         self.im_ssl_loss          = config.im_ssl_loss
         self.im_noise             = config.im_noise
         self.alpha_min            = config.alpha_min
@@ -40,14 +46,14 @@ class AgentPPOInDiff():
 
         self.state_normalise    = config.state_normalise
 
-        if hasattr(config, "state_diff_mask"):
-            self.state_diff_mask = config.state_diff_mask
-        else:
-            self.state_diff_mask = False
+        context_size        = config.context_size
+        add_threshold       = config.add_threshold
 
 
-        self.envs_count         = len(envs)
-        self.state_shape        = self.envs.observation_space.shape
+        self.n_envs         = len(envs)
+        state_shape         = self.envs.observation_space.shape
+
+        self.state_shape        = (state_shape[0] + 1, state_shape[1], state_shape[2])
         self.actions_count      = self.envs.action_space.n
 
         # create mdoel
@@ -55,30 +61,36 @@ class AgentPPOInDiff():
         self.model.to(self.device)
 
         # initialise optimizer and trajectory buffer
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
 
-        self.trajectory_buffer = TrajectoryBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
+        # contextual buffer for creating context, and refreshing features
+        self.episodic_goals_buffer = EpisodicGoalsBuffer(context_size, self.n_envs, (1, state_shape[1], state_shape[2]), n_frames = 2, alpha = 0.1, add_threshold = add_threshold)
+    
+        self.trajectory_buffer      = TrajectoryBufferIM(self.steps, self.state_shape, self.actions_count, self.n_envs)
 
-        self.episode_steps     = numpy.zeros(self.envs_count, dtype=int)
+        self.episode_steps          = numpy.zeros(self.n_envs, dtype=int)
 
 
-
+        
         # optional, for state mean and variance normalisation        
-        self.state_mean  = numpy.zeros(self.state_shape, dtype=numpy.float32)
+        self.state_mean  = numpy.zeros(state_shape, dtype=numpy.float32)
 
-        for e in range(self.envs_count):
+        for e in range(self.n_envs):
             state, _ = self.envs.reset(e)
+            state = numpy.expand_dims(state[0], 0)
             self.state_mean+= state.copy()
 
-        self.state_mean/= self.envs_count
-        self.state_var = numpy.ones(self.state_shape,  dtype=numpy.float32)
-
+        self.state_mean/= self.n_envs
+        self.state_var = numpy.ones(state_shape,  dtype=numpy.float32)
+        
 
         # result loggers
-        self.log_rewards_int        = ValuesLogger("rewards_int")
-        self.log_loss_ppo           = ValuesLogger("loss_ppo")
-        self.log_loss_diffusion     = ValuesLogger("loss_diffusion")
-        self.log_loss_im_ssl        = ValuesLogger("loss_im_ssl")
+        self.log_rewards_goal   = ValuesLogger("rewards_goal")
+        self.log_rewards_int    = ValuesLogger("rewards_int")
+        self.log_loss_ppo       = ValuesLogger("loss_ppo")
+        self.log_loss_diffusion = ValuesLogger("loss_diffusion")
+        self.log_loss_im_ssl    = ValuesLogger("loss_im_ssl")
+        self.log_goals          = ValuesLogger("goals")
 
 
         # print parameters summary
@@ -95,12 +107,14 @@ class AgentPPOInDiff():
         print("adv_ext_coeff        ", self.adv_ext_coeff)
         print("adv_int_coeff        ", self.adv_int_coeff)
         print("val_coeff            ", self.val_coeff)
+        print("reward_ext_coeff     ", self.reward_ext_coeff)
+        print("reward_goal_coeff    ", self.reward_goal_coeff)
         print("reward_int_coeff     ", self.reward_int_coeff)
         print("steps                ", self.steps)
         print("batch_size           ", self.batch_size)
         print("ss_batch_size        ", self.ss_batch_size)
         print("training_epochs      ", self.training_epochs)
-        print("learning_rate        ", self.learning_rate)
+        print("learning_rate        ", learning_rate)
         print("im_ssl_loss          ", self.im_ssl_loss)
         print("im_noise             ", self.im_noise)
         print("alpha_min            ", self.alpha_min)
@@ -108,59 +122,75 @@ class AgentPPOInDiff():
         print("alpha_inf            ", self.alpha_inf)
         print("denoising_steps      ", self.denoising_steps)
         print("state_normalise      ", self.state_normalise)
-        print("state_diff_mask      ", self.state_diff_mask)
+        print("context_size         ", context_size)
+        print("add_threshold        ", add_threshold)
 
         print("\n\n")
         
      
-
-       
   
     def step(self, states, training_enabled):     
 
-        states_norm = self._state_normalise(states, training_enabled)   
+        states_norm     = self._state_normalise(states, training_enabled)   
+        states_norm     = torch.tensor(states_norm, dtype=torch.float).to(self.device)
 
-        states_t = torch.tensor(states_norm, dtype=torch.float).to(self.device)
+        states_curr     = torch.from_numpy(states[:, 0]).unsqueeze(1).float()
 
-        if self.state_diff_mask:
-            states_t = self._state_diff_mask_normalisation(states_t)
+        key_states, tiled_state, rewards_goal, refresh_indices, goals_stats = self.episodic_goals_buffer.step(states_curr)
 
-        # obtain model output, logits and values
-        logits_t, values_ext_t, values_int_t  = self.model.forward(states_t)
+        # add context to state
+        contextual_state = torch.concatenate([states_norm, tiled_state], dim=0).to(self.device)
+
+        print("contextual_state = ", contextual_state.shape)
+
+        # obtain model output, logits and values, use abstract state space z
+        logits_t, values_ext_t, values_int_t = self.model.forward(contextual_state)
 
         # sample action, probs computed from logits
         actions = self._sample_actions(logits_t)
       
-       
         # environment step  
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
-        rewards_int, _     = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
+        rewards_goal      = rewards_goal.detach().cpu().numpy()
+        rewards_ext_goals = self.reward_ext_coeff*rewards_ext + self.reward_goal_coeff*rewards_goal
+
+        # internal motivaiotn based on diffusion
+        rewards_int, _     = self._internal_motivation(contextual_state.detach(), self.alpha_inf, self.alpha_inf, self.denoising_steps)
         rewards_int        = rewards_int.detach().cpu().numpy()
         rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
 
         # top PPO training part
-        if training_enabled:    
-            
+        if training_enabled:     
             # put trajectory into policy buffer
-            self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext, rewards_int_scaled, dones, self.episode_steps)
+            self.trajectory_buffer.add(contextual_state, logits_t, values_ext_t, values_int_t, actions, rewards_ext_goals, rewards_int_scaled, dones, self.episode_steps)
 
             # if buffer is full, run training loop
             if self.trajectory_buffer.is_full():
                 self.trajectory_buffer.compute_returns(self.gamma_ext, self.gamma_int)
+                
                 self.train()
+
                 self.trajectory_buffer.clear()
+          
 
         self.episode_steps+= 1 
 
         dones_idx = numpy.where(dones)[0]
         for i in dones_idx:
             self.episode_steps[i] = 0
+            self.episodic_goals_buffer.reset(i)
 
+
+        self.log_rewards_goal.add("mean", rewards_goal.mean())
+        self.log_rewards_goal.add("std",  rewards_goal.std())
 
         self.log_rewards_int.add("mean", rewards_int.mean())
-        self.log_rewards_int.add("std", rewards_int.std())
-    
+        self.log_rewards_int.add("std",  rewards_int.std())
+
+        for key in goals_stats:
+            self.log_goals.add(str(key), goals_stats[key])
+
         return states_new, rewards_ext, dones, infos
     
 
@@ -171,10 +201,10 @@ class AgentPPOInDiff():
         self.model.load_state_dict(torch.load(result_path + "/model.pt", map_location = self.device))
 
     def get_logs(self):
-        return [self.log_rewards_int, self.log_loss_ppo, self.log_loss_diffusion, self.log_loss_im_ssl]
+        return [self.log_rewards_goal, self.log_rewards_int, self.log_loss_ppo, self.log_loss_diffusion, self.log_loss_im_ssl, self.log_goals]
 
     def train(self): 
-        samples_count = self.steps*self.envs_count
+        samples_count = self.steps*self.n_envs
         batch_count = samples_count//self.batch_size
 
         # epoch training
@@ -194,8 +224,8 @@ class AgentPPOInDiff():
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
                 self.optimizer.step() 
 
-
-
+         
+        
         batch_count = samples_count//self.ss_batch_size
         
         #main IM training loop
@@ -222,6 +252,44 @@ class AgentPPOInDiff():
                 
             for key in info_ssl:
                 self.log_loss_im_ssl.add(str(key), info_ssl[key])
+
+
+    def train_join(self): 
+        samples_count = self.steps*self.n_envs
+        batch_count = samples_count//self.batch_size
+
+        # epoch training
+        for e in range(self.training_epochs):
+            for batch_idx in range(batch_count):
+                
+                # sample batch
+                states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.trajectory_buffer.sample_batch(self.batch_size, self.device)
+                
+                # compute main PPO loss
+                loss_ppo = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
+
+                #self supervised target regularisation
+                states_now, states_next, actions, _ = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
+                
+                _, loss_diffusion  = self._internal_motivation(states_now, self.alpha_min, self.alpha_max, self.denoising_steps)
+
+                loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_now, states_next, actions)
+
+                #final loss
+                loss = loss_ppo + loss_ssl + loss_diffusion.mean()
+                self.optimizer.zero_grad()        
+                loss.backward()
+
+                # gradient clip for stabilising training
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
+                self.optimizer.step() 
+
+                # log results
+                self.log_loss_diffusion.add("mean", loss_diffusion.mean().detach().cpu().numpy())
+                self.log_loss_diffusion.add("std", loss_diffusion.std().detach().cpu().numpy())
+                
+                for key in info_ssl:
+                    self.log_loss_im_ssl.add(str(key), info_ssl[key])
 
 
     # sample action, probs computed from logits
@@ -347,7 +415,7 @@ class AgentPPOInDiff():
 
         return loss_policy, loss_entropy
 
-    def _state_normalise(self, states, training_enabled, alpha = 0.99): 
+    #def _state_normalise(self, states, training_enabled, alpha = 0.99): 
 
         if self.state_normalise:
             #update running stats only during training
@@ -366,24 +434,3 @@ class AgentPPOInDiff():
             states_norm = states
         
         return states_norm
-    
-
-    def _state_diff_mask_normalisation(self, x, kernel_size = 3):
-        ch = x.shape[1]
-
-        # compute differences
-        diff = torch.zeros((x.shape[0], ch-1, x.shape[2], x.shape[3]), device=x.device, dtype=torch.float32)
-        for i in range(ch-1):
-            diff[:, i] = x[:, i] - x[:, i+1]
-
-        # dilate mask
-        mask = torch.abs(diff)
-        mask = (mask > 1e-4).float()
-        mask = torch.nn.functional.max_pool2d(mask, kernel_size, stride=1, padding=kernel_size//2)
-
-        # apply mask
-        diff_masked = diff*mask
-
-        # create output
-        result = torch.concatenate([x[:, 0].unsqueeze(1), diff_masked], dim=1)
-        return result

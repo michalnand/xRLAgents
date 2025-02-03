@@ -32,9 +32,11 @@ class FeaturesExtractor:
 
 class EpisodicGoalsBuffer:
 
-    def __init__(self, buffer_size, batch_size, state_shape, n_frames = 2, alpha = 0.1, add_threshold = 0.85):
+    def __init__(self, buffer_size, batch_size, state_shape, n_frames = 2, alpha = 0.1, add_threshold = 0.9):
 
         self.fe = FeaturesExtractor(batch_size, state_shape, n_frames)
+
+        self.downsample = int(buffer_size**0.5)
 
         dummy_state = torch.randn(state_shape)
         features    = self.fe.step(dummy_state)
@@ -44,6 +46,10 @@ class EpisodicGoalsBuffer:
         self.features_var = torch.ones((batch_size, buffer_size, n_features))
 
         self.key_states = torch.zeros((batch_size, buffer_size, ) + state_shape)
+        
+        grid_size = int(buffer_size ** 0.5)
+        self.tiled_state = torch.zeros((batch_size, state_shape[0], (grid_size*state_shape[1])//self.downsample, (grid_size*state_shape[2])//self.downsample))
+
         self.ptrs       = torch.zeros((batch_size, ), dtype=int)
 
         self.buffer_size = buffer_size
@@ -55,6 +61,7 @@ class EpisodicGoalsBuffer:
         print("EpisodicGoalsBuffer")
         print("features_mu  : ", self.features_mu.shape)
         print("features_var : ", self.features_var.shape)
+        print("tiled_state  : ", self.tiled_state.shape)
         print("key_states   : ", self.key_states.shape)
         print("\n")
 
@@ -64,6 +71,8 @@ class EpisodicGoalsBuffer:
 
         self.features_mu[env_id,  :] = 0.0
         self.features_var[env_id, :] = 1.0
+        self.tiled_state[env_id]     = 0.0
+        
         self.ptrs[env_id]            = 0
 
     def step(self, states):
@@ -104,6 +113,8 @@ class EpisodicGoalsBuffer:
 
                 refresh_indices[n] = idx
 
+                self.tiled_state[n] = self._downsample_and_tile(self.key_states[n], self.downsample)
+
                 self.ptrs[n] = (self.ptrs[n] + 1)%self.buffer_size
 
                 # new key state discovered, generate reward
@@ -115,4 +126,22 @@ class EpisodicGoalsBuffer:
         stats["std"]  = tmp.std()
         stats["max"]  = tmp.max()
 
-        return self.key_states, rewards, refresh_indices, stats
+        return self.key_states, self.tiled_state, rewards, refresh_indices, stats
+
+
+    def _downsample_and_tile(self, key_states, scale):
+        buffer_size, ch, height, width = key_states.shape
+        grid_size = int(buffer_size ** 0.5)
+        
+        # Downsample using average pooling
+        downsampled = torch.nn.functional.avg_pool2d(key_states.view(-1, ch, height, width), kernel_size=scale, stride=scale)
+        _, _, new_height, new_width = downsampled.shape
+
+
+        tiled = downsampled.view(grid_size, grid_size, ch, new_height, new_width)  # (s, s, ch, h, w)
+        tiled = tiled.permute(2, 0, 3, 1, 4)  # (ch, s, h, s, w)
+        tiled = tiled.reshape(ch, grid_size * new_height, grid_size * new_width)  # (ch, height*s, width*s)
+
+        return tiled
+
+       
