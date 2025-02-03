@@ -98,21 +98,23 @@ class EpisodicGoalsBuffer:
         rewards = torch.zeros((batch_size, )).to(self.device)
         refresh_indices = -torch.ones((batch_size, ), dtype=int).to(self.device)
 
+        batch_size = self.features_mu.shape[0]
+        batch_idx = torch.arange(batch_size, device=self.features_mu.device)
 
         # mean and variance update
-        delta = features - self.features_mu[:, dist_min_idx]
-        self.features_mu[:, dist_min_idx]  = (1.0 - self.alpha)*self.features_mu[:, dist_min_idx]  + self.alpha*features[:]
-        self.features_var[:, dist_min_idx] = (1.0 - self.alpha)*self.features_var[:, dist_min_idx] + self.alpha*(delta**2)
+        delta = features - self.features_mu[batch_idx, dist_min_idx]
+        self.features_mu[batch_idx, dist_min_idx]  = (1.0 - self.alpha)*self.features_mu[batch_idx, dist_min_idx]  + self.alpha*features[batch_idx]
+        self.features_var[batch_idx, dist_min_idx] = (1.0 - self.alpha)*self.features_var[batch_idx, dist_min_idx] + self.alpha*(delta**2)
 
         # compute confidence using z-score
-        features_sigma  = (self.features_var[:, dist_min_idx] + 0.1)**0.5
-        z_score         = (features - self.features_mu[:, dist_min_idx])/features_sigma
+        features_sigma  = (self.features_var[batch_idx, dist_min_idx] + 0.1)**0.5
+        z_score         = (features - self.features_mu[batch_idx, dist_min_idx])/features_sigma
         confidence      = 1.0 - ((z_score**2).mean()**0.5)
 
 
         for n in range(batch_size):
             # update stats for nearest
-            idx = dist_min_idx[n]
+            idx = dist_min_idx[n]   
             
             # if confidence is low, create new goal state
             if confidence < self.add_threshold:
