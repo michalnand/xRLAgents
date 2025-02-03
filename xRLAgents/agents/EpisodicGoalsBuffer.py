@@ -92,7 +92,7 @@ class EpisodicGoalsBuffer:
             self.features_var[n][idx] = (1.0 - self.alpha)*self.features_var[n][idx] + self.alpha*(delta**2)
 
             # compute confidence using z-score
-            features_sigma  = (self.features_var[n][idx] + 1.0)**0.5
+            features_sigma  = (self.features_var[n][idx] + 0.1)**0.5
             z_score         = (features[n] - self.features_mu[n][idx])/features_sigma
             confidence      = 1.0 - ((z_score**2).mean()**0.5)
 
