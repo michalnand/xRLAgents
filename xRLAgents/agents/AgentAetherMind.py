@@ -111,7 +111,7 @@ class AgentAetherMind():
         self.alpha_inf            = config.alpha_inf
         self.denoising_steps      = config.denoising_steps
 
-        self.state_normalise    = config.state_normalise
+        #self.state_normalise    = config.state_normalise
 
 
         frame_stacking     = config.frame_stacking
@@ -141,7 +141,7 @@ class AgentAetherMind():
         self.states_action_buffer = StatesActionBuffer(self.steps, self.state_shape, self.n_envs)
 
         # contextual buffer for creating context, and refreshing features
-        self.goals_buffer       = EpisodicGoalsBuffer(context_size, self.n_envs, self.state_shape, n_frames = 2, alpha = 0.01, add_threshold = add_threshold)
+        self.goals_buffer       = EpisodicGoalsBuffer(context_size, self.n_envs, self.state_shape, n_frames = 2, alpha = 0.1, add_threshold = add_threshold)
         self.contextual_buffer  = ContextualState(self.n_envs, self.model.forward_features, self.state_shape, context_size, frame_stacking, self.device)
     
 
@@ -152,7 +152,7 @@ class AgentAetherMind():
 
         self.refresh_all = False
 
-
+        '''
         # optional, for state mean and variance normalisation        
         self.state_mean  = numpy.zeros(self.state_shape, dtype=numpy.float32)
 
@@ -164,7 +164,7 @@ class AgentAetherMind():
 
         self.state_mean/= self.n_envs
         self.state_var = numpy.ones(self.state_shape,  dtype=numpy.float32)
-
+        '''
 
         # result loggers
         self.log_rewards_goal   = ValuesLogger("rewards_goal")
@@ -203,7 +203,7 @@ class AgentAetherMind():
         print("alpha_max            ", self.alpha_max)
         print("alpha_inf            ", self.alpha_inf)
         print("denoising_steps      ", self.denoising_steps)
-        print("state_normalise      ", self.state_normalise)
+        #print("state_normalise      ", self.state_normalise)
         print("frame_stacking       ", frame_stacking)
         print("context_size         ", context_size)
         print("add_threshold        ", add_threshold)
@@ -219,8 +219,8 @@ class AgentAetherMind():
 
     def step(self, states, training_enabled):     
 
-        states_norm = self._state_normalise(states, training_enabled)   
-        states_t    = torch.tensor(states_norm, dtype=torch.float).to(self.device)
+        #states_norm = self._state_normalise(states, training_enabled)   
+        states_t    = torch.tensor(states, dtype=torch.float).to(self.device)
         states_t    = states_t[:, 0].unsqueeze(1)
 
         # this need optimisation, run only on states which change
@@ -481,7 +481,7 @@ class AgentAetherMind():
 
         return loss_policy, loss_entropy
 
-    def _state_normalise(self, states, training_enabled, alpha = 0.99): 
+    #def _state_normalise(self, states, training_enabled, alpha = 0.99): 
 
         if self.state_normalise:
             #update running stats only during training
