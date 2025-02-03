@@ -8,8 +8,8 @@ class FeaturesExtractor:
         self.state_curr = None
 
     def reset(self, env_id):
-        self.state_prev[:, env_id] = 0.0
-        self.state_curr[:, env_id] = 0.0
+        self.state_prev[env_id] = 0.0
+        self.state_curr[env_id] = 0.0
 
     def clear(self):    
         self.state_prev[:] = 0.0
