@@ -142,8 +142,6 @@ class AgentAetherMindAlpha():
         # add context to state
         contextual_state = torch.concatenate([states_norm, tiled_state], dim=1).to(self.device)
 
-        print("contextual_state = ", states_norm.shape, states_curr.shape, contextual_state.shape, tiled_state.shape)
-
         # obtain model output, logits and values, use abstract state space z
         logits_t, values_ext_t, values_int_t = self.model.forward(contextual_state)
 
