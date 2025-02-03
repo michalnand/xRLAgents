@@ -97,6 +97,8 @@ class EpisodicGoalsBuffer:
      
         rewards = torch.zeros((batch_size, )).to(self.device)
         refresh_indices = -torch.ones((batch_size, ), dtype=int).to(self.device)
+
+        '''
         for n in range(batch_size):
 
             # update stats for nearest
@@ -126,7 +128,8 @@ class EpisodicGoalsBuffer:
 
                 # new key state discovered, generate reward
                 rewards[n] = 1.0
-
+        '''
+        
         stats = {}
         tmp = self.ptrs.float().cpu().detach().numpy()
         stats["mean"] = tmp.mean()
