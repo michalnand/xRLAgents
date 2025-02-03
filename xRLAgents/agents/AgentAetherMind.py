@@ -265,8 +265,7 @@ class AgentAetherMind():
             if self.trajectory_buffer.is_full():
                 self.trajectory_buffer.compute_returns(self.gamma_ext, self.gamma_int)
                 
-                # TODO
-                #self.train()
+                self.train()
 
                 self.states_action_buffer.clear()
                 self.trajectory_buffer.clear()
