@@ -98,6 +98,13 @@ class EpisodicGoalsBuffer:
         rewards = torch.zeros((batch_size, )).to(self.device)
         refresh_indices = -torch.ones((batch_size, ), dtype=int).to(self.device)
 
+
+        # mean and variance update
+        delta = features - self.features_mu[:, dist_min_idx]
+        self.features_mu[:, dist_min_idx]  = (1.0 - self.alpha)*self.features_mu[:, dist_min_idx]  + self.alpha*features[:]
+        self.features_var[:, dist_min_idx] = (1.0 - self.alpha)*self.features_var[:, dist_min_idx] + self.alpha*(delta**2)
+
+        print(self.features_mu.shape, self.features_var)
         '''
         for n in range(batch_size):
 
@@ -129,7 +136,7 @@ class EpisodicGoalsBuffer:
                 # new key state discovered, generate reward
                 rewards[n] = 1.0
         '''
-        
+
         stats = {}
         tmp = self.ptrs.float().cpu().detach().numpy()
         stats["mean"] = tmp.mean()
