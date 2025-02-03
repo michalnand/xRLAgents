@@ -104,23 +104,16 @@ class EpisodicGoalsBuffer:
         self.features_mu[:, dist_min_idx]  = (1.0 - self.alpha)*self.features_mu[:, dist_min_idx]  + self.alpha*features[:]
         self.features_var[:, dist_min_idx] = (1.0 - self.alpha)*self.features_var[:, dist_min_idx] + self.alpha*(delta**2)
 
-        print(self.features_mu.shape, self.features_var.shape)
-        '''
-        for n in range(batch_size):
+        # compute confidence using z-score
+        features_sigma  = (self.features_var[:, dist_min_idx] + 0.1)**0.5
+        z_score         = (features - self.features_mu[:, dist_min_idx])/features_sigma
+        confidence      = 1.0 - ((z_score**2).mean()**0.5)
 
+
+        for n in range(batch_size):
             # update stats for nearest
             idx = dist_min_idx[n]
             
-            # mean and variance update
-            delta = features[n] - self.features_mu[n][idx]
-            self.features_mu[n][idx]  = (1.0 - self.alpha)*self.features_mu[n][idx]  + self.alpha*features[n]
-            self.features_var[n][idx] = (1.0 - self.alpha)*self.features_var[n][idx] + self.alpha*(delta**2)
-
-            # compute confidence using z-score
-            features_sigma  = (self.features_var[n][idx] + 0.1)**0.5
-            z_score         = (features[n] - self.features_mu[n][idx])/features_sigma
-            confidence      = 1.0 - ((z_score**2).mean()**0.5)
-
             # if confidence is low, create new goal state
             if confidence < self.add_threshold:
                 idx = self.ptrs[n]
@@ -129,13 +122,14 @@ class EpisodicGoalsBuffer:
 
                 refresh_indices[n] = idx
 
+                # update tile
                 self.tiled_state[n] = self._downsample_and_tile(self.key_states[n], self.downsample)
 
                 self.ptrs[n] = (self.ptrs[n] + 1)%self.buffer_size
 
                 # new key state discovered, generate reward
                 rewards[n] = 1.0
-        '''
+        
 
         stats = {}
         tmp = self.ptrs.float().cpu().detach().numpy()
