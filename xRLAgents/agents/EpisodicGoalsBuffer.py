@@ -32,8 +32,9 @@ class FeaturesExtractor:
 
 class EpisodicGoalsBuffer:
 
-    def __init__(self, buffer_size, batch_size, state_shape, n_frames = 2, alpha = 0.1, add_threshold = 0.9):
+    def __init__(self, buffer_size, batch_size, state_shape, n_frames = 2, alpha = 0.1, add_threshold = 0.9, device = "cpu"):
 
+        self.device = device
         self.fe = FeaturesExtractor(batch_size, state_shape, n_frames)
 
         self.downsample = int(buffer_size**0.5)
@@ -42,15 +43,15 @@ class EpisodicGoalsBuffer:
         features    = self.fe.step(dummy_state)
         n_features  = features.shape[-1]
 
-        self.features_mu  = torch.zeros((batch_size, buffer_size, n_features))
-        self.features_var = torch.ones((batch_size, buffer_size, n_features))
+        self.features_mu  = torch.zeros((batch_size, buffer_size, n_features)).to(self.device)
+        self.features_var = torch.ones((batch_size, buffer_size, n_features)).to(self.device)
 
-        self.key_states = torch.zeros((batch_size, buffer_size, ) + state_shape)
+        self.key_states = torch.zeros((batch_size, buffer_size, ) + state_shape).to(self.device)
         
         grid_size = int(buffer_size ** 0.5)
-        self.tiled_state = torch.zeros((batch_size, state_shape[0], (grid_size*state_shape[1])//self.downsample, (grid_size*state_shape[2])//self.downsample))
+        self.tiled_state = torch.zeros((batch_size, state_shape[0], (grid_size*state_shape[1])//self.downsample, (grid_size*state_shape[2])//self.downsample)).to(self.device)
 
-        self.ptrs       = torch.zeros((batch_size, ), dtype=int)
+        self.ptrs       = torch.zeros((batch_size, ), dtype=int).to(self.device)
 
         self.buffer_size = buffer_size
         self.fe.clear()
@@ -77,7 +78,7 @@ class EpisodicGoalsBuffer:
 
     def step(self, states):
         batch_size  = states.shape[0]
-        features    = self.fe.step(states.to("cpu"))
+        features    = self.fe.step(states.to(self.device))
 
 
         dist = features.unsqueeze(1) - self.features_mu
@@ -88,8 +89,8 @@ class EpisodicGoalsBuffer:
         dist_min_idx = torch.argmin(dist, dim=1)
 
      
-        rewards = torch.zeros((batch_size, ))
-        refresh_indices = -torch.ones((batch_size, ), dtype=int)
+        rewards = torch.zeros((batch_size, )).to(self.device)
+        refresh_indices = -torch.ones((batch_size, ), dtype=int).to(self.device)
         for n in range(batch_size):
 
             # update stats for nearest
@@ -121,7 +122,7 @@ class EpisodicGoalsBuffer:
                 rewards[n] = 1.0
 
         stats = {}
-        tmp = self.ptrs.float().detach().numpy()
+        tmp = self.ptrs.float().cpu().detach().numpy()
         stats["mean"] = tmp.mean()
         stats["std"]  = tmp.std()
         stats["max"]  = tmp.max()
