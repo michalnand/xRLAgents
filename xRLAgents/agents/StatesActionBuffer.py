@@ -34,6 +34,10 @@ class StatesActionBuffer:
         
         self.ptr+= 1
 
+    def prepare(self):
+        self.states     = self.states.reshape((self.buffer_size*self.n_envs, ) + self.state_shape)
+        self.actions    = self.actions.reshape((self.buffer_size*self.n_envs, ))
+
     def sample_state_pairs(self, batch_size, device):
         count           = self.buffer_size*self.n_envs  
 
