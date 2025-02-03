@@ -104,7 +104,7 @@ class EpisodicGoalsBuffer:
         self.features_mu[:, dist_min_idx]  = (1.0 - self.alpha)*self.features_mu[:, dist_min_idx]  + self.alpha*features[:]
         self.features_var[:, dist_min_idx] = (1.0 - self.alpha)*self.features_var[:, dist_min_idx] + self.alpha*(delta**2)
 
-        print(self.features_mu.shape, self.features_var)
+        print(self.features_mu.shape, self.features_var.shape)
         '''
         for n in range(batch_size):
 
