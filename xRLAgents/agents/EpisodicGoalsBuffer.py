@@ -23,6 +23,8 @@ class FeaturesExtractor:
         if self.state_curr is None:
             self.state_curr = states.detach().clone()
 
+        print("states in ", self.state_prev.device, self.state_curr.device)
+
         self.state_prev = self.state_curr.clone()
         self.state_curr = states.clone()
 
