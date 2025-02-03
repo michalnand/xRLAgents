@@ -133,7 +133,7 @@ class AgentAetherMindAlpha():
     def step(self, states, training_enabled):     
 
         states_norm     = self._state_normalise(states, training_enabled)   
-        states_norm     = torch.tensor(states_norm, dtype=torch.float).to(self.device)
+        states_norm     = torch.tensor(states_norm, dtype=torch.float)
 
         states_curr     = torch.from_numpy(states[:, 0]).unsqueeze(1).float()
 
@@ -142,7 +142,7 @@ class AgentAetherMindAlpha():
         # add context to state
         contextual_state = torch.concatenate([states_norm, tiled_state], dim=0).to(self.device)
 
-        print("contextual_state = ", contextual_state.shape)
+        print("contextual_state = ", states_norm.shape, states_curr.shape, contextual_state.shape, tiled_state.shape)
 
         # obtain model output, logits and values, use abstract state space z
         logits_t, values_ext_t, values_int_t = self.model.forward(contextual_state)
