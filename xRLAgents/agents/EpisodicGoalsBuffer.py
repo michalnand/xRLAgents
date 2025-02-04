@@ -38,7 +38,7 @@ class FeaturesExtractor:
 
 class EpisodicGoalsBuffer:
 
-    def __init__(self, buffer_size, batch_size, state_shape, n_frames = 2, alpha = 0.1, add_threshold = 0.9, device = "cpu"):
+    def __init__(self, buffer_size, batch_size, state_shape, alpha = 0.01, add_threshold = 0.85, device = "cpu"):
 
         self.device = device
         self.fe = FeaturesExtractor()
