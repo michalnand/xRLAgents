@@ -244,7 +244,7 @@ class AgentAetherMindAlpha():
         # add noise into features
         z_noised, noise, alpha = self.im_noise(z_target, alpha_min, alpha_max)
 
-        z_denoised = z_noised.detach().clone()
+        z_denoised = z_noised.to(self.dtype).detach().clone()
     
         # denoising by diffusion process
         for n in range(denoising_steps):
