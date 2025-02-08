@@ -2,7 +2,7 @@ import torch
 
 class TrajectoryBufferIM:
 
-    def __init__(self, buffer_size, state_shape, actions_size, envs_count, dtype = self.dtype):
+    def __init__(self, buffer_size, state_shape, actions_size, envs_count, dtype = torch.float32):
         self.buffer_size    = buffer_size
         self.state_shape    = state_shape
         self.actions_size   = actions_size
