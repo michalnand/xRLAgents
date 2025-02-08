@@ -110,7 +110,7 @@ def loss_contrastive_vicreg_func(za, zb):
 
 
 
-def _images_ssim(imgs, kernel_size = 5):
+def _images_ssim(imgs, kernel_size = 7):
     """Computes SSIM for all pairs in a batch using AvgPool2d.
 
     Args:
@@ -159,7 +159,9 @@ def _images_ssim(imgs, kernel_size = 5):
 def loss_vicreg_ssim(x, z, z_ssim):
     # structure similarity loss
     # contrastive term
-    ssim_target = _images_ssim(x).detach()
+    with torch.no_grad():
+        ssim_target = _images_ssim(x)
+    
     ssim_loss   = ((ssim_target - z_ssim)**2).mean()
 
     # variance loss
