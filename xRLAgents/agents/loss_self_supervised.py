@@ -143,8 +143,8 @@ def _images_ssim(imgs, kernel_size = 7):
     sigma12 = sigma12.reshape(n_images, n_images, 1, H, W) - mu1 * mu2  # Reshape back
 
     # SSIM constants
-    c1 = 0.01 ** 2
-    c2 = 0.03 ** 2
+    c1 = torch.tensor(0.01 ** 2, dtype=imgs.dtype, device=imgs.device)
+    c2 = torch.tensor(0.03 ** 2, dtype=imgs.dtype, device=imgs.device)
 
     # Compute SSIM map
     # (n_images, n_images, 1, H, W)
