@@ -160,6 +160,7 @@ def loss_vicreg_ssim(x, z, z_ssim):
     # structure similarity loss
     # contrastive term
     ssim_target = _images_ssim(x).detach()
+    print("ssim ", x.shape, ssim_target.shape, z_ssim.shape)
     ssim_loss   = ((ssim_target - z_ssim)**2).mean()
 
     # variance loss
