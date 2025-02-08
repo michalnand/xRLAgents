@@ -156,9 +156,7 @@ def _images_ssim(imgs: torch.Tensor, kernel_size=7):
 def loss_vicreg_ssim(x, z, z_ssim):
     # structure similarity loss
     # contrastive term
-    with torch.no_grad():
-        ssim_target = _images_ssim(x.to(torch.bfloat16))
-        ssim_target = ssim_target.float()
+    ssim_target = _images_ssim(x.to(torch.bfloat16))
     
     ssim_loss   = ((ssim_target - z_ssim)**2).mean()
 
