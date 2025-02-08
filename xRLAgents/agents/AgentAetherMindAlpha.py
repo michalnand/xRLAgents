@@ -124,8 +124,6 @@ class AgentAetherMindAlpha():
         states_norm = self._state_normalise(states, training_enabled)   
         states_t    = torch.tensor(states_norm, dtype=self.dtype).to(self.device)
 
-        print(">>> ", states_t.mean(), states_t.std(), states_t.min(), states_t.max())
-
         # obtain model output, logits and values, use abstract state space z
         logits_t, values_ext_t, values_int_t = self.model.forward(states_t)
 
