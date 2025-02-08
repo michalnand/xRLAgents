@@ -159,7 +159,7 @@ def _images_ssim(imgs, kernel_size = 9):
 def loss_vicreg_ssim(x, z, z_ssim):
     # structure similarity loss
     # contrastive term
-    ssim_target = _images_ssim(x.to("cpu")).to("gpu").detach()
+    ssim_target = _images_ssim(x.to("cpu")).to(x.device).detach()
     ssim_loss   = ((ssim_target - z_ssim)**2).mean()
 
     # variance loss
