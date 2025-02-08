@@ -124,7 +124,7 @@ class AgentAetherMindAlpha():
         #logits_t, values_ext_t, values_int_t = self.model.forward(states_t)
 
         # sample action, probs computed from logits
-        with torch.autocast(dtype=torch.bfloat16):
+        with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
             logits_t, values_ext_t, values_int_t = self.model.forward(states_t)
 
         actions = self._sample_actions(logits_t)
@@ -239,7 +239,7 @@ class AgentAetherMindAlpha():
     def _internal_motivation(self, states, alpha_min, alpha_max, denoising_steps):
       
         # obtain taget features from states and noised states
-        with torch.autocast(dtype=torch.bfloat16):
+        with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
             z_target  = self.model.forward_im_features(states).detach()
 
         # add noise into features
@@ -249,7 +249,7 @@ class AgentAetherMindAlpha():
     
         # denoising by diffusion process
         for n in range(denoising_steps):
-            with torch.autocast(dtype=torch.bfloat16):
+            with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
                 noise_hat = self.model.forward_im_diffusion(z_denoised)
             z_denoised = z_denoised - noise_hat
 
@@ -268,7 +268,7 @@ class AgentAetherMindAlpha():
 
     # main PPO loss
     def _loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
-        with torch.autocast(dtype=torch.bfloat16):
+        with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
             logits_new, values_ext_new, values_int_new  = self.model.forward(states)
 
 
