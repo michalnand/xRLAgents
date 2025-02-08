@@ -41,12 +41,12 @@ def loss_vicreg_func(za, zb):
     loss = 1.0*inv_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
 
     #info for log
-    z_mag     = ((za**2).mean()).detach().cpu().numpy().item()
-    z_mag_std = ((za**2).std()).detach().cpu().numpy().item()
+    z_mag     = ((za**2).mean()).float().detach().cpu().numpy().item()
+    z_mag_std = ((za**2).std()).float().detach().cpu().numpy().item()
 
-    inv_loss  = inv_loss.detach().cpu().numpy().item()
-    std_loss  = std_loss.detach().cpu().numpy().item()
-    cov_loss  = cov_loss.detach().cpu().numpy().item()
+    inv_loss  = inv_loss.float().detach().cpu().numpy().item()
+    std_loss  = std_loss.float().detach().cpu().numpy().item()
+    cov_loss  = cov_loss.float().detach().cpu().numpy().item()
     
     info = {}
     info["mag_mean"] = z_mag
