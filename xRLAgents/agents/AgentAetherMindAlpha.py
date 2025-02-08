@@ -291,9 +291,9 @@ class AgentAetherMindAlpha():
 
 
 
-        self.log_loss_ppo.add("loss_policy",  loss_policy.detach().cpu().numpy().item())
-        self.log_loss_ppo.add("loss_critic",  loss_critic.detach().cpu().numpy().item())
-        self.log_loss_ppo.add("loss_entropy", loss_entropy.detach().cpu().numpy().item())
+        self.log_loss_ppo.add("loss_policy",  loss_policy.float().detach().cpu().numpy().item())
+        self.log_loss_ppo.add("loss_critic",  loss_critic.float().detach().cpu().numpy().item())
+        self.log_loss_ppo.add("loss_entropy", loss_entropy.float().detach().cpu().numpy().item())
 
         return loss
 
