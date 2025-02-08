@@ -121,9 +121,12 @@ class AgentAetherMindAlpha():
         states_t    = torch.tensor(states_norm, dtype=torch.float).to(self.device)
 
         # obtain model output, logits and values, use abstract state space z
-        logits_t, values_ext_t, values_int_t = self.model.forward(states_t)
+        #logits_t, values_ext_t, values_int_t = self.model.forward(states_t)
 
         # sample action, probs computed from logits
+        with torch.autocast(device_type=self.device, dtype=torch.bfloat16):
+            logits_t, values_ext_t, values_int_t = self.model.forward(states_t)
+
         actions = self._sample_actions(logits_t)
       
         # environment step  
@@ -236,7 +239,8 @@ class AgentAetherMindAlpha():
     def _internal_motivation(self, states, alpha_min, alpha_max, denoising_steps):
       
         # obtain taget features from states and noised states
-        z_target  = self.model.forward_im_features(states).detach()
+        with torch.autocast(device_type=self.device, dtype=torch.bfloat16):
+            z_target  = self.model.forward_im_features(states).detach()
 
         # add noise into features
         z_noised, noise, alpha = self.im_noise(z_target, alpha_min, alpha_max)
@@ -245,7 +249,8 @@ class AgentAetherMindAlpha():
     
         # denoising by diffusion process
         for n in range(denoising_steps):
-            noise_hat = self.model.forward_im_diffusion(z_denoised)
+            with torch.autocast(device_type=self.device, dtype=torch.bfloat16):
+                noise_hat = self.model.forward_im_diffusion(z_denoised)
             z_denoised = z_denoised - noise_hat
 
         # denoising novelty
@@ -263,7 +268,8 @@ class AgentAetherMindAlpha():
 
     # main PPO loss
     def _loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
-        logits_new, values_ext_new, values_int_new  = self.model.forward(states)
+        with torch.autocast(device_type=self.device, dtype=torch.bfloat16):
+            logits_new, values_ext_new, values_int_new  = self.model.forward(states)
 
 
         #critic loss
