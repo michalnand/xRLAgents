@@ -52,11 +52,15 @@ class AgentAetherMindAlpha():
         # create mdoel
         self.model = Model(self.state_shape, self.actions_count)
         self.model.to(self.device)
+        
+        self.dtype = torch.bfloat16
+        self.model = self.model.to(dtype=self.dtype, device="cuda")
+
 
         # initialise optimizer and trajectory buffer
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
 
-        self.trajectory_buffer = TrajectoryBufferIM(self.steps, self.state_shape, self.actions_count, self.n_envs)
+        self.trajectory_buffer = TrajectoryBufferIM(self.steps, self.state_shape, self.actions_count, self.n_envs, self.dtype)
 
         self.episode_steps     = numpy.zeros(self.n_envs, dtype=int)
 
@@ -118,14 +122,10 @@ class AgentAetherMindAlpha():
     def step(self, states, training_enabled):     
 
         states_norm = self._state_normalise(states, training_enabled)   
-        states_t    = torch.tensor(states_norm, dtype=torch.float).to(self.device)
+        states_t    = torch.tensor(states_norm, dtype=self.dtype).to(self.device)
 
         # obtain model output, logits and values, use abstract state space z
-        #logits_t, values_ext_t, values_int_t = self.model.forward(states_t)
-
-        # sample action, probs computed from logits
-        with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
-            logits_t, values_ext_t, values_int_t = self.model.forward(states_t)
+        logits_t, values_ext_t, values_int_t = self.model.forward(states_t)
 
         actions = self._sample_actions(logits_t)
       
@@ -239,8 +239,7 @@ class AgentAetherMindAlpha():
     def _internal_motivation(self, states, alpha_min, alpha_max, denoising_steps):
       
         # obtain taget features from states and noised states
-        with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
-            z_target  = self.model.forward_im_features(states).detach()
+        z_target  = self.model.forward_im_features(states).detach()
 
         # add noise into features
         z_noised, noise, alpha = self.im_noise(z_target, alpha_min, alpha_max)
@@ -249,8 +248,7 @@ class AgentAetherMindAlpha():
     
         # denoising by diffusion process
         for n in range(denoising_steps):
-            with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
-                noise_hat = self.model.forward_im_diffusion(z_denoised)
+            noise_hat = self.model.forward_im_diffusion(z_denoised)
             z_denoised = z_denoised - noise_hat
 
         # denoising novelty
@@ -268,8 +266,8 @@ class AgentAetherMindAlpha():
 
     # main PPO loss
     def _loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
-        with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
-            logits_new, values_ext_new, values_int_new  = self.model.forward(states)
+
+        logits_new, values_ext_new, values_int_new  = self.model.forward(states)
 
 
         #critic loss

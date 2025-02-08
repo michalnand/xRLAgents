@@ -2,11 +2,13 @@ import torch
 
 class TrajectoryBufferIM:
 
-    def __init__(self, buffer_size, state_shape, actions_size, envs_count):
+    def __init__(self, buffer_size, state_shape, actions_size, envs_count, dtype = self.dtype):
         self.buffer_size    = buffer_size
         self.state_shape    = state_shape
         self.actions_size   = actions_size
         self.envs_count     = envs_count
+
+        self.dtype = dtype
       
         self.clear()   
 
@@ -44,21 +46,21 @@ class TrajectoryBufferIM:
  
 
     def clear(self):
-        self.states     = torch.zeros((self.buffer_size, self.envs_count, ) + self.state_shape, dtype=torch.float32)
-        self.logits     = torch.zeros((self.buffer_size, self.envs_count, self.actions_size), dtype=torch.float32)
+        self.states     = torch.zeros((self.buffer_size, self.envs_count, ) + self.state_shape, dtype=self.dtype)
+        self.logits     = torch.zeros((self.buffer_size, self.envs_count, self.actions_size), dtype=self.dtype)
         
-        self.values_ext = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)        
-        self.values_int = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)        
+        self.values_ext = torch.zeros((self.buffer_size, self.envs_count, ), dtype=self.dtype)        
+        self.values_int = torch.zeros((self.buffer_size, self.envs_count, ), dtype=self.dtype)        
 
         self.actions    = torch.zeros((self.buffer_size, self.envs_count, ), dtype=int)
         
-        self.rewards_ext    = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
-        self.rewards_int    = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
+        self.rewards_ext    = torch.zeros((self.buffer_size, self.envs_count, ), dtype=self.dtype)
+        self.rewards_int    = torch.zeros((self.buffer_size, self.envs_count, ), dtype=self.dtype)
 
-        self.dones      = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
+        self.dones      = torch.zeros((self.buffer_size, self.envs_count, ), dtype=self.dtype)
         self.episode_steps = torch.zeros((self.buffer_size, self.envs_count, ), dtype=int)
 
-        self.mode       = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
+        self.mode       = torch.zeros((self.buffer_size, self.envs_count, ), dtype=self.dtype)
 
         self.ptr = 0  
  
@@ -151,7 +153,7 @@ class TrajectoryBufferIM:
 
     def sample_trajectory_states(self, trajectory_length, batch_size, device):
         indices = torch.randint(0, self.envs_count*(self.buffer_size - trajectory_length), size=(batch_size, ))
-        states  = torch.zeros((trajectory_length, batch_size, ) + self.state_shape,  dtype=torch.float32, device=device)
+        states  = torch.zeros((trajectory_length, batch_size, ) + self.state_shape,  dtype=self.dtype, device=device)
 
         for n in range(trajectory_length):
             states[n]        = self.states[indices].to(device)
@@ -164,10 +166,10 @@ class TrajectoryBufferIM:
         buffer_size = rewards.shape[0]
         envs_count  = rewards.shape[1]
         
-        returns     = torch.zeros((buffer_size, envs_count), dtype=torch.float32)
-        advantages  = torch.zeros((buffer_size, envs_count), dtype=torch.float32)
+        returns     = torch.zeros((buffer_size, envs_count), dtype=self.dtype)
+        advantages  = torch.zeros((buffer_size, envs_count), dtype=self.dtype)
 
-        last_gae    = torch.zeros((envs_count), dtype=torch.float32)
+        last_gae    = torch.zeros((envs_count), dtype=self.dtype)
         
         for n in reversed(range(buffer_size-1)):
             delta           = rewards[n] + gamma*values[n+1]*(1.0 - dones[n]) - values[n]
