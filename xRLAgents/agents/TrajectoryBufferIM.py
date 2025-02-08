@@ -178,4 +178,4 @@ class TrajectoryBufferIM:
             returns[n]      = last_gae + values[n]
             advantages[n]   = last_gae
  
-        return returns, advantages
+        return returns.to(self.dtype), advantages.to(self.dtype)

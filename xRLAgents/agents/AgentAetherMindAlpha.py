@@ -227,6 +227,7 @@ class AgentAetherMindAlpha():
 
     # sample action, probs computed from logits
     def _sample_actions(self, logits):
+        logits                = logits.to(torch.float32)
         action_probs_t        = torch.nn.functional.softmax(logits, dim = 1)
         action_distribution_t = torch.distributions.Categorical(action_probs_t)
         action_t              = action_distribution_t.sample()
