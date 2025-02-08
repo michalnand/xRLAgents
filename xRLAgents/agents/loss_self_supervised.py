@@ -172,12 +172,12 @@ def loss_vicreg_ssim(x, z, z_ssim):
     loss = 1.0*ssim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
 
     #info for log
-    z_mag     = ((z**2).mean()).detach().cpu().numpy().item()
-    z_mag_std = ((z**2).std()).detach().cpu().numpy().item()
+    z_mag     = ((z**2).mean()).float().detach().cpu().numpy().item()
+    z_mag_std = ((z**2).std()).float().detach().cpu().numpy().item()
 
-    ssim_loss   = ssim_loss.detach().cpu().numpy().item()
-    std_loss    = std_loss.detach().cpu().numpy().item()
-    cov_loss    = cov_loss.detach().cpu().numpy().item()
+    ssim_loss   = ssim_loss.float().detach().cpu().numpy().item()
+    std_loss    = std_loss.float().detach().cpu().numpy().item()
+    cov_loss    = cov_loss.float().detach().cpu().numpy().item()
     
     info = {}
     info["mag_mean"] = z_mag
