@@ -134,7 +134,7 @@ class AgentAetherMindAlpha():
 
         # internal motivaiotn based on diffusion
         rewards_int, _     = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
-        rewards_int        = rewards_int.detach().cpu().numpy()
+        rewards_int        = rewards_int.float().detach().cpu().numpy()
         rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
 
         # top PPO training part
