@@ -105,3 +105,86 @@ def loss_contrastive_vicreg_func(za, zb):
     info["cov"] = cov_loss
 
     return loss, info
+
+
+
+
+
+def _images_ssim(imgs, kernel_size = 9):
+    """Computes SSIM for all pairs in a batch using AvgPool2d.
+
+    Args:
+        imgs (torch.Tensor): Input batch of shape (n_images, 1, H, W).
+        kernel_size (int): Window size for computing local statistics.
+
+    Returns:
+        torch.Tensor: SSIM matrix of shape (n_images, n_images).
+    """
+    n_images, _, H, W = imgs.shape
+    pool = torch.nn.AvgPool2d(kernel_size, stride=1, padding=kernel_size // 2)
+
+    # Compute mean and variance for all images
+    mu = pool(imgs)  # (n_images, 1, H, W)
+    mu_sq = mu ** 2
+    sigma_sq = pool(imgs ** 2) - mu_sq  # Variance
+
+    # Expand dimensions for broadcasting
+    mu1 = mu.unsqueeze(0)  # (1, n_images, 1, H, W)
+    mu2 = mu.unsqueeze(1)  # (n_images, 1, 1, H, W)
+    
+    sigma1_sq = sigma_sq.unsqueeze(0)  # (1, n_images, 1, H, W)
+    sigma2_sq = sigma_sq.unsqueeze(1)  # (n_images, 1, 1, H, W)
+
+    # Compute covariance correctly by flattening to 4D for pooling
+    imgs1 = imgs.unsqueeze(0).expand(n_images, -1, -1, -1, -1)  # (n_images, n_images, 1, H, W)
+    imgs2 = imgs.unsqueeze(1).expand(-1, n_images, -1, -1, -1)  # (n_images, n_images, 1, H, W)
+    
+    sigma12 = pool((imgs1 * imgs2).reshape(n_images * n_images, 1, H, W))  # Reshape to (batch, 1, H, W)
+    sigma12 = sigma12.reshape(n_images, n_images, 1, H, W) - mu1 * mu2  # Reshape back
+
+    # SSIM constants
+    c1 = 0.01 ** 2
+    c2 = 0.03 ** 2
+
+    # Compute SSIM map
+    # (n_images, n_images, 1, H, W)
+    ssim_map = ((2 * mu1 * mu2 + c1) * (2 * sigma12 + c2)) / ((mu1 ** 2 + mu2 ** 2 + c1) * (sigma1_sq + sigma2_sq + c2))  
+
+    # Average over spatial dimensions
+    # (n_images, n_images)
+    ssim_matrix = ssim_map.mean(dim=(2, 3, 4))  
+
+    return ssim_matrix  
+
+def loss_vicreg_ssim(x, z, z_ssim):
+    # structure similarity loss
+    # contrastive term
+    ssim_target = _images_ssim(x).detach()
+    ssim_loss   = ((ssim_target - z_ssim)**2).mean()
+
+    # variance loss
+    std_loss = loss_std_func(z)
+   
+    # covariance loss 
+    cov_loss = loss_cov_func(z)
+   
+    # total vicreg loss
+    loss = 1.0*ssim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
+
+    #info for log
+    z_mag     = ((z**2).mean()).detach().cpu().numpy().item()
+    z_mag_std = ((z**2).std()).detach().cpu().numpy().item()
+
+    ssim_loss   = ssim_loss.detach().cpu().numpy().item()
+    std_loss    = std_loss.detach().cpu().numpy().item()
+    cov_loss    = cov_loss.detach().cpu().numpy().item()
+    
+    info = {}
+    info["mag_mean"] = z_mag
+    info["mag_std"]  = z_mag_std
+
+    info["ssim"]    = ssim_loss
+    info["std"]     = std_loss
+    info["cov"]     = cov_loss
+
+    return loss, info
