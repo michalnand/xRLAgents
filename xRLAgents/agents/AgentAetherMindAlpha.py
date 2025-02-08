@@ -79,7 +79,6 @@ class AgentAetherMindAlpha():
         self.log_loss_ppo       = ValuesLogger("loss_ppo")
         self.log_loss_diffusion = ValuesLogger("loss_diffusion")
         self.log_loss_im_ssl    = ValuesLogger("loss_im_ssl")
-        self.log_goals          = ValuesLogger("goals")
 
 
         # print parameters summary
@@ -168,7 +167,7 @@ class AgentAetherMindAlpha():
         self.model.load_state_dict(torch.load(result_path + "/model.pt", map_location = self.device))
 
     def get_logs(self):
-        return [self.log_rewards_int, self.log_loss_ppo, self.log_loss_diffusion, self.log_loss_im_ssl, self.log_goals]
+        return [self.log_rewards_int, self.log_loss_ppo, self.log_loss_diffusion, self.log_loss_im_ssl]
 
     def train(self): 
         samples_count = self.steps*self.n_envs
