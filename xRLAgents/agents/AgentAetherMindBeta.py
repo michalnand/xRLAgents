@@ -10,6 +10,7 @@ class EpisodicGoalsBuffer:
     def __init__(self, batch_size, context_size, state_shape, dtype = torch.float32, device = "cpu"):
                 
         self.buffer = torch.zeros((batch_size, context_size, ) + state_shape, dtype=dtype, device=device)
+        self.buffer+= torch.randn_like(self.buffer)
 
     def step(self, state):
         batch_size = state.shape[0]
@@ -152,8 +153,6 @@ class AgentAetherMindBeta():
         states = torch.tensor(states, dtype=self.dtype).to(self.device)
 
         context, rewards_goal = self.episodic_goals_buffer.step(states[:, 0])
-
-        print("AAAA ", states.shape, context.shape)
 
         states_t = torch.concatenate([states, context], axis=1)
 
