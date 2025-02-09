@@ -263,8 +263,8 @@ class AgentAetherMindBeta():
                 self.log_loss_diffusion.add("mean", loss_diffusion.float().mean().detach().cpu().numpy())
                 self.log_loss_diffusion.add("std", loss_diffusion.float().std().detach().cpu().numpy())
 
-                #for key in info_ssl:
-                #    self.log_loss_im_ssl.add(str(key), info_ssl[key])
+                for key in info_ssl:
+                    self.log_loss_im_ssl.add(str(key), info_ssl[key])
 
 
 
