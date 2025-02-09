@@ -166,6 +166,8 @@ class AgentAetherMindBeta():
         print("states_t = ", states_t.shape)
         z = self.model.forward_features(states_t)
 
+        print("z = ", z.shape)  
+
         # obtain model output, logits and values, use abstract state space z
         logits_t, values_ext_t, values_int_t = self.model.forward_actor_critic(z)
 
