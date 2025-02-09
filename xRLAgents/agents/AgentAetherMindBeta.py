@@ -231,6 +231,8 @@ class AgentAetherMindBeta():
                 # state.shape = (batch_size, ch + context_size, height, width)
                 # z.shape     = (batch_size, ch + context_size, n_features)
                 z = self.model.forward_features(states).detach()
+
+                print(states.shape, states.dtype, z.shape, z.dtype)
                 
                 # compute main PPO loss
                 loss_ppo = self._loss_ppo(z, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
