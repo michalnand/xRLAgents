@@ -153,6 +153,8 @@ class AgentAetherMindBeta():
 
         context, rewards_goal = self.episodic_goals_buffer.step(states[:, 0])
 
+        print("AAAA ", states.shape, context.shape)
+
         states_t = torch.concatenate([states, context], axis=1)
 
         if self.state_normalise:
