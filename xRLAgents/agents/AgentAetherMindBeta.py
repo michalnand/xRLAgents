@@ -163,6 +163,7 @@ class AgentAetherMindBeta():
 
         # states_t.shape = (batch_size, ch + context_size, height, width)
         # obtain features, z.shape = (batch_size, ch + context_size, n_features)
+        print("states_t = ", states_t.shape)
         z = self.model.forward_features(states_t)
 
         # obtain model output, logits and values, use abstract state space z
