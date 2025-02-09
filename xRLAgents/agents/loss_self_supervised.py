@@ -1,7 +1,7 @@
 import torch
 
 def _off_diagonal(x):
-    mask = 1.0 - torch.eye(x.shape[0], device=x.device)
+    mask = 1.0 - torch.eye(x.shape[0], device=x.device, dtype=x.dtype)
     return x*mask 
 
 # invariance loss
