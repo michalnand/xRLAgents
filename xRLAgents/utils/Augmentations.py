@@ -2,7 +2,7 @@ import torch
 
 #apply random agumentation
 def aug_random_apply(x, p, aug_func):
-    mask        = (torch.rand(x.shape[0]) < p).float().to(x.device)
+    mask        = (torch.rand(x.shape[0]) < p).to(x.dtype).to(x.device)
     mask_tmp    = mask.unsqueeze(1).unsqueeze(1).unsqueeze(1)
     y           = (1.0 - mask_tmp)*x + mask_tmp*aug_func(x)
  
@@ -29,8 +29,10 @@ def aug_mask(x, p = 0.75, gw = 16, gh = 16):
 def Augmentations(aug_names, x):
     if "mask" in aug_names:
         x, _ = aug_random_apply(x, 0.5, aug_mask)
+        print("mask = ", x.dtype)
     
     if "noise" in aug_names:
         x, _ = aug_random_apply(x, 0.5, aug_noise)
+        print("noise = ", x.dtype)
     
     return x
