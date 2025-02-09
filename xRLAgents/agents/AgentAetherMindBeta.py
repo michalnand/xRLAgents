@@ -163,10 +163,7 @@ class AgentAetherMindBeta():
 
         # states_t.shape = (batch_size, ch + context_size, height, width)
         # obtain features, z.shape = (batch_size, ch + context_size, n_features)
-        print("states_t = ", states_t.shape)
         z = self.model.forward_features(states_t)
-
-        print("z = ", z.shape)  
 
         # obtain model output, logits and values, use abstract state space z
         logits_t, values_ext_t, values_int_t = self.model.forward_actor_critic(z)
@@ -242,6 +239,7 @@ class AgentAetherMindBeta():
                 # on index 0 are features from current state frame
                 _, loss_diffusion = self._internal_motivation(z[:, 0], self.alpha_min, self.alpha_max, self.denoising_steps)
 
+                '''
                 #self supervised target regularisation
                 states_now, states_next, actions, _ = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
 
@@ -250,9 +248,10 @@ class AgentAetherMindBeta():
                 states_next = states_next[:, 0].unsqueeze(1)
 
                 loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_now, states_next, actions)
+                '''
 
                 # final loss
-                loss = loss_ppo + loss_diffusion.mean() + loss_ssl
+                loss = loss_ppo + loss_diffusion.mean() #+ loss_ssl
 
                 # optimisation step
                 self.optimizer.zero_grad()        
@@ -266,8 +265,8 @@ class AgentAetherMindBeta():
                 self.log_loss_diffusion.add("mean", loss_diffusion.float().mean().detach().cpu().numpy())
                 self.log_loss_diffusion.add("std", loss_diffusion.float().std().detach().cpu().numpy())
 
-                for key in info_ssl:
-                    self.log_loss_im_ssl.add(str(key), info_ssl[key])
+                #for key in info_ssl:
+                #    self.log_loss_im_ssl.add(str(key), info_ssl[key])
 
 
 
