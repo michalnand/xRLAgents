@@ -108,7 +108,7 @@ def loss_contrastive_vicreg_func(za, zb):
 
 
 
-def _images_ssim(imgs: torch.Tensor, kernel_size=7):
+def images_ssim(imgs: torch.Tensor, kernel_size=7):
     """Computes SSIM for all pairs in a batch using AvgPool2d.
 
     Args:
@@ -152,37 +152,3 @@ def _images_ssim(imgs: torch.Tensor, kernel_size=7):
 
     return ssim_matrix  
 
-
-def loss_vicreg_ssim(x, z, z_ssim):
-    # structure similarity loss
-    # contrastive term
-    ssim_target = _images_ssim(x.to(torch.bfloat16))
-    
-    ssim_loss   = ((ssim_target - z_ssim)**2).mean()
-
-    # variance loss
-    std_loss = loss_std_func(z)
-   
-    # covariance loss 
-    cov_loss = loss_cov_func(z)
-   
-    # total vicreg loss
-    loss = 1.0*ssim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
-
-    #info for log
-    z_mag     = ((z**2).mean()).float().detach().cpu().numpy().item()
-    z_mag_std = ((z**2).std()).float().detach().cpu().numpy().item()
-
-    ssim_loss   = ssim_loss.float().detach().cpu().numpy().item()
-    std_loss    = std_loss.float().detach().cpu().numpy().item()
-    cov_loss    = cov_loss.float().detach().cpu().numpy().item()
-    
-    info = {}
-    info["mag_mean"] = z_mag
-    info["mag_std"]  = z_mag_std
-
-    info["ssim"]    = ssim_loss
-    info["std"]     = std_loss
-    info["cov"]     = cov_loss
-
-    return loss, info
