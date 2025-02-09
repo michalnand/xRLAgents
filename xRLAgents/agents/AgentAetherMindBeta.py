@@ -232,7 +232,6 @@ class AgentAetherMindBeta():
                 # z.shape     = (batch_size, ch + context_size, n_features)
                 z = self.model.forward_features(states).detach()
 
-                
                 # compute main PPO loss
                 loss_ppo = self._loss_ppo(z, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
 
@@ -240,7 +239,6 @@ class AgentAetherMindBeta():
                 # on index 0 are features from current state frame
                 _, loss_diffusion = self._internal_motivation(z[:, 0], self.alpha_min, self.alpha_max, self.denoising_steps)
 
-                
                 #self supervised target regularisation
                 states_now, states_next, actions, _ = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
 
@@ -250,11 +248,8 @@ class AgentAetherMindBeta():
 
                 loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_now, states_next, actions)
                 
-
                 # final loss
                 loss = loss_ppo + loss_diffusion.mean() + loss_ssl
-
-                print("loss = ", loss.dtype)
 
                 # optimisation step
                 self.optimizer.zero_grad()        
