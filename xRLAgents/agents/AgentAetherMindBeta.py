@@ -87,7 +87,7 @@ class AgentAetherMindBeta():
         self.trajectory_buffer = TrajectoryBufferIM(self.steps, self.state_shape, self.actions_count, self.n_envs, self.dtype)
 
 
-        self.episodic_goals_buffer = EpisodicGoalsBuffer(self.n_envs, self.context_size, (state_shape[1], state_shape[2]))
+        self.episodic_goals_buffer = EpisodicGoalsBuffer(self.n_envs, self.context_size, (state_shape[1], state_shape[2]), dtype=self.dtype, device=self.device)
 
 
         self.episode_steps = numpy.zeros(self.n_envs, dtype=int)
