@@ -16,7 +16,7 @@ class EpisodicGoalsBuffer:
 
         rewards_goal = numpy.zeros((batch_size, ))
 
-        context = self.buffer[:, 0]
+        context = self.buffer[:]    
 
         return context, rewards_goal
 
