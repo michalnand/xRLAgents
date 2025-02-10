@@ -9,11 +9,11 @@ def loss_mse_func(xa, xb):
     return ((xa - xb)**2).mean()
     
 # variance loss
-def loss_std_func(x):
+def loss_std_func(x, upper = 1.0):
     eps = 0.0001 
     std_x = torch.sqrt(x.var(dim=0) + eps)
 
-    loss = torch.mean(torch.relu(1.0 - std_x)) 
+    loss = torch.mean(torch.relu(upper - std_x)) 
     return loss
 
 # covariance loss 
