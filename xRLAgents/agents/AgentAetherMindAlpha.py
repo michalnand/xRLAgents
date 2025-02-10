@@ -43,6 +43,11 @@ class AgentAetherMindAlpha():
 
         self.state_normalise    = config.state_normalise
 
+        if hasattr(config, "dtype"):
+            self.dtype = config.dtype
+        else:
+            self.dtype = torch.float32
+
 
         self.n_envs         = len(envs)
         self.state_shape    = self.envs.observation_space.shape
@@ -53,7 +58,6 @@ class AgentAetherMindAlpha():
         self.model = Model(self.state_shape, self.actions_count)
         self.model.to(self.device)
         
-        self.dtype = torch.bfloat16
         self.model = self.model.to(dtype=self.dtype, device="cuda")
 
 
@@ -92,6 +96,8 @@ class AgentAetherMindAlpha():
         print(self.model)
         print("\n\n")
 
+        print("device               ", self.device)
+        print("dtype                ", self.dtype)
         print("gamma_ext            ", self.gamma_ext)
         print("gamma_int            ", self.gamma_int)
         print("entropy_beta         ", self.entropy_beta)
