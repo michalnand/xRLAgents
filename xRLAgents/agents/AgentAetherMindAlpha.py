@@ -71,15 +71,15 @@ class AgentAetherMindAlpha():
 
         
         # optional, for state mean and variance normalisation        
-        self.state_mean  = numpy.zeros(self.state_shape, dtype=numpy.float32)
+        self.state_mean  = torch.zeros((self.state_shape[1], self.state_shape[2]), dtype=self.dtype, device=self.device)
 
         for e in range(self.n_envs):
             state, _ = self.envs.reset(e)
-            state = numpy.expand_dims(state[0], 0)
-            self.state_mean+= state.copy()
+            self.state_mean+= torch.from_numpy(state[0]).to(self.dtype).to(self.device)
 
         self.state_mean/= self.n_envs
-        self.state_var = numpy.ones(self.state_shape,  dtype=numpy.float32)
+        self.state_var = torch.ones(self.state_mean.shape, dtype=self.dtype, device=self.device)
+       
         
 
         # result loggers
@@ -126,9 +126,11 @@ class AgentAetherMindAlpha():
      
   
     def step(self, states, training_enabled):     
+        states_t = torch.from_numpy(states).to(self.dtype).to(self.device)
 
-        states_norm = self._state_normalise(states, training_enabled)   
-        states_t    = torch.tensor(states_norm, dtype=self.dtype).to(self.device)
+        if self.state_normalise:
+            self._update_normalisation(states_t, alpha = 0.99)
+            states_t = self._state_normalise(states_t)
 
         # obtain model output, logits and values, use abstract state space z
         logits_t, values_ext_t, values_int_t = self.model.forward(states_t)
@@ -359,22 +361,17 @@ class AgentAetherMindAlpha():
 
 
 
-    def _state_normalise(self, states, training_enabled, alpha = 0.99): 
+    #update running stats when training enabled
+    def _update_normalisation(self, states, alpha = 0.99):
+        mean = states.mean(dim=(0, 1))
+        self.state_mean = alpha*self.state_mean + (1.0 - alpha)*mean
 
-        if self.state_normalise:
-            #update running stats only during training
-            if training_enabled:
-                mean = states.mean(axis=0)
-                self.state_mean = alpha*self.state_mean + (1.0 - alpha)*mean
-        
-                var = ((states - mean)**2).mean(axis=0)
-                self.state_var  = alpha*self.state_var + (1.0 - alpha)*var 
-             
-            #normalise mean and variance
-            states_norm = (states - self.state_mean)/(numpy.sqrt(self.state_var) + 10**-6)
-            states_norm = numpy.clip(states_norm, -4.0, 4.0)
-        
-        else:
-            states_norm = states
-        
-        return states_norm
+        var = ((states - mean)**2).mean(dim=(0, 1))
+        self.state_var  = alpha*self.state_var + (1.0 - alpha)*var 
+
+    #normalise mean and variance
+    def _state_normalise(self, states):     
+        states_norm = (states - self.state_mean)/(torch.sqrt(self.state_var) + 10**-6)
+        states_norm = torch.clip(states_norm, -4.0, 4.0)
+    
+        return states_norm  
