@@ -108,47 +108,53 @@ def loss_contrastive_vicreg_func(za, zb):
 
 
 
-def images_ssim(imgs: torch.Tensor, kernel_size=7):
-    """Computes SSIM for all pairs in a batch using AvgPool2d.
+def images_ssim(batch_a: torch.Tensor, batch_b: torch.Tensor, kernel_size=7):
+    """Computes SSIM between all pairs of images in two batches.
 
     Args:
-        imgs (torch.Tensor): Input batch of shape (n_images, C, H, W).
+        batch_a (torch.Tensor): First batch of shape (batch_a_size, C, H, W), values in range [0, 1].
+        batch_b (torch.Tensor): Second batch of shape (batch_b_size, C, H, W), values in range [0, 1].
         kernel_size (int): Window size for computing local statistics.
 
     Returns:
-        torch.Tensor: SSIM matrix of shape (n_images, n_images).
+        torch.Tensor: SSIM matrix of shape (batch_a_size, batch_b_size).
     """
-    n_images, C, H, W = imgs.shape  # Now works for C > 1
-    pool = torch.nn.AvgPool2d(kernel_size, stride=1, padding=kernel_size // 2)
+    batch_a_size, C, H, W = batch_a.shape
+    batch_b_size, _, _, _ = batch_b.shape
+    pool = torch.nn.AvgPool2d(kernel_size, stride=1, padding=kernel_size // 2).to(batch_a.device)
 
-    # Compute mean and variance for all images (per channel)
-    mu = pool(imgs)  # (n_images, C, H, W)
-    mu_sq = mu ** 2
-    sigma_sq = pool(imgs ** 2) - mu_sq  # Variance
+    # Compute local mean & variance
+    # returns (batch_a_size, C, H, W)
+    # mean
+    mu_a = pool(batch_a) 
+    mu_b = pool(batch_b)
 
-    # Expand dimensions for broadcasting
-    mu1 = mu.unsqueeze(0)  # (1, n_images, C, H, W)
-    mu2 = mu.unsqueeze(1)  # (n_images, 1, C, H, W)
-    
-    sigma1_sq = sigma_sq.unsqueeze(0)  # (1, n_images, C, H, W)
-    sigma2_sq = sigma_sq.unsqueeze(1)  # (n_images, 1, C, H, W)
+    # variance
+    mu_a_sq = mu_a ** 2
+    mu_b_sq = mu_b ** 2
+    sigma_a_sq = pool(batch_a ** 2) - mu_a_sq
+    sigma_b_sq = pool(batch_b ** 2) - mu_b_sq
 
-    # Compute covariance correctly
-    imgs1 = imgs.unsqueeze(0).expand(n_images, -1, -1, -1, -1)  # (n_images, n_images, C, H, W)
-    imgs2 = imgs.unsqueeze(1).expand(-1, n_images, -1, -1, -1)  # (n_images, n_images, C, H, W)
-    
-    sigma12 = pool((imgs1 * imgs2).reshape(n_images * n_images, C, H, W))  # (n_images*n_images, C, H, W)
-    sigma12 = sigma12.reshape(n_images, n_images, C, H, W) - mu1 * mu2  # Reshape back
+    # Compute covariance: reshape before pooling
+    batch_a_expanded = batch_a.unsqueeze(1).expand(-1, batch_b_size, -1, -1, -1)  # (batch_a_size, batch_b_size, C, H, W)
+    batch_b_expanded = batch_b.unsqueeze(0).expand(batch_a_size, -1, -1, -1, -1)  # (batch_a_size, batch_b_size, C, H, W)
 
-    # SSIM constants
-    c1 = 0.01 ** 2
-    c2 = 0.03 ** 2
+    # Reshape to apply pooling
+    batch_product = (batch_a_expanded * batch_b_expanded).reshape(-1, C, H, W)  # (batch_a_size * batch_b_size, C, H, W)
+    sigma_ab = pool(batch_product).reshape(batch_a_size, batch_b_size, C, H, W) - mu_a.unsqueeze(1) * mu_b.unsqueeze(0)
 
-    # Compute SSIM map (n_images, n_images, C, H, W)
-    ssim_map = ((2 * mu1 * mu2 + c1) * (2 * sigma12 + c2)) / ((mu1 ** 2 + mu2 ** 2 + c1) * (sigma1_sq + sigma2_sq + c2))
+    # Correct SSIM constants for [0,1] range
+    c1 = (0.01) ** 2  # = 0.0001
+    c2 = (0.03) ** 2  # = 0.0009
 
-    # Average over spatial dimensions and channels
-    ssim_matrix = ssim_map.mean(dim=(2, 3, 4))  # (n_images, n_images)
+    # Compute SSIM map
+    tmp_a       = (2 * mu_a.unsqueeze(1) * mu_b.unsqueeze(0) + c1) * (2 * sigma_ab + c2)
+    tmp_b       = (mu_a_sq.unsqueeze(1) + mu_b_sq.unsqueeze(0) + c1) * (sigma_a_sq.unsqueeze(1) + sigma_b_sq.unsqueeze(0) + c2)
+    ssim_map    = tmp_a / tmp_b
 
-    return ssim_matrix  
+    # Compute final SSIM matrix by averaging over channels, height, and width
+    ssim_matrix = ssim_map.mean(dim=(2, 3, 4))  # Shape: (batch_a_size, batch_b_size)
+
+    ssim_matrix = torch.clip(ssim_matrix, 0.0, 1.0)
+    return ssim_matrix
 
