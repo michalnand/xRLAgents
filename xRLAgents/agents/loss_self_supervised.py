@@ -155,6 +155,5 @@ def images_ssim(batch_a: torch.Tensor, batch_b: torch.Tensor, kernel_size=7):
     # Compute final SSIM matrix by averaging over channels, height, and width
     ssim_matrix = ssim_map.mean(dim=(2, 3, 4))  # Shape: (batch_a_size, batch_b_size)
 
-    ssim_matrix = torch.clip(ssim_matrix, 0.0, 1.0)
     return ssim_matrix
 
