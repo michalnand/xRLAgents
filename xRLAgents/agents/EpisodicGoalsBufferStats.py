@@ -153,7 +153,5 @@ class EpisodicGoalsBufferStats:
         stats["z_mean"]  = z_score.mean().float().cpu().detach().numpy().item()
         stats["z_std"]   = z_score.std().float().cpu().detach().numpy().item()
 
-        print(">>>> ",  self.key_states.dtype, self.features.dtype, self.key_states.device, self.features.device)
-
         return self.key_states, rewards, stats
 
