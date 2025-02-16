@@ -156,8 +156,6 @@ class AgentAetherMindBeta():
         z = self.model.forward_features(states_t)
         logits_t, values_ext_t, values_int_t = self.model.forward_actor_critic(z)
 
-        print(z.dtype, logits_t.dtype, values_ext_t.dtype, values_int_t.dtype)
-
         actions = self._sample_actions(logits_t)
       
         # environment step  
@@ -298,9 +296,6 @@ class AgentAetherMindBeta():
         # MSE noise loss prediction
         noise_pred = z_noised - z_denoised
         loss = ((noise - noise_pred)**2).mean(dim=1)
-
-        print("im ", z_target.dtype, z_denoised.dtype, novelty.dtype)
-
         
         return novelty.detach(), loss
 
@@ -337,6 +332,7 @@ class AgentAetherMindBeta():
         loss = self.val_coeff*loss_critic + loss_policy + loss_entropy
 
 
+        print("loss ", loss.dtype)
 
         self.log_loss_ppo.add("loss_policy",  loss_policy.float().detach().cpu().numpy().item())
         self.log_loss_ppo.add("loss_critic",  loss_critic.float().detach().cpu().numpy().item())
