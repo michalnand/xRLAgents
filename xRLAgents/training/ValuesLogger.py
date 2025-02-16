@@ -16,7 +16,7 @@ class ValuesLogger:
         else: 
             self.values[name] = value
 
-    def add_dicitonary(self, dictionary):
+    def add_dictionary(self, dictionary):
         for key in dictionary:
             self.add(str(key), dictionary[key])
 
