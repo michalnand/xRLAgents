@@ -142,8 +142,9 @@ class AgentAetherMindBeta():
         context, rewards_goal, goals_stats = self.episodic_goals_buffer.step(states[:, 0].unsqueeze(1))
         self.log_goals.add_dictionary(goals_stats)
 
+        context = context.squeeze(2).to(device = self.device, dtype=self.dtype)
 
-        states_t = torch.concatenate([states, context.squeeze(2)], axis=1)
+        states_t = torch.concatenate([states, context], axis=1)
 
         if self.state_normalise:
             self._update_normalisation(states_t, alpha = 0.99)
