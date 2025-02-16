@@ -144,7 +144,8 @@ class AgentAetherMindBeta():
 
         print(states.shape, context.shape)
 
-        states_t = torch.concatenate([states, context], axis=1)
+        states_t = torch.concatenate([states, context.squeeze(2)], axis=1)
+        print("states_t = ", states_t.shape)
 
 
         if self.state_normalise:
