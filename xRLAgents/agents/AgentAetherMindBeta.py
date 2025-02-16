@@ -52,7 +52,6 @@ class AgentAetherMindBeta():
         else:
             self.dtype = torch.float32
 
-        #self.dtype = torch.bfloat16
 
 
         self.n_envs         = len(envs)
