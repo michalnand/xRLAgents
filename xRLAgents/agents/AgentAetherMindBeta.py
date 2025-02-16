@@ -61,8 +61,8 @@ class AgentAetherMindBeta():
 
         self.actions_count  = self.envs.action_space.n
 
-        # create mdoel
-        self.model = Model(self.state_shape, self.actions_count)
+        # create mdoel 
+        self.model = Model(self.state_shape, self.actions_count, context_size)
         self.model.to(self.device)
         
         self.model = self.model.to(dtype=self.dtype, device="cuda")
