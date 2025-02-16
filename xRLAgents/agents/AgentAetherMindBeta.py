@@ -52,7 +52,7 @@ class AgentAetherMindBeta():
         else:
             self.dtype = torch.float32
 
-        self.dtype = torch.bfloat16
+        #self.dtype = torch.bfloat16
 
 
         self.n_envs         = len(envs)
@@ -169,7 +169,6 @@ class AgentAetherMindBeta():
         # internal motivaiotn based on diffusion
         rewards_int, _     = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
 
-        print("forward ", z.dtype, logits_t.dtype, values_ext_t.dtype, values_int_t.dtype, rewards_int.dtype, rewards_int.device)
         rewards_int        = rewards_int.float().detach().cpu().numpy()
         rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
 
