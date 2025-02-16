@@ -4,28 +4,7 @@ import numpy
 from .TrajectoryBufferIM  import *
 from ..training.ValuesLogger           import *
 
-
-# dummy buffer implementation
-class EpisodicGoalsBuffer:
-    def __init__(self, batch_size, context_size, state_shape, dtype = torch.float32, device = "cpu"):
-                
-        self.buffer = torch.zeros((batch_size, context_size, ) + state_shape, dtype=dtype, device=device)
-        self.buffer+= torch.randn_like(self.buffer)
-
-    def step(self, state):
-        batch_size = state.shape[0]
-
-        rewards_goal = numpy.zeros((batch_size, ))
-
-        context = self.buffer[:]    
-
-        return context, rewards_goal
-
-    def reset(self, idx):
-        self.buffer[idx] = 0
-
-
-
+from .EpisodicGoalsBufferStats import *
 
 class AgentAetherMindBeta(): 
     def __init__(self, envs, Config, Model):
@@ -65,38 +44,41 @@ class AgentAetherMindBeta():
 
         self.state_normalise    = config.state_normalise
 
-        self.context_size       = config.context_size
+        context_size       = config.context_size
+        add_threshold      = config.add_threshold
+
+        if hasattr(config, "dtype"):
+            self.dtype = config.dtype
+        else:
+            self.dtype = torch.float32
 
 
         self.n_envs         = len(envs)
         state_shape         = self.envs.observation_space.shape
 
-        self.state_shape = (state_shape[0] + self.context_size, state_shape[1], state_shape[2])
+        self.state_shape    = (state_shape[0] + context_size, state_shape[1], state_shape[2])
 
         self.actions_count  = self.envs.action_space.n
 
         # create mdoel
         self.model = Model(self.state_shape, self.actions_count)
+        self.model.to(self.device)
         
-        self.dtype = torch.bfloat16
-        self.model = self.model.to(dtype=self.dtype, device=self.device)
+        self.model = self.model.to(dtype=self.dtype, device="cuda")
 
 
         # initialise optimizer and trajectory buffer
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
 
-        self.trajectory_buffer = TrajectoryBufferIM(self.steps, self.state_shape, self.actions_count, self.n_envs, self.dtype)
-
-
-        self.episodic_goals_buffer = EpisodicGoalsBuffer(self.n_envs, self.context_size, (state_shape[1], state_shape[2]), dtype=self.dtype, device=self.device)
-
-
-        self.episode_steps = numpy.zeros(self.n_envs, dtype=int)
+        self.trajectory_buffer      = TrajectoryBufferIM(self.steps, self.state_shape, self.actions_count, self.n_envs, self.dtype)
+        self.episodic_goals_buffer  = EpisodicGoalsBufferStats(context_size, self.n_envs, (state_shape[1], state_shape[2]), add_threshold, device=self.device)
+        
+        self.episode_steps          = numpy.zeros(self.n_envs, dtype=int)
 
 
         
         # optional, for state mean and variance normalisation        
-        self.state_mean  = torch.zeros((state_shape[1], state_shape[2]), dtype=self.dtype, device=self.device)
+        self.state_mean  = torch.zeros((self.state_shape[1], self.state_shape[2]), dtype=self.dtype, device=self.device)
 
         for e in range(self.n_envs):
             state, _ = self.envs.reset(e)
@@ -104,13 +86,16 @@ class AgentAetherMindBeta():
 
         self.state_mean/= self.n_envs
         self.state_var = torch.ones(self.state_mean.shape, dtype=self.dtype, device=self.device)
+       
         
 
         # result loggers
+        self.log_rewards_goal   = ValuesLogger("rewards_goal")
         self.log_rewards_int    = ValuesLogger("rewards_int")
         self.log_loss_ppo       = ValuesLogger("loss_ppo")
         self.log_loss_diffusion = ValuesLogger("loss_diffusion")
         self.log_loss_im_ssl    = ValuesLogger("loss_im_ssl")
+        self.log_goals          = ValuesLogger("goals")
 
 
         # print parameters summary
@@ -120,6 +105,8 @@ class AgentAetherMindBeta():
         print(self.model)
         print("\n\n")
 
+        print("device               ", self.device)
+        print("dtype                ", self.dtype)
         print("gamma_ext            ", self.gamma_ext)
         print("gamma_int            ", self.gamma_int)
         print("entropy_beta         ", self.entropy_beta)
@@ -142,30 +129,28 @@ class AgentAetherMindBeta():
         print("alpha_inf            ", self.alpha_inf)
         print("denoising_steps      ", self.denoising_steps)
         print("state_normalise      ", self.state_normalise)
-        print("context_size         ", self.context_size)
+        print("context_size         ", context_size)
+        print("add_threshold        ", add_threshold)
         
-
         print("\n\n")
         
      
   
-    def step(self, states, training_enabled):
-        states = torch.tensor(states, dtype=self.dtype).to(self.device)
+    def step(self, states, training_enabled):     
+        states = torch.from_numpy(states).to(self.dtype).to(self.device)
 
-        context, rewards_goal = self.episodic_goals_buffer.step(states[:, 0])
+        context, rewards_goal, goals_stats = self.episodic_goals_buffer.step(states[:, 0])
+        self.log_goals.add_dictionary(goals_stats)
 
         states_t = torch.concatenate([states, context], axis=1)
 
-        if self.state_normalise:
-            self._update_normalisation(states, alpha = 0.99)
-            states_t = self._state_normalise(states_t)
-    
 
-        # states_t.shape = (batch_size, ch + context_size, height, width)
-        # obtain features, z.shape = (batch_size, ch + context_size, n_features)
-        z = self.model.forward_features(states_t)
+        if self.state_normalise:
+            self._update_normalisation(states_t, alpha = 0.99)
+            states_t = self._state_normalise(states_t)
 
         # obtain model output, logits and values, use abstract state space z
+        z = self.model.forward_features(states_t)
         logits_t, values_ext_t, values_int_t = self.model.forward_actor_critic(z)
 
         actions = self._sample_actions(logits_t)
@@ -173,11 +158,11 @@ class AgentAetherMindBeta():
         # environment step  
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
-        # external reward from env and new goal discovering
+        # sum external rewards with goal discovery reward
         rewards_ext_goal = self.reward_ext_coeff*rewards_ext + self.reward_goal_coeff*rewards_goal
 
         # internal motivaiotn based on diffusion
-        rewards_int, _     = self._internal_motivation(z[:, 0], self.alpha_inf, self.alpha_inf, self.denoising_steps)
+        rewards_int, _     = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
         rewards_int        = rewards_int.float().detach().cpu().numpy()
         rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
 
@@ -200,8 +185,10 @@ class AgentAetherMindBeta():
         dones_idx = numpy.where(dones)[0]
         for i in dones_idx:
             self.episode_steps[i] = 0
-            self.episodic_goals_buffer.reset(i)
-       
+
+        self.log_rewards_goal.add("mean", rewards_goal.mean())
+        self.log_rewards_goal.add("std",  rewards_goal.std())
+
         self.log_rewards_int.add("mean", rewards_int.mean())
         self.log_rewards_int.add("std",  rewards_int.std())
 
@@ -215,7 +202,7 @@ class AgentAetherMindBeta():
         self.model.load_state_dict(torch.load(result_path + "/model.pt", map_location = self.device))
 
     def get_logs(self):
-        return [self.log_rewards_int, self.log_loss_ppo, self.log_loss_diffusion, self.log_loss_im_ssl]
+        return [self.log_rewards_goal, self.log_rewards_int, self.log_loss_ppo, self.log_loss_diffusion, self.log_loss_im_ssl]
 
     def train(self): 
         samples_count = self.steps*self.n_envs
@@ -227,44 +214,47 @@ class AgentAetherMindBeta():
                 
                 # sample batch
                 states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.trajectory_buffer.sample_batch(self.batch_size, self.device)
-
-                # state.shape = (batch_size, ch + context_size, height, width)
-                # z.shape     = (batch_size, ch + context_size, n_features)
-                z = self.model.forward_features(states).detach()
-
-                # compute main PPO loss
-                loss_ppo = self._loss_ppo(z, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
-
-                # internal motivation loss, MSE diffusion 
-                # on index 0 are features from current state frame
-                _, loss_diffusion = self._internal_motivation(z[:, 0], self.alpha_min, self.alpha_max, self.denoising_steps)
-
-                #self supervised target regularisation
-                states_now, states_next, actions, _ = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
-
-                # use only current frame state
-                states_now  = states_now[:, 0].unsqueeze(1)
-                states_next = states_next[:, 0].unsqueeze(1)
-
-                loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_now, states_next, actions)
                 
-                # final loss
-                loss = loss_ppo + loss_diffusion.mean() + loss_ssl
+                # compute main PPO loss
+                loss_ppo = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
 
-                # optimisation step
                 self.optimizer.zero_grad()        
-                loss.backward()
+                loss_ppo.backward()
 
                 # gradient clip for stabilising training
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
                 self.optimizer.step() 
 
-                # log results
-                self.log_loss_diffusion.add("mean", loss_diffusion.float().mean().detach().cpu().numpy())
-                self.log_loss_diffusion.add("std", loss_diffusion.float().std().detach().cpu().numpy())
+         
+        
+        batch_count = samples_count//self.ss_batch_size
+        
+        #main IM training loop
+        for batch_idx in range(batch_count):    
+            #internal motivation loss, MSE diffusion    
+            states_now, states_next, _, _   = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
+            _, loss_diffusion  = self._internal_motivation(states_now, self.alpha_min, self.alpha_max, self.denoising_steps)
 
-                for key in info_ssl:
-                    self.log_loss_im_ssl.add(str(key), info_ssl[key])
+
+            #self supervised target regularisation
+            states_now, states_next, actions, _ = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
+            loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_now, states_next, actions)
+
+            #final IM loss
+            loss_im = loss_diffusion.mean() + loss_ssl
+
+
+            self.optimizer.zero_grad()        
+            loss_im.mean().backward() 
+            self.optimizer.step() 
+
+            # log results
+            self.log_loss_diffusion.add("mean", loss_diffusion.float().mean().detach().cpu().numpy())
+            self.log_loss_diffusion.add("std", loss_diffusion.float().std().detach().cpu().numpy())
+                
+            for key in info_ssl:
+                self.log_loss_im_ssl.add(str(key), info_ssl[key])
+
 
 
 
@@ -280,8 +270,10 @@ class AgentAetherMindBeta():
 
 
     # state denoising ability novely detection
-    def _internal_motivation(self, z_target, alpha_min, alpha_max, denoising_steps):
-        z_target = z_target.detach()
+    def _internal_motivation(self, states, alpha_min, alpha_max, denoising_steps):
+      
+        # obtain taget features from states and noised states
+        z_target  = self.model.forward_im_features(states).detach()
 
         # add noise into features
         z_noised, noise, alpha = self.im_noise(z_target, alpha_min, alpha_max)
@@ -307,9 +299,14 @@ class AgentAetherMindBeta():
 
 
     # main PPO loss
-    def _loss_ppo(self, z, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
+    def _loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
 
-        logits_new, values_ext_new, values_int_new  = self.model.forward_actor_critic(z)
+        z = self.model.forward_features(states)
+
+        # detach all except first
+        z[:, 1:] = z[:, 1:].detach()
+
+        logits_new, values_ext_new, values_int_new = self.model.forward_actor_critic(z)
 
 
         #critic loss
@@ -328,6 +325,7 @@ class AgentAetherMindBeta():
 
         #total loss
         loss = self.val_coeff*loss_critic + loss_policy + loss_entropy
+
 
 
         self.log_loss_ppo.add("loss_policy",  loss_policy.float().detach().cpu().numpy().item())
@@ -390,6 +388,8 @@ class AgentAetherMindBeta():
 
         return loss_policy, loss_entropy
 
+
+
     #update running stats when training enabled
     def _update_normalisation(self, states, alpha = 0.99):
         mean = states.mean(dim=(0, 1))
@@ -404,3 +404,8 @@ class AgentAetherMindBeta():
         states_norm = torch.clip(states_norm, -4.0, 4.0)
     
         return states_norm  
+
+
+
+
+

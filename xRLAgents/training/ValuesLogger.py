@@ -16,6 +16,10 @@ class ValuesLogger:
         else: 
             self.values[name] = value
 
+    def add_dicitonary(self, dictionary):
+        for key in dictionary:
+            self.add(str(key), dictionary[key])
+
     def get_str(self, decimals = 5): 
         result = "" 
 
