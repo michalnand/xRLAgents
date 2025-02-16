@@ -225,6 +225,8 @@ class AgentAetherMindBeta():
                 # compute main PPO loss
                 loss_ppo = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
 
+                print("loss_ppo = ", loss_ppo.dtype)
+
                 self.optimizer.zero_grad()        
                 loss_ppo.backward()
 
@@ -250,6 +252,7 @@ class AgentAetherMindBeta():
             #final IM loss
             loss_im = loss_diffusion.mean() + loss_ssl
 
+            print("loss_im = ", loss_im.dtype)
 
             self.optimizer.zero_grad()        
             loss_im.mean().backward() 
