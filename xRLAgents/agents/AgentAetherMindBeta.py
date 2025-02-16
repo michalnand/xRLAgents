@@ -161,11 +161,15 @@ class AgentAetherMindBeta():
         # environment step  
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
+        
+
         # sum external rewards with goal discovery reward
         rewards_ext_goal = self.reward_ext_coeff*rewards_ext + self.reward_goal_coeff*rewards_goal
 
         # internal motivaiotn based on diffusion
         rewards_int, _     = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
+
+        print("forward ", z.dtype, logits_t.dtype, values_ext_t.dtype, values_int_t.dtype, rewards_int.dtype, rewards_int.device)
         rewards_int        = rewards_int.float().detach().cpu().numpy()
         rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
 
