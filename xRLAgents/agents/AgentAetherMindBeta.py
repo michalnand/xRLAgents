@@ -71,7 +71,7 @@ class AgentAetherMindBeta():
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
 
         self.trajectory_buffer      = TrajectoryBufferIM(self.steps, self.state_shape, self.actions_count, self.n_envs, self.dtype)
-        self.episodic_goals_buffer  = EpisodicGoalsBufferStats(context_size, self.n_envs, (state_shape[1], state_shape[2]), add_threshold, device=self.device)
+        self.episodic_goals_buffer  = EpisodicGoalsBufferStats(context_size, self.n_envs, (1, state_shape[1], state_shape[2]), add_threshold, device=self.device)
         
         self.episode_steps          = numpy.zeros(self.n_envs, dtype=int)
 
@@ -139,7 +139,7 @@ class AgentAetherMindBeta():
     def step(self, states, training_enabled):     
         states = torch.from_numpy(states).to(self.dtype).to(self.device)
 
-        context, rewards_goal, goals_stats = self.episodic_goals_buffer.step(states[:, 0])
+        context, rewards_goal, goals_stats = self.episodic_goals_buffer.step(states[:, 0].unsqueeze(1))
         self.log_goals.add_dictionary(goals_stats)
 
         states_t = torch.concatenate([states, context], axis=1)
@@ -185,6 +185,8 @@ class AgentAetherMindBeta():
         dones_idx = numpy.where(dones)[0]
         for i in dones_idx:
             self.episode_steps[i] = 0
+
+            self.episodic_goals_buffer.reset(i)
 
         self.log_rewards_goal.add("mean", rewards_goal.mean())
         self.log_rewards_goal.add("std",  rewards_goal.std())
