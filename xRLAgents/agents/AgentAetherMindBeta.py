@@ -71,7 +71,7 @@ class AgentAetherMindBeta():
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
 
         self.trajectory_buffer      = TrajectoryBufferIM(self.steps, self.state_shape, self.actions_count, self.n_envs, self.dtype)
-        self.episodic_goals_buffer  = EpisodicGoalsBufferStats(context_size, self.n_envs, (1, state_shape[1], state_shape[2]), add_threshold, device=self.device)
+        self.episodic_goals_buffer  = EpisodicGoalsBufferStats(context_size, self.n_envs, (1, state_shape[1], state_shape[2]), add_threshold)
         
         self.episode_steps          = numpy.zeros(self.n_envs, dtype=int)
 

@@ -87,7 +87,7 @@ class EpisodicGoalsBufferStats:
         self.ptrs       = torch.zeros((batch_size, ), dtype=int).to(self.device)
 
     
-        self.z_score_est = EMAOutlierDetector()
+        self.z_score_est = EMAOutlierDetector() 
 
         self.buffer_size = buffer_size
         self.fe.clear()
@@ -121,9 +121,7 @@ class EpisodicGoalsBufferStats:
 
         z_score = self.z_score_est.step(dist_min_value)
 
-
         rewards = numpy.zeros((batch_size, ))
-
        
         for n in range(batch_size):                        
             # if z-scroe is high
