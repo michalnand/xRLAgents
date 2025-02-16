@@ -309,7 +309,7 @@ class AgentAetherMindBeta():
         z = self.model.forward_features(states)
 
         # detach all except first
-        z[:, 1:] = z[:, 1:].detach()
+        #z[:, 1:] = z[:, 1:].detach()
 
         logits_new, values_ext_new, values_int_new = self.model.forward_actor_critic(z)
 
