@@ -142,6 +142,8 @@ class AgentAetherMindBeta():
         context, rewards_goal, goals_stats = self.episodic_goals_buffer.step(states[:, 0].unsqueeze(1))
         self.log_goals.add_dictionary(goals_stats)
 
+        print(states.shape, context.shape)
+
         states_t = torch.concatenate([states, context], axis=1)
 
 
