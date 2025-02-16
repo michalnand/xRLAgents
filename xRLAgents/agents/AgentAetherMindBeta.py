@@ -332,8 +332,6 @@ class AgentAetherMindBeta():
         loss = self.val_coeff*loss_critic + loss_policy + loss_entropy
 
 
-        print("loss ", loss.dtype)
-
         self.log_loss_ppo.add("loss_policy",  loss_policy.float().detach().cpu().numpy().item())
         self.log_loss_ppo.add("loss_critic",  loss_critic.float().detach().cpu().numpy().item())
         self.log_loss_ppo.add("loss_entropy", loss_entropy.float().detach().cpu().numpy().item())
