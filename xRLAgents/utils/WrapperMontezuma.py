@@ -78,6 +78,7 @@ class StickyActionEnv(gym.Wrapper):
         return self.env.reset()
  
 
+'''
 class RepeatActionEnv(gym.Wrapper):
     def __init__(self, env):
         gym.Wrapper.__init__(self, env)
@@ -100,7 +101,30 @@ class RepeatActionEnv(gym.Wrapper):
 
         state = self.successive_frame.max(axis=0)
         return state, reward, done, truncated, info
+'''
 
+
+class RepeatActionEnv(gym.Wrapper):
+    def __init__(self, env, repeats = 4):
+        gym.Wrapper.__init__(self, env)
+        self.repeats = repeats
+        self.successive_frame = numpy.zeros((self.repeats,) + self.env.observation_space.shape, dtype=self.env.observation_space.dtype)
+
+    def reset(self, seed = None, options = None):
+        return self.env.reset()
+
+    def step(self, action):
+        reward, done = 0, False
+        for n in range(self.repeats):
+            state, r, done, truncated, info = self.env.step(action)
+            self.successive_frame[n] = state
+
+            reward += r 
+            if done or truncated:
+                break
+
+        state = self.successive_frame.max(axis=0)
+        return state, reward, done, truncated, info
 
 class ResizeEnv(gym.ObservationWrapper):
     def __init__(self, env, height = 96, width = 96, frame_stacking = 4):
