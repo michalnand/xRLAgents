@@ -24,11 +24,12 @@ class FeaturesExtractor:
         if self.state_curr is None:
             self.state_curr = states.detach().clone().to(device = states.device, dtype = states.dtype)
 
-        self.state_prev = self.state_curr.clone().to(device = states.device, dtype = states.dtype)
-        self.state_curr = states.clone().to(device = states.device, dtype = states.dtype)
+        self.state_prev = self.state_curr.clone()
+        self.state_curr = states.clone()
 
 
         diff = self.state_curr - self.state_prev
+
         z = torch.abs(diff)
         z = torch.nn.functional.avg_pool2d(z, (self.downsample, self.downsample), stride=(self.downsample, self.downsample))
         z = z.flatten(1)
@@ -70,7 +71,7 @@ class EMAOutlierDetector:
 
 class EpisodicGoalsBufferStats:
 
-    def __init__(self, buffer_size, batch_size, state_shape, add_threshold = 2.5, device = "cpu", dtype=torch.bfloat16):
+    def __init__(self, buffer_size, batch_size, state_shape, add_threshold = 2.5, min_dist = 0.02, device = "cpu", dtype=torch.bfloat16):
 
         self.device = device
         self.dtype  = dtype
@@ -93,6 +94,7 @@ class EpisodicGoalsBufferStats:
         self.fe.clear()
 
         self.add_threshold = add_threshold
+        self.min_dist      = min_dist
 
         print("EpisodicGoalsBuffer")
         print("features     : ", self.features.shape)
@@ -119,13 +121,15 @@ class EpisodicGoalsBufferStats:
         dist_min_idx    = torch.argmin(dist, dim=1)
         dist_min_value  = torch.min(dist, dim=1)[0]
 
+
         z_score = self.z_score_est.step(dist_min_value)
 
         rewards = numpy.zeros((batch_size, ))
        
+        
         for n in range(batch_size):                        
             # if z-scroe is high
-            if z_score[n] > self.add_threshold:
+            if z_score[n] > self.add_threshold and dist_min_value[n] > self.min_dist:
                 # circular buffer
                 idx = self.ptrs[n]%self.buffer_size
 
@@ -137,6 +141,9 @@ class EpisodicGoalsBufferStats:
                 # new key state discovered, generate reward
                 rewards[n] = 1.0
 
+                
+        
+        
         # statistics for log
         stats = {}
         tmp = self.ptrs.float().cpu().detach().numpy()
