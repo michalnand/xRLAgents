@@ -148,7 +148,7 @@ class AgentAetherMindBeta():
         states_t = torch.concatenate([states, context], axis=1)
 
         if self.state_normalise:
-            self._update_normalisation(states_t, alpha = 0.99)
+            self._update_normalisation(states_t[:, 0:4], alpha = 0.99)
             states_t = self._state_normalise(states_t)
 
         # obtain model output, logits and values, use abstract state space z
