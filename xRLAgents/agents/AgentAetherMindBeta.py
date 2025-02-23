@@ -149,7 +149,7 @@ class AgentAetherMindBeta():
         if self.state_normalise:
             self._update_normalisation(states_t, alpha = 0.99)
             states_t  = self._state_normalise(states_t)
-            #context_t = self._state_normalise(context_t)
+            context_t = self._state_normalise(context_t)
 
         # obtain model output, logits and values, use abstract state space z
         z = self.model.forward_features(states_t, context_t)
