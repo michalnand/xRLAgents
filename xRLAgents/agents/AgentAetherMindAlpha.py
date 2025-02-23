@@ -66,8 +66,6 @@ class AgentAetherMindAlpha():
 
         self.trajectory_buffer = TrajectoryBufferIM(self.steps, self.state_shape, self.actions_count, self.n_envs, self.dtype)
 
-        self.episode_steps     = numpy.zeros(self.n_envs, dtype=int)
-
 
         
         # optional, for state mean and variance normalisation        
@@ -148,7 +146,7 @@ class AgentAetherMindAlpha():
         # top PPO training part
         if training_enabled:     
             # put trajectory into policy buffer
-            self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext, rewards_int_scaled, dones, self.episode_steps)
+            self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext, rewards_int_scaled, dones)
 
             # if buffer is full, run training loop
             if self.trajectory_buffer.is_full():
@@ -159,11 +157,7 @@ class AgentAetherMindAlpha():
                 self.trajectory_buffer.clear()
           
 
-        self.episode_steps+= 1 
-
-        dones_idx = numpy.where(dones)[0]
-        for i in dones_idx:
-            self.episode_steps[i] = 0
+     
        
         self.log_rewards_int.add("mean", rewards_int.mean())
         self.log_rewards_int.add("std",  rewards_int.std())
@@ -208,12 +202,12 @@ class AgentAetherMindAlpha():
         #main IM training loop
         for batch_idx in range(batch_count):    
             #internal motivation loss, MSE diffusion    
-            states_now, states_next, _, _   = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
+            states_now, states_next, _   = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
             _, loss_diffusion  = self._internal_motivation(states_now, self.alpha_min, self.alpha_max, self.denoising_steps)
 
 
             #self supervised target regularisation
-            states_now, states_next, actions, _ = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
+            states_now, states_next, actions = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
             loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_now, states_next, actions)
 
             #final IM loss

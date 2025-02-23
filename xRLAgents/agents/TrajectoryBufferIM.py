@@ -18,7 +18,7 @@ class TrajectoryBufferIM:
         print("\n")
     
 
-    def add(self, state, logits, values_ext, values_int, actions, rewards_ext, rewards_int, dones, episode_steps, mode = None):  
+    def add(self, state, logits, values_ext, values_int, actions, rewards_ext, rewards_int, dones):  
         self.states[self.ptr]       = state.detach().to(dtype=self.dtype, device="cpu").clone() 
         self.logits[self.ptr]       = logits.detach().float().to(device="cpu").clone() 
         
@@ -31,10 +31,6 @@ class TrajectoryBufferIM:
         self.rewards_int[self.ptr]  = torch.from_numpy(rewards_int).float()
 
         self.dones[self.ptr]            = torch.from_numpy(dones).float()
-        self.episode_steps[self.ptr]    = torch.from_numpy(episode_steps)
-
-        if mode is not None:
-            self.mode[self.ptr] = torch.from_numpy(mode)
         
         self.ptr = self.ptr + 1 
 
@@ -58,9 +54,7 @@ class TrajectoryBufferIM:
         self.rewards_int    = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
 
         self.dones      = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
-        self.episode_steps = torch.zeros((self.buffer_size, self.envs_count, ), dtype=int)
 
-        self.mode       = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
 
         self.ptr = 0  
  
@@ -84,14 +78,10 @@ class TrajectoryBufferIM:
 
       
         self.dones         = self.dones.reshape((self.buffer_size*self.envs_count, ))
-        self.episode_steps = self.episode_steps.reshape((self.buffer_size*self.envs_count, ))
-
-        self.mode             = self.mode.reshape((self.buffer_size*self.envs_count, ))
 
         self.returns_ext      = self.returns_ext.reshape((self.buffer_size*self.envs_count, ))
         self.advantages_ext   = self.advantages_ext.reshape((self.buffer_size*self.envs_count, ))
 
-        
         self.returns_int      = self.returns_int.reshape((self.buffer_size*self.envs_count, ))
         self.advantages_int   = self.advantages_int.reshape((self.buffer_size*self.envs_count, ))
 
@@ -119,27 +109,6 @@ class TrajectoryBufferIM:
         return states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int
     
 
-    def sample_states(self, batch_size, max_distance, device, dtype = None):
-        if dtype is None:
-            dtype = self.dtype      
-
-        count        = self.buffer_size*self.envs_count
-
-        indices_a   = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size, ))
-
-        dif         = torch.randint(0, max_distance + 1, (batch_size, ))
-        indices_b   = torch.clip(indices_a + self.envs_count*dif, 0, count-1)
-
-
-        states_a   = (self.states[indices_a]).to(dtype=dtype, device=device)
-        steps_a    = (self.episode_steps[indices_a]).to(dtype=dtype, device=device)
-
-        states_b   = (self.states[indices_b]).to(dtype=dtype, device=device)
-        steps_b    = (self.episode_steps[indices_b]).to(dtype=dtype, device=device)
-
-        return states_a, steps_a,  states_b, steps_b
-    
-
     def sample_state_pairs(self, batch_size, device, dtype = None):
         if dtype is None:
             dtype = torch.float32
@@ -154,25 +123,10 @@ class TrajectoryBufferIM:
 
         actions         = (self.actions[indices_now]).to(device=device)   
 
-        modes           = (self.mode[indices_now]).to(dtype=dtype, device=device) 
-
-        return states_now, states_next, actions, modes
+        return states_now, states_next, actions
     
 
 
-    def sample_trajectory_states(self, trajectory_length, batch_size, device, dtype = None):
-        if dtype is None:
-            dtype = torch.float32
-
-        indices = torch.randint(0, self.envs_count*(self.buffer_size - trajectory_length), size=(batch_size, ))
-        states  = torch.zeros((trajectory_length, batch_size, ) + self.state_shape,  dtype=self.dtype, device=device)
-
-        for n in range(trajectory_length):
-            states[n]        = self.states[indices].to(dtype=dtype, device=device) 
-            indices+= self.envs_count 
-
-        return states
-    
      
     def _gae(self, rewards, values, dones, gamma, lam):
         buffer_size = rewards.shape[0]
