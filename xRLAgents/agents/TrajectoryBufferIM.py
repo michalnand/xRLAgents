@@ -19,6 +19,10 @@ class TrajectoryBufferIM:
     
 
     def add(self, state, logits, values_ext, values_int, actions, rewards_ext, rewards_int, dones, episode_steps, mode = None):  
+
+        print(self.states.device, self.states.dtype, state.device, state.dtype)
+        print(self.logits.device, self.logits.dtype, logits.device, logits.dtype)
+        print("\n\n\n")
         self.states[self.ptr]       = state.detach().to(dtype=self.dtype, device="cpu").clone() 
         self.logits[self.ptr]       = logits.detach().to(type=self.dtype, device="cpu").clone() 
         
