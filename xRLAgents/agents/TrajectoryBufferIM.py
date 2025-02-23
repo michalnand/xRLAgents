@@ -111,7 +111,7 @@ class TrajectoryBufferIM:
         states          = (self.states[indices]).to(dtype=dtype, device=device)
         logits          = (self.logits[indices]).to(dtype=dtype, device=device)
         
-        actions         = (self.actions[indices]).to(dtype=dtype, device=device)
+        actions         = (self.actions[indices]).to(device=device)
          
         returns_ext     = (self.returns_ext[indices]).to(dtype=dtype, device=device)
         returns_int     = (self.returns_int[indices]).to(dtype=dtype, device=device)
@@ -156,7 +156,7 @@ class TrajectoryBufferIM:
         states_now      = (self.states[indices_now]).to(dtype=dtype, device=device)
         states_next     = (self.states[indices_next]).to(dtype=dtype, device=device)
 
-        actions         = (self.actions[indices_now]).to(dtype=dtype, device=device)   
+        actions         = (self.actions[indices_now]).to(device=device)   
 
         modes           = (self.mode[indices_now]).to(dtype=dtype, device=device) 
 
