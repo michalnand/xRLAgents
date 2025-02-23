@@ -112,21 +112,21 @@ class EpisodicGoalsBufferStats:
         states_tmp  = states.to(device = self.device, dtype = self.dtype)
         
         batch_size  = states_tmp.shape[0]
-        features    = self.fe.step(states_tmp)
+        #features    = self.fe.step(states_tmp)
 
 
-        dist = features.unsqueeze(1) - self.features
-        dist = torch.abs(dist).mean(dim=-1)
+        #dist = features.unsqueeze(1) - self.features
+        #dist = torch.abs(dist).mean(dim=-1)
 
-        dist_min_idx    = torch.argmin(dist, dim=1)
-        dist_min_value  = torch.min(dist, dim=1)[0]
+        #dist_min_idx    = torch.argmin(dist, dim=1)
+        #dist_min_value  = torch.min(dist, dim=1)[0]
 
 
-        z_score = self.z_score_est.step(dist_min_value)
+        #z_score = self.z_score_est.step(dist_min_value)
 
         rewards = numpy.zeros((batch_size, ))
        
-        
+        '''
         for n in range(batch_size):                        
             # if z-scroe is high
             if z_score[n] > self.add_threshold and dist_min_value[n] > self.min_dist:
@@ -140,6 +140,7 @@ class EpisodicGoalsBufferStats:
 
                 # new key state discovered, generate reward
                 rewards[n] = 1.0
+        '''
 
                 
         
@@ -151,14 +152,14 @@ class EpisodicGoalsBufferStats:
         stats["std"]  = tmp.std()
         stats["max"]  = tmp.max()
 
-        stats["dist_mean"]      = dist.mean().float().cpu().detach().numpy().item()
-        stats["dist_std"]       = dist.std().float().cpu().detach().numpy().item()
+        #stats["dist_mean"]      = dist.mean().float().cpu().detach().numpy().item()
+        #stats["dist_std"]       = dist.std().float().cpu().detach().numpy().item()
 
-        stats["dist_min_mean"]  = dist_min_value.mean().float().cpu().detach().numpy().item()
-        stats["dist_min_std"]   = dist_min_value.std().float().cpu().detach().numpy().item()
+        #stats["dist_min_mean"]  = dist_min_value.mean().float().cpu().detach().numpy().item()
+        #stats["dist_min_std"]   = dist_min_value.std().float().cpu().detach().numpy().item()
 
-        stats["z_mean"]  = z_score.mean().float().cpu().detach().numpy().item()
-        stats["z_std"]   = z_score.std().float().cpu().detach().numpy().item()
+        #stats["z_mean"]  = z_score.mean().float().cpu().detach().numpy().item()
+        #stats["z_std"]   = z_score.std().float().cpu().detach().numpy().item()
 
         return self.key_states, rewards, stats
 
