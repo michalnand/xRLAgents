@@ -103,7 +103,7 @@ class EpisodicGoalsBufferStats:
 
 
     def reset(self, env_id):
-        self.fe.reset(env_id)
+        #self.fe.reset(env_id)
 
         self.features[env_id,  :]    = 0.0
         self.ptrs[env_id]            = 0
