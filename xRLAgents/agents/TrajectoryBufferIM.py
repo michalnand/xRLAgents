@@ -26,10 +26,10 @@ class TrajectoryBufferIM:
         self.states[self.ptr]       = state.detach().to(dtype=self.dtype, device="cpu").clone() 
         self.logits[self.ptr]       = logits.detach().float().to(device="cpu").clone() 
         
-        self.values_ext[self.ptr]   = values_ext.squeeze(1).float().to(device="cpu").clone() 
-        self.values_int[self.ptr]   = values_int.squeeze(1).float().to(device="cpu").clone() 
+        self.values_ext[self.ptr]   = values_ext.squeeze(1).detach().float().to(device="cpu").clone() 
+        self.values_int[self.ptr]   = values_int.squeeze(1).detach().float().to(device="cpu").clone() 
         
-        self.actions[self.ptr]      = torch.from_numpy(actions) 
+        self.actions[self.ptr]      = torch.from_numpy(actions)     
         
         self.rewards_ext[self.ptr]  = torch.from_numpy(rewards_ext).float()
         self.rewards_int[self.ptr]  = torch.from_numpy(rewards_int).float()
