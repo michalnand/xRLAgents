@@ -52,6 +52,8 @@ class AgentAetherMindBeta():
         else:
             self.dtype = torch.float32
 
+        buffer_dtype = torch.bfloat16
+
 
 
         self.n_envs         = len(envs)
@@ -71,7 +73,7 @@ class AgentAetherMindBeta():
         # initialise optimizer and trajectory buffer
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
 
-        self.trajectory_buffer      = TrajectoryBufferIM(self.steps, self.state_shape, self.actions_count, self.n_envs, self.dtype)
+        self.trajectory_buffer      = TrajectoryBufferIM(self.steps, self.state_shape, self.actions_count, self.n_envs, buffer_dtype)
         self.episodic_goals_buffer  = EpisodicGoalsBufferStats(context_size, self.n_envs, (1, state_shape[1], state_shape[2]), add_threshold)
 
         self.episode_steps          = numpy.zeros(self.n_envs, dtype=int)
@@ -220,7 +222,7 @@ class AgentAetherMindBeta():
             for batch_idx in range(batch_count):
                 
                 # sample batch
-                states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.trajectory_buffer.sample_batch(self.batch_size, self.device)
+                states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.trajectory_buffer.sample_batch(self.batch_size, self.device, self.dtype)
                 
                 # compute main PPO loss
                 loss_ppo = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
@@ -239,12 +241,12 @@ class AgentAetherMindBeta():
         #main IM training loop
         for batch_idx in range(batch_count):    
             #internal motivation loss, MSE diffusion    
-            states_now, states_next, _, _   = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
+            states_now, states_next, _, _   = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device, self.dtype)
             _, loss_diffusion  = self._internal_motivation(states_now, self.alpha_min, self.alpha_max, self.denoising_steps)
 
 
             #self supervised target regularisation
-            states_now, states_next, actions, _ = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
+            states_now, states_next, actions, _ = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device, self.dtype)
             loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_now, states_next, actions)
 
             #final IM loss

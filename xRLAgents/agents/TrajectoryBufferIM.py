@@ -19,13 +19,13 @@ class TrajectoryBufferIM:
     
 
     def add(self, state, logits, values_ext, values_int, actions, rewards_ext, rewards_int, dones, episode_steps, mode = None):  
-        self.states[self.ptr]       = state.detach().to("cpu").clone() 
-        self.logits[self.ptr]       = logits.detach().to("cpu").clone() 
+        self.states[self.ptr]       = state.detach().to(dtype=self.dtype, device="cpu").clone() 
+        self.logits[self.ptr]       = logits.detach().to(type=self.dtype, device="cpu").clone() 
         
-        self.values_ext[self.ptr]   = values_ext.squeeze(1).detach().to("cpu").clone() 
-        self.values_int[self.ptr]   = values_int.squeeze(1).detach().to("cpu").clone() 
+        self.values_ext[self.ptr]   = values_ext.squeeze(1).detach().to(type=self.dtype, device="cpu").clone() 
+        self.values_int[self.ptr]   = values_int.squeeze(1).detach().to(type=self.dtype, device="cpu").clone() 
         
-        self.actions[self.ptr]      = torch.from_numpy(actions)
+        self.actions[self.ptr]      = torch.from_numpy(actions) 
         
         self.rewards_ext[self.ptr]  = torch.from_numpy(rewards_ext)
         self.rewards_int[self.ptr]  = torch.from_numpy(rewards_int)
@@ -98,25 +98,31 @@ class TrajectoryBufferIM:
         
 
 
-    def sample_batch(self, batch_size, device):
+    def sample_batch(self, batch_size, device, dtype = None):
+        if dtype is None:
+            dtype = self.dtype  
+        
         indices         = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size, ))
 
-        states          = (self.states[indices]).to(device)
-        logits          = (self.logits[indices]).to(device)
+        states          = (self.states[indices]).to(dtype=dtype, device=device)
+        logits          = (self.logits[indices]).to(dtype=dtype, device=device)
         
-        actions         = (self.actions[indices]).to(device)
+        actions         = (self.actions[indices]).to(dtype=dtype, device=device)
          
-        returns_ext     = (self.returns_ext[indices]).to(device)
-        returns_int     = (self.returns_int[indices]).to(device)
+        returns_ext     = (self.returns_ext[indices]).to(dtype=dtype, device=device)
+        returns_int     = (self.returns_int[indices]).to(dtype=dtype, device=device)
 
-        advantages_ext  = (self.advantages_ext[indices]).to(device)
-        advantages_int  = (self.advantages_int[indices]).to(device)
+        advantages_ext  = (self.advantages_ext[indices]).to(dtype=dtype, device=device)
+        advantages_int  = (self.advantages_int[indices]).to(dtype=dtype, device=device)
 
 
         return states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int
     
 
-    def sample_states(self, batch_size, max_distance, device):
+    def sample_states(self, batch_size, max_distance, device, dtype = None):
+        if dtype is None:
+            dtype = self.dtype      
+
         count        = self.buffer_size*self.envs_count
 
         indices_a   = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size, ))
@@ -125,38 +131,44 @@ class TrajectoryBufferIM:
         indices_b   = torch.clip(indices_a + self.envs_count*dif, 0, count-1)
 
 
-        states_a   = (self.states[indices_a]).to(device)
-        steps_a    = (self.episode_steps[indices_a]).to(device)
+        states_a   = (self.states[indices_a]).to(dtype=dtype, device=device)
+        steps_a    = (self.episode_steps[indices_a]).to(dtype=dtype, device=device)
 
-        states_b   = (self.states[indices_b]).to(device)
-        steps_b    = (self.episode_steps[indices_b]).to(device)
+        states_b   = (self.states[indices_b]).to(dtype=dtype, device=device)
+        steps_b    = (self.episode_steps[indices_b]).to(dtype=dtype, device=device)
 
         return states_a, steps_a,  states_b, steps_b
     
 
-    def sample_state_pairs(self, batch_size, device):
+    def sample_state_pairs(self, batch_size, device, dtype = None):
+        if dtype is None:
+            dtype = torch.float32
+
         count           = self.buffer_size*self.envs_count
 
         indices_now     = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size, ))
         indices_next    = torch.clip(indices_now + self.envs_count, 0, count-1)
 
-        states_now      = (self.states[indices_now]).to(device)
-        states_next     = (self.states[indices_next]).to(device)
+        states_now      = (self.states[indices_now]).to(dtype=dtype, device=device)
+        states_next     = (self.states[indices_next]).to(dtype=dtype, device=device)
 
-        actions         = (self.actions[indices_now]).to(device)   
+        actions         = (self.actions[indices_now]).to(dtype=dtype, device=device)   
 
-        modes           = (self.mode[indices_now]).to(device) 
+        modes           = (self.mode[indices_now]).to(dtype=dtype, device=device) 
 
         return states_now, states_next, actions, modes
     
 
 
-    def sample_trajectory_states(self, trajectory_length, batch_size, device):
+    def sample_trajectory_states(self, trajectory_length, batch_size, device, dtype = None):
+        if dtype is None:
+            dtype = torch.float32
+
         indices = torch.randint(0, self.envs_count*(self.buffer_size - trajectory_length), size=(batch_size, ))
         states  = torch.zeros((trajectory_length, batch_size, ) + self.state_shape,  dtype=self.dtype, device=device)
 
         for n in range(trajectory_length):
-            states[n]        = self.states[indices].to(device)
+            states[n]        = self.states[indices].to(dtype=dtype, device=device) 
             indices+= self.envs_count 
 
         return states
