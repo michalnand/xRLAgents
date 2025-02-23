@@ -24,15 +24,15 @@ class TrajectoryBufferIM:
         print(self.logits.device, self.logits.dtype, logits.device, logits.dtype)
         print("\n\n\n")
         self.states[self.ptr]       = state.detach().to(dtype=self.dtype, device="cpu").clone() 
-        self.logits[self.ptr]       = logits.detach().to(type=self.dtype, device="cpu").clone() 
+        self.logits[self.ptr]       = logits.detach().float().to(device="cpu").clone() 
         
-        self.values_ext[self.ptr]   = values_ext.squeeze(1).detach().to(type=self.dtype, device="cpu").clone() 
-        self.values_int[self.ptr]   = values_int.squeeze(1).detach().to(type=self.dtype, device="cpu").clone() 
+        self.values_ext[self.ptr]   = values_ext.squeeze(1).float().to(device="cpu").clone() 
+        self.values_int[self.ptr]   = values_int.squeeze(1).float().to(device="cpu").clone() 
         
         self.actions[self.ptr]      = torch.from_numpy(actions) 
         
-        self.rewards_ext[self.ptr]  = torch.from_numpy(rewards_ext)
-        self.rewards_int[self.ptr]  = torch.from_numpy(rewards_int)
+        self.rewards_ext[self.ptr]  = torch.from_numpy(rewards_ext).float()
+        self.rewards_int[self.ptr]  = torch.from_numpy(rewards_int).float()
 
         self.dones[self.ptr]            = torch.from_numpy(dones).float()
         self.episode_steps[self.ptr]    = torch.from_numpy(episode_steps)
@@ -49,22 +49,22 @@ class TrajectoryBufferIM:
         return False 
  
 
-    def clear(self):
+    def clear(self):    
         self.states     = torch.zeros((self.buffer_size, self.envs_count, ) + self.state_shape, dtype=self.dtype)
-        self.logits     = torch.zeros((self.buffer_size, self.envs_count, self.actions_size), dtype=self.dtype)
+        self.logits     = torch.zeros((self.buffer_size, self.envs_count, self.actions_size), dtype=torch.float32)
         
-        self.values_ext = torch.zeros((self.buffer_size, self.envs_count, ), dtype=self.dtype)        
-        self.values_int = torch.zeros((self.buffer_size, self.envs_count, ), dtype=self.dtype)        
+        self.values_ext = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)        
+        self.values_int = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)        
 
         self.actions    = torch.zeros((self.buffer_size, self.envs_count, ), dtype=int)
         
-        self.rewards_ext    = torch.zeros((self.buffer_size, self.envs_count, ), dtype=self.dtype)
-        self.rewards_int    = torch.zeros((self.buffer_size, self.envs_count, ), dtype=self.dtype)
+        self.rewards_ext    = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
+        self.rewards_int    = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
 
-        self.dones      = torch.zeros((self.buffer_size, self.envs_count, ), dtype=self.dtype)
+        self.dones      = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
         self.episode_steps = torch.zeros((self.buffer_size, self.envs_count, ), dtype=int)
 
-        self.mode       = torch.zeros((self.buffer_size, self.envs_count, ), dtype=self.dtype)
+        self.mode       = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
 
         self.ptr = 0  
  
