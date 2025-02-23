@@ -94,14 +94,11 @@ class TrajectoryBufferIMContext:
         
 
 
-    def sample_batch(self, batch_size, device, dtype = None):
-        if dtype is None:
-            dtype = self.dtype  
-        
+    def sample_batch(self, batch_size, device, dtype = torch.float32):
         indices         = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size, ))
 
         states          = self.states[indices].to(dtype=dtype, device=device)
-        #context         = self.context[indices].to(dtype=dtype, device=device)
+        context         = self.context[indices].to(dtype=dtype, device=device)
         logits          = self.logits[indices].to(dtype=dtype, device=device)
         
         actions         = self.actions[indices].to(device=device)
@@ -112,15 +109,11 @@ class TrajectoryBufferIMContext:
         advantages_ext  = self.advantages_ext[indices].to(dtype=dtype, device=device)
         advantages_int  = self.advantages_int[indices].to(dtype=dtype, device=device)
 
-        context = None
 
         return states, context, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int
     
 
-    def sample_state_pairs(self, batch_size, device, dtype = None):
-        if dtype is None:
-            dtype = torch.float32
-
+    def sample_state_pairs(self, batch_size, device, dtype = torch.float32):
         count           = self.buffer_size*self.envs_count
 
         indices_now     = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size, ))
