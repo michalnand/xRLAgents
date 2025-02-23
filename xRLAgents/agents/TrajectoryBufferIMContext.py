@@ -101,7 +101,7 @@ class TrajectoryBufferIMContext:
         indices         = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size, ))
 
         states          = self.states[indices].to(dtype=dtype, device=device)
-        context         = self.context[indices].to(dtype=dtype, device=device)
+        #context         = self.context[indices].to(dtype=dtype, device=device)
         logits          = self.logits[indices].to(dtype=dtype, device=device)
         
         actions         = self.actions[indices].to(device=device)
@@ -112,6 +112,7 @@ class TrajectoryBufferIMContext:
         advantages_ext  = self.advantages_ext[indices].to(dtype=dtype, device=device)
         advantages_int  = self.advantages_int[indices].to(dtype=dtype, device=device)
 
+        context = None
 
         return states, context, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int
     
