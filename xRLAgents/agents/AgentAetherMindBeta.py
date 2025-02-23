@@ -1,7 +1,7 @@
 import torch 
 import numpy
 
-from .TrajectoryBufferIM  import *
+from .TrajectoryBufferIMContext  import *
 from ..training.ValuesLogger           import *
 
 from .EpisodicGoalsBufferStats import *
@@ -57,14 +57,14 @@ class AgentAetherMindBeta():
 
 
         self.n_envs         = len(envs)
-        state_shape         = self.envs.observation_space.shape
+        self.state_shape    = self.envs.observation_space.shape
 
-        self.state_shape    = (state_shape[0] + context_size, state_shape[1], state_shape[2])
+        self.context_shape  = (context_size, self.state_shape[1], self.state_shape[2])
 
         self.actions_count  = self.envs.action_space.n
 
         # create mdoel 
-        self.model = Model(self.state_shape, self.actions_count, context_size)
+        self.model = Model(self.state_shape, self.context_shape, self.actions_count, context_size)
         self.model.to(self.device)
         
         self.model = self.model.to(dtype=self.dtype, device="cuda")
@@ -73,8 +73,8 @@ class AgentAetherMindBeta():
         # initialise optimizer and trajectory buffer
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
 
-        self.trajectory_buffer      = TrajectoryBufferIM(self.steps, self.state_shape, self.actions_count, self.n_envs, buffer_dtype)
-        self.episodic_goals_buffer  = EpisodicGoalsBufferStats(context_size, self.n_envs, (1, state_shape[1], state_shape[2]), add_threshold)
+        self.trajectory_buffer      = TrajectoryBufferIMContext(self.steps, self.state_shape, self.context_shape, self.actions_count, self.n_envs, buffer_dtype)
+        self.episodic_goals_buffer  = EpisodicGoalsBufferStats(context_size, self.n_envs, (1, self.state_shape[1], self.state_shape[2]), add_threshold)
 
 
         
@@ -138,21 +138,21 @@ class AgentAetherMindBeta():
      
   
     def step(self, states, training_enabled):     
-        states = torch.from_numpy(states).to(self.dtype).to(self.device)
+        states_t = torch.from_numpy(states).to(self.dtype).to(self.device)
 
-        context, rewards_goal, goals_stats = self.episodic_goals_buffer.step(states[:, 0].unsqueeze(1))
+        context, rewards_goal, goals_stats = self.episodic_goals_buffer.step(states_t[:, 0].unsqueeze(1))
         self.log_goals.add_dictionary(goals_stats)
 
-        context = context.squeeze(2).to(device = self.device, dtype=self.dtype)
+        context_t = context.squeeze(2).to(device = self.device, dtype=self.dtype)
 
-        states_t = torch.concatenate([states, context], axis=1)
 
         if self.state_normalise:
-            self._update_normalisation(states_t[:, 0:4], alpha = 0.99)
-            states_t = self._state_normalise(states_t)
+            self._update_normalisation(states_t, alpha = 0.99)
+            states_t  = self._state_normalise(states_t)
+            context_t = self._state_normalise(context_t)
 
         # obtain model output, logits and values, use abstract state space z
-        z = self.model.forward_features(states_t)
+        z = self.model.forward_features(states_t, context_t)
         logits_t, values_ext_t, values_int_t = self.model.forward_actor_critic(z)
 
         actions = self._sample_actions(logits_t)
@@ -174,7 +174,7 @@ class AgentAetherMindBeta():
         # top PPO training part
         if training_enabled:     
             # put trajectory into policy buffer
-            self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext_goal, rewards_int_scaled, dones)
+            self.trajectory_buffer.add(states_t, context_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext_goal, rewards_int_scaled, dones)
 
             # if buffer is full, run training loop
             if self.trajectory_buffer.is_full():
@@ -216,10 +216,10 @@ class AgentAetherMindBeta():
             for batch_idx in range(batch_count):
                 
                 # sample batch
-                states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.trajectory_buffer.sample_batch(self.batch_size, self.device, self.dtype)
+                states, context, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.trajectory_buffer.sample_batch(self.batch_size, self.device, self.dtype)
                 
                 # compute main PPO loss
-                loss_ppo = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
+                loss_ppo = self._loss_ppo(states, context, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
 
                 self.optimizer.zero_grad()        
                 loss_ppo.backward()
@@ -301,9 +301,9 @@ class AgentAetherMindBeta():
 
 
     # main PPO loss
-    def _loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
+    def _loss_ppo(self, states, context, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
 
-        z = self.model.forward_features(states)
+        z = self.model.forward_features(states, context)
 
         # detach all except first
         #z[:, 1:] = z[:, 1:].detach()
