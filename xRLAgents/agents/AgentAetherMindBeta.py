@@ -45,7 +45,7 @@ class AgentAetherMindBeta():
 
         self.state_normalise    = config.state_normalise
         context_size            = config.context_size
-        context_downsample      = 2
+        context_downsample      = config.context_downsample
         add_threshold           = config.add_threshold
 
         if hasattr(config, "dtype"):
@@ -53,8 +53,6 @@ class AgentAetherMindBeta():
         else:
             self.dtype = torch.float32
 
-
-        buffer_dtype = torch.float32
 
 
         self.n_envs         = len(envs)
@@ -71,7 +69,7 @@ class AgentAetherMindBeta():
         # initialise optimizer and trajectory buffer
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
 
-        self.trajectory_buffer = TrajectoryBufferIMContext(self.steps, self.state_shape, self.context_shape, self.actions_count, self.n_envs, buffer_dtype)
+        self.trajectory_buffer = TrajectoryBufferIMContext(self.steps, self.state_shape, self.context_shape, self.actions_count, self.n_envs)
 
         self.episodic_goals_buffer  = EpisodicGoalsBufferStats(context_size, self.n_envs, (1, self.state_shape[1], self.state_shape[2]), add_threshold, downsample=context_downsample)
 
