@@ -140,11 +140,14 @@ class AgentAetherMindBeta():
     def step(self, states, training_enabled):     
         states_t = torch.from_numpy(states).to(device=self.device, dtype=self.dtype)
 
-        context, rewards_goal, goals_stats = self.episodic_goals_buffer.step(states_t[:, 0].unsqueeze(1))
-        self.log_goals.add_dictionary(goals_stats)
+        #context, rewards_goal, goals_stats = self.episodic_goals_buffer.step(states_t[:, 0].unsqueeze(1))
+        #self.log_goals.add_dictionary(goals_stats)
 
-        context_t = context.squeeze(2).to(device=self.device, dtype=self.dtype)
+        #context_t = context.squeeze(2).to(device=self.device, dtype=self.dtype)
 
+
+        context_t = torch.zeros((states_t.shape[0], ) + self.context_shape, dtype=states_t.dtype, device=states_t.device)
+        rewards_goal = numpy.zeros((states_t.shape[0], ))
 
         if self.state_normalise:
             self._update_normalisation(states_t, alpha = 0.99)
@@ -184,13 +187,15 @@ class AgentAetherMindBeta():
 
                 self.trajectory_buffer.clear()
           
-
+        '''
         dones_idx = numpy.where(dones)[0]
         for i in dones_idx:
             self.episodic_goals_buffer.reset(i)
+        '''
 
         self.log_rewards_goal.add("mean", rewards_goal.mean())
         self.log_rewards_goal.add("std",  rewards_goal.std())
+        
 
         self.log_rewards_int.add("mean", rewards_int.mean())
         self.log_rewards_int.add("std",  rewards_int.std())
