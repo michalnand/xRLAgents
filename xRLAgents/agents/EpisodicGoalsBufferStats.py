@@ -71,11 +71,13 @@ class EMAOutlierDetector:
 
 class EpisodicGoalsBufferStats:
 
-    def __init__(self, buffer_size, batch_size, state_shape, add_threshold = 2.5, min_dist = 0.02, device = "cpu", dtype=torch.bfloat16):
+    def __init__(self, buffer_size, batch_size, state_shape, add_threshold = 2.5, min_dist = 0.02, downsample = 1, device = "cpu", dtype=torch.bfloat16):
 
         self.device = device
         self.dtype  = dtype
         self.fe     = FeaturesExtractor()
+
+        self.downsample = downsample
 
         dummy_state = torch.randn(state_shape).to(self.device)
         features    = self.fe.step(dummy_state)
@@ -83,7 +85,7 @@ class EpisodicGoalsBufferStats:
 
         self.features  = torch.zeros((batch_size, buffer_size, n_features)).to(device = self.device, dtype = self.dtype)
 
-        self.key_states = torch.zeros((batch_size, buffer_size, ) + state_shape).to(device = self.device, dtype = self.dtype)
+        self.key_states = torch.zeros((batch_size, buffer_size, state_shape[1]//downsample, state_shape[2]//downsample)).to(device = self.device, dtype = self.dtype)
         
         self.ptrs       = torch.zeros((batch_size, ), dtype=int).to(self.device)
 
@@ -133,8 +135,10 @@ class EpisodicGoalsBufferStats:
                 # circular buffer
                 idx = self.ptrs[n]%self.buffer_size
 
+                tmp = torch.nn.functional.avg_pool2d(states_tmp[n].detach(), (self.downsample, self.downsample), stride=2, padding=0)
+
                 self.features[n, idx]    = features[n].detach()
-                self.key_states[n, idx]  = states_tmp[n].detach()
+                self.key_states[n, idx]  = tmp.detach()
 
                 self.ptrs[n]+= 1
 
@@ -158,6 +162,7 @@ class EpisodicGoalsBufferStats:
 
         stats["z_mean"]  = z_score.mean().float().cpu().detach().numpy().item()
         stats["z_std"]   = z_score.std().float().cpu().detach().numpy().item()
+
 
         return self.key_states, rewards, stats
 

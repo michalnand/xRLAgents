@@ -45,6 +45,7 @@ class AgentAetherMindBeta():
 
         self.state_normalise    = config.state_normalise
         context_size            = config.context_size
+        context_downsample      = 2
         add_threshold           = config.add_threshold
 
         if hasattr(config, "dtype"):
@@ -58,7 +59,7 @@ class AgentAetherMindBeta():
 
         self.n_envs         = len(envs)
         self.state_shape    = self.envs.observation_space.shape
-        self.context_shape  = (context_size, self.state_shape[1], self.state_shape[2])
+        self.context_shape  = (context_size, self.state_shape[1]//context_downsample, self.state_shape[2]//context_downsample)
 
         self.actions_count  = self.envs.action_space.n
 
@@ -72,7 +73,7 @@ class AgentAetherMindBeta():
 
         self.trajectory_buffer = TrajectoryBufferIMContext(self.steps, self.state_shape, self.context_shape, self.actions_count, self.n_envs, buffer_dtype)
 
-        self.episodic_goals_buffer  = EpisodicGoalsBufferStats(context_size, self.n_envs, (1, self.state_shape[1], self.state_shape[2]), add_threshold)
+        self.episodic_goals_buffer  = EpisodicGoalsBufferStats(context_size, self.n_envs, (1, self.state_shape[1], self.state_shape[2]), add_threshold, downsample=context_downsample)
 
         
         # optional, for state mean and variance normalisation        
