@@ -21,12 +21,14 @@ class TrajectoryBufferIMContext:
     
 
     def add(self, state, context, logits, values_ext, values_int, actions, rewards_ext, rewards_int, dones):  
-        self.states[self.ptr]       = state.detach().to(dtype=self.dtype, device="cpu").clone() 
-        self.context[self.ptr]      = context.detach().to(dtype=self.dtype, device="cpu").clone() 
-        self.logits[self.ptr]       = logits.detach().float().to(device="cpu").clone() 
-        
-        self.values_ext[self.ptr]   = values_ext.squeeze(1).detach().float().to(device="cpu").clone() 
-        self.values_int[self.ptr]   = values_int.squeeze(1).detach().float().to(device="cpu").clone() 
+
+        print(self.context.shape, context.shape)
+        self.states[self.ptr]       = state.detach().to(dtype=self.dtype, device="cpu")
+        self.context[self.ptr]      = context.detach().to(dtype=self.dtype, device="cpu")
+        self.logits[self.ptr]       = logits.detach().float().to(device="cpu")
+            
+        self.values_ext[self.ptr]   = values_ext.squeeze(1).detach().float().to(device="cpu")
+        self.values_int[self.ptr]   = values_int.squeeze(1).detach().float().to(device="cpu")
         
         self.actions[self.ptr]      = torch.from_numpy(actions)     
         
