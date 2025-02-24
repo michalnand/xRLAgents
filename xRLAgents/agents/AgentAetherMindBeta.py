@@ -139,22 +139,18 @@ class AgentAetherMindBeta():
 
         
         context, rewards_goal, goals_stats = self.episodic_goals_buffer.step(states_t[:, 0].unsqueeze(1))
-        #self.log_goals.add_dictionary(goals_stats)
+        self.log_goals.add_dictionary(goals_stats)
 
-        print(">>> ", context.shape)
-
-        #context_t = context.squeeze(2).to(device=self.device, dtype=self.dtype)
+        context_t = context.to(device=self.device, dtype=self.dtype)
         
 
         if self.state_normalise:
             self._update_normalisation(states_t, alpha = 0.99)
             states_t = self._state_normalise(states_t)
 
-        context_t = torch.zeros((states_t.shape[0], ) + self.context_shape, dtype=states_t.dtype, device=states_t.device)
-        rewards_goal = numpy.zeros((states_t.shape[0], ))
 
         # obtain model output, logits and values, use abstract state space z
-        z = self.model.forward_features(states_t, None)
+        z = self.model.forward_features(states_t, context_t)
         logits_t, values_ext_t, values_int_t = self.model.forward_actor_critic(z)
 
 
@@ -162,6 +158,10 @@ class AgentAetherMindBeta():
       
         # environment step  
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
+
+        # sum external rewards with goal discovery reward
+        rewards_ext_goal = self.reward_ext_coeff*rewards_ext + self.reward_goal_coeff*rewards_goal
+
 
         # internal motivaiotn based on diffusion
         rewards_int, _     = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
@@ -171,7 +171,7 @@ class AgentAetherMindBeta():
         # top PPO training part
         if training_enabled:     
             # put trajectory into policy buffer
-            self.trajectory_buffer.add(states_t, context_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext, rewards_int_scaled, dones)
+            self.trajectory_buffer.add(states_t, context_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext_goal, rewards_int_scaled, dones)
 
             # if buffer is full, run training loop
             if self.trajectory_buffer.is_full():
@@ -182,11 +182,11 @@ class AgentAetherMindBeta():
                 self.trajectory_buffer.clear()
         
 
-        '''
+        
         dones_idx = numpy.where(dones)[0]
         for i in dones_idx:
             self.episodic_goals_buffer.reset(i)
-        '''
+        
 
         self.log_rewards_goal.add("mean", rewards_goal.mean())
         self.log_rewards_goal.add("std",  rewards_goal.std())
