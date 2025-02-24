@@ -137,17 +137,18 @@ class AgentAetherMindBeta():
     def step(self, states, training_enabled):     
         states_t = torch.from_numpy(states).to(self.dtype).to(self.device)
 
-        '''
+        
         context, rewards_goal, goals_stats = self.episodic_goals_buffer.step(states_t[:, 0].unsqueeze(1))
-        self.log_goals.add_dictionary(goals_stats)
+        #self.log_goals.add_dictionary(goals_stats)
 
-        context_t = context.squeeze(2).to(device=self.device, dtype=self.dtype)
-        '''
+        print(">>> ", context.shape)
+
+        #context_t = context.squeeze(2).to(device=self.device, dtype=self.dtype)
+        
 
         if self.state_normalise:
             self._update_normalisation(states_t, alpha = 0.99)
             states_t = self._state_normalise(states_t)
-            #context_t = self._state_normalise(context_t)
 
         context_t = torch.zeros((states_t.shape[0], ) + self.context_shape, dtype=states_t.dtype, device=states_t.device)
         rewards_goal = numpy.zeros((states_t.shape[0], ))
