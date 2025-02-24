@@ -152,7 +152,7 @@ class AgentAetherMindBeta():
         rewards_goal = numpy.zeros((states_t.shape[0], ))
 
         # obtain model output, logits and values, use abstract state space z
-        z = self.model.forward_features(states_t, context_t)
+        z = self.model.forward_features(states_t, None)
         logits_t, values_ext_t, values_int_t = self.model.forward_actor_critic(z)
 
 
@@ -301,7 +301,7 @@ class AgentAetherMindBeta():
     # main PPO loss
     def _loss_ppo(self, states, context, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
 
-        z = self.model.forward_features(states, context)
+        z = self.model.forward_features(states, None)
         logits_new, values_ext_new, values_int_new = self.model.forward_actor_critic(z)
 
         #critic loss
