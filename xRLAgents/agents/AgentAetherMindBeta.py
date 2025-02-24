@@ -74,10 +74,9 @@ class AgentAetherMindBeta():
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
 
         self.trajectory_buffer      = TrajectoryBufferIMContext(self.steps, self.state_shape, self.context_shape, self.actions_count, self.n_envs, buffer_dtype)
-        self.episodic_goals_buffer  = EpisodicGoalsBufferStats(context_size, self.n_envs, (1, self.state_shape[1], self.state_shape[2]), add_threshold)
+        #self.episodic_goals_buffer  = EpisodicGoalsBufferStats(context_size, self.n_envs, (1, self.state_shape[1], self.state_shape[2]), add_threshold)
 
 
-        
         # optional, for state mean and variance normalisation        
         self.state_mean  = torch.zeros((self.state_shape[1], self.state_shape[2]), dtype=self.dtype, device=self.device)
 
@@ -152,7 +151,7 @@ class AgentAetherMindBeta():
         if self.state_normalise:
             self._update_normalisation(states_t, alpha = 0.99)
             states_t  = self._state_normalise(states_t)
-            context_t = self._state_normalise(context_t)
+            #context_t = self._state_normalise(context_t)
 
         # obtain model output, logits and values, use abstract state space z
         z = self.model.forward_features(states_t, context_t)
