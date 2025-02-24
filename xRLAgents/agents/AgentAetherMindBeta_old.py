@@ -308,10 +308,6 @@ class AgentAetherMindBeta():
     def _loss_ppo(self, states, context, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
 
         z = self.model.forward_features(states, context)
-
-        # detach all except first
-        #z[:, 1:] = z[:, 1:].detach()
-
         logits_new, values_ext_new, values_int_new = self.model.forward_actor_critic(z)
 
 
