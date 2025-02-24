@@ -301,7 +301,7 @@ class AgentAetherMindBeta():
     # main PPO loss
     def _loss_ppo(self, states, context, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
 
-        z = self.model.forward_features(states, None)
+        z = self.model.forward_features(states, context)
         logits_new, values_ext_new, values_int_new = self.model.forward_actor_critic(z)
 
         #critic loss
