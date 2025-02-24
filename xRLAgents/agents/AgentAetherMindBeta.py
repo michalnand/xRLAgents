@@ -53,7 +53,7 @@ class AgentAetherMindBeta():
             self.dtype = torch.float32
 
 
-        buffer_dtype = torch.bfloat16
+        buffer_dtype = torch.float32
 
 
         self.n_envs         = len(envs)
