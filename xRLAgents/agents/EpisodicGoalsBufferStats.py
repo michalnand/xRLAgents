@@ -71,13 +71,14 @@ class EMAOutlierDetector:
 
 class EpisodicGoalsBufferStats:
 
-    def __init__(self, buffer_size, batch_size, state_shape, add_threshold = 2.5, min_dist = 0.02, downsample = 1, device = "cpu", dtype=torch.bfloat16):
+    def __init__(self, buffer_size, batch_size, state_shape, add_threshold = 2.5, min_dist = 0.02, downsample = 1, distance_reward = False, device = "cpu", dtype=torch.bfloat16):
 
         self.device = device
         self.dtype  = dtype
         self.fe     = FeaturesExtractor()
 
         self.downsample = downsample
+        self.distance_reward = distance_reward
 
         dummy_state = torch.randn(state_shape).to(self.device)
         features    = self.fe.step(dummy_state)
@@ -143,7 +144,10 @@ class EpisodicGoalsBufferStats:
                 self.ptrs[n]+= 1
 
                 # new key state discovered, generate reward
-                rewards[n] = 1.0
+                if self.distance_reward:
+                    rewards[n] = numpy.clip(self.ptrs[n], 1.0, 64.0)
+                else:
+                    rewards[n] = 1.0
         
 
                 

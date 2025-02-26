@@ -15,6 +15,12 @@ class AgentAetherMindBeta():
 
         config = Config()
 
+        if hasattr(config, "dtype"):
+            self.dtype = config.dtype
+        else:
+            self.dtype = torch.float32
+
+
         # agent hyperparameters
         self.gamma_int          = config.gamma_int
         self.gamma_ext          = config.gamma_ext
@@ -48,10 +54,10 @@ class AgentAetherMindBeta():
         context_downsample      = config.context_downsample
         add_threshold           = config.add_threshold
 
-        if hasattr(config, "dtype"):
-            self.dtype = config.dtype
+        if hasattr(config, "distance_reward"):
+            distance_reward = config.distance_reward
         else:
-            self.dtype = torch.float32
+            distance_reward = False
 
 
 
@@ -71,7 +77,7 @@ class AgentAetherMindBeta():
 
         self.trajectory_buffer = TrajectoryBufferIMContext(self.steps, self.state_shape, self.context_shape, self.actions_count, self.n_envs)
 
-        self.episodic_goals_buffer  = EpisodicGoalsBufferStats(context_size, self.n_envs, (1, self.state_shape[1], self.state_shape[2]), add_threshold, downsample=context_downsample)
+        self.episodic_goals_buffer  = EpisodicGoalsBufferStats(context_size, self.n_envs, (1, self.state_shape[1], self.state_shape[2]), add_threshold, downsample=context_downsample, distance_reward=distance_reward)
 
         
         # optional, for state mean and variance normalisation        
@@ -127,6 +133,7 @@ class AgentAetherMindBeta():
         print("state_normalise      ", self.state_normalise)
         print("context_size         ", context_size)
         print("add_threshold        ", add_threshold)
+        print("distance_reward      ", distance_reward)
 
         print("\n\n")
         
