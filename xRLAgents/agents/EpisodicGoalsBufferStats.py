@@ -149,7 +149,7 @@ class EpisodicGoalsBufferStats:
                 else:
                     rewards[n] = 1.0
         
-
+        print(rewards)
                 
         # statistics for log
         stats = {}
