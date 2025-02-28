@@ -154,6 +154,7 @@ class AgentAetherMindAlpha():
         if self.im_normalise:
             rewards_int_scaled = (rewards_int - rewards_int.mean())/(rewards_int.std() + 1e-6)
             rewards_int_scaled = self.reward_int_coeff*rewards_int_scaled
+            print(rewards_int.mean(), rewards_int.std())
         else:
             rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
 
