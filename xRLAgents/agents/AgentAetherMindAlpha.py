@@ -12,7 +12,14 @@ class AgentAetherMindAlpha():
  
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+        
         config = Config()
+
+
+        if hasattr(config, "dtype"):
+            self.dtype = config.dtype
+        else:
+            self.dtype = torch.float32
 
         # agent hyperparameters
         self.gamma_int          = config.gamma_int
@@ -43,10 +50,11 @@ class AgentAetherMindAlpha():
 
         self.state_normalise    = config.state_normalise
 
-        if hasattr(config, "dtype"):
-            self.dtype = config.dtype
+
+        if hasattr(config, "im_normalise"):
+            self.im_normalise = config.im_normalise
         else:
-            self.dtype = torch.float32
+            self.im_normalise = False
 
 
         self.n_envs         = len(envs)
@@ -117,6 +125,7 @@ class AgentAetherMindAlpha():
         print("alpha_inf            ", self.alpha_inf)
         print("denoising_steps      ", self.denoising_steps)
         print("state_normalise      ", self.state_normalise)
+        print("im_normalise         ", self.im_normalise)
         
 
         print("\n\n")
@@ -141,7 +150,12 @@ class AgentAetherMindAlpha():
         # internal motivaiotn based on diffusion
         rewards_int, _     = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
         rewards_int        = rewards_int.float().detach().cpu().numpy()
-        rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
+
+        if self.im_normalise:
+            rewards_int = (rewards_int - rewards_int.mean())/(rewards_int.std() + 1e-6)
+            rewards_int = self.reward_int_coeff*rewards_int
+        else:
+            rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
 
         # top PPO training part
         if training_enabled:     
