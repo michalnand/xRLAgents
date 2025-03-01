@@ -18,7 +18,7 @@ class TrajectoryBufferIM:
         print("\n")
     
 
-    def add(self, state, logits, values_ext, values_int, actions, rewards_ext, rewards_int, dones):  
+    def add(self, state, logits, values_ext, values_int, actions, rewards_ext, rewards_int, dones, steps):  
         self.states[self.ptr]       = state.detach().to(dtype=self.dtype, device="cpu").clone() 
         self.logits[self.ptr]       = logits.detach().float().to(device="cpu").clone() 
         
@@ -30,7 +30,10 @@ class TrajectoryBufferIM:
         self.rewards_ext[self.ptr]  = torch.from_numpy(rewards_ext).float()
         self.rewards_int[self.ptr]  = torch.from_numpy(rewards_int).float()
 
-        self.dones[self.ptr]            = torch.from_numpy(dones).float()
+        self.dones[self.ptr]        = torch.from_numpy(dones).float()
+
+        if steps is not None:
+            self.steps[self.ptr]   = steps.detach().to(device="cpu").clone()
         
         self.ptr = self.ptr + 1 
 
@@ -54,7 +57,7 @@ class TrajectoryBufferIM:
         self.rewards_int    = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
 
         self.dones      = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
-
+        self.steps      = torch.zeros((self.buffer_size, self.envs_count, ), dtype=int)
 
         self.ptr = 0  
  
@@ -78,6 +81,7 @@ class TrajectoryBufferIM:
 
       
         self.dones         = self.dones.reshape((self.buffer_size*self.envs_count, ))
+        self.steps         = self.steps.reshape((self.buffer_size*self.envs_count, ))
 
         self.returns_ext      = self.returns_ext.reshape((self.buffer_size*self.envs_count, ))
         self.advantages_ext   = self.advantages_ext.reshape((self.buffer_size*self.envs_count, ))
@@ -122,8 +126,9 @@ class TrajectoryBufferIM:
         states_next     = (self.states[indices_next]).to(dtype=dtype, device=device)
 
         actions         = (self.actions[indices_now]).to(device=device)   
+        steps           = (self.steps[indices_now]).to(device=device)   
 
-        return states_now, states_next, actions
+        return states_now, states_next, actions, steps
     
 
 

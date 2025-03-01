@@ -86,7 +86,7 @@ class AgentAetherMindAlpha():
         self.state_mean/= self.n_envs
         self.state_var = torch.ones(self.state_mean.shape, dtype=self.dtype, device=self.device)
        
-        
+        self.episode_steps = torch.zeros((self.n_envs, ), dtype=int)
 
         # result loggers
         self.log_rewards_int    = ValuesLogger("rewards_int")
@@ -94,6 +94,10 @@ class AgentAetherMindAlpha():
         self.log_loss_diffusion = ValuesLogger("loss_diffusion")
         self.log_loss_im_ssl    = ValuesLogger("loss_im_ssl")
 
+
+        self.saving_enabled = False
+        self.iterations = 0
+        self.room_ids = []
 
         # print parameters summary
         print("\n\n\n\n")
@@ -157,22 +161,38 @@ class AgentAetherMindAlpha():
         else:
             rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
 
+        if "room_id" in infos[0]:
+            resp = self._process_room_ids(infos)
+            self.room_ids.append(resp)
+
         # top PPO training part
         if training_enabled:     
             # put trajectory into policy buffer
-            self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext, rewards_int_scaled, dones)
+            self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext, rewards_int_scaled, dones, self.episode_steps)
 
             # if buffer is full, run training loop
             if self.trajectory_buffer.is_full():
+                if self.saving_enabled:
+                    self.save_features()
+                    self.saving_enabled = False
+
                 self.trajectory_buffer.compute_returns(self.gamma_ext, self.gamma_int)
                 
                 self.train()
 
                 self.trajectory_buffer.clear()
-          
+
+        
+        self.episode_steps+= 1
+
+        # reset episode steps counter
+        done_idx = numpy.where(dones)[0]
+        for i in done_idx:
+            self.episode_steps[i] = 0
+
+        self.iterations+= 1
 
      
-       
         self.log_rewards_int.add("mean", rewards_int.mean())
         self.log_rewards_int.add("std",  rewards_int.std())
 
@@ -181,9 +201,75 @@ class AgentAetherMindAlpha():
 
     def save(self, result_path):
         torch.save(self.model.state_dict(), result_path + "/model.pt")
+        self.result_path    = result_path
+        self.saving_enabled = True
 
     def load(self, result_path):
         self.model.load_state_dict(torch.load(result_path + "/model.pt", map_location = self.device))
+
+    def save_features(self):
+        print("saving features to ", self.result_path, " in step ", self.iterations)
+
+        # obtain features from current buffer
+        # we save total steps*n_envs features (e.g. 128x128)
+        z_ppo = []
+        z_im  = []
+        for n in range(self.steps):
+            x = self.trajectory_buffer.states[n]
+            x = x.to(device=self.device, dtype=self.dtype)
+
+            z = self.model.forward_ppo_features(x)
+            z = z.detach().cpu().float().numpy()
+
+            z_ppo.append(z)
+
+
+            z = self.model.forward_im_features(x)
+            z = z.detach().cpu().float().numpy()
+
+            z_im.append(z)
+
+        # save features as numpy array
+        z_ppo = numpy.array(z_ppo)
+        z_im  = numpy.array(z_im)
+
+        f_name = self.result_path + "/z_ppo_" + str(self.iterations) + ".npy"
+        numpy.save(f_name, z_ppo)
+
+        f_name = self.result_path + "/z_im_" + str(self.iterations) + ".npy"
+        numpy.save(f_name, z_im)  
+
+        # save episode steps count
+        steps = []
+        for n in range(self.steps):
+            s = self.trajectory_buffer.steps[n]
+            s = s.detach().cpu().int().numpy()
+            steps.append(s) 
+
+        steps = numpy.array(steps)
+
+        f_name = self.result_path + "/steps_" + str(self.iterations) + ".npy"
+        numpy.save(f_name, steps)
+
+
+        if len(self.room_ids) > 0:
+            room_ids = numpy.array(self.room_ids)
+
+            f_name = self.result_path + "/rooms_" + str(self.iterations) + ".npy"
+            numpy.save(f_name, room_ids)
+
+            self.room_ids = []
+
+            print("room_ids  ", room_ids.shape)
+
+
+        print("z_ppo  ", z_ppo.shape)  
+        print("z_im   ", z_im.shape)  
+        print("steps  ", steps.shape)  
+
+        print("features savedn\n\n")
+
+     
 
     def get_logs(self):
         return [self.log_rewards_int, self.log_loss_ppo, self.log_loss_diffusion, self.log_loss_im_ssl]
@@ -216,13 +302,13 @@ class AgentAetherMindAlpha():
         #main IM training loop
         for batch_idx in range(batch_count):    
             #internal motivation loss, MSE diffusion    
-            states_now, states_next, _   = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
+            states_now, states_next, _, _ = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
             _, loss_diffusion  = self._internal_motivation(states_now, self.alpha_min, self.alpha_max, self.denoising_steps)
 
 
             #self supervised target regularisation
-            states_now, states_next, actions = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
-            loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_now, states_next, actions)
+            states_now, states_next, actions, steps = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
+            loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_now, states_next, actions, steps)
 
             #final IM loss
             loss_im = loss_diffusion.mean() + loss_ssl
@@ -384,6 +470,12 @@ class AgentAetherMindAlpha():
     
         return states_norm  
 
+    def _process_room_ids(self, infos):
+        result = numpy.zeros(len(infos), dtype=int)
+        for n in range(len(infos)):
+            result[n] = int(infos[n]["room_id"])
+
+        return result
 
 
 
