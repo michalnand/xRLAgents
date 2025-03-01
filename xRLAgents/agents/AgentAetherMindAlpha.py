@@ -267,7 +267,7 @@ class AgentAetherMindAlpha():
         print("z_im   ", z_im.shape)  
         print("steps  ", steps.shape)  
 
-        print("features savedn\n\n")
+        print("features saved\n\n")
 
      
 
