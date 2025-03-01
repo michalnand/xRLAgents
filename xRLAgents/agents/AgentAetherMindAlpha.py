@@ -236,6 +236,7 @@ class AgentAetherMindAlpha():
         # save features as numpy array
         z_ppo = numpy.array(z_ppo)
         z_im  = numpy.array(z_im)
+        z_denoised = numpy.array(z_denoised)
 
         f_name = self.result_path + "/z_ppo_" + str(self.iterations) + ".npy"
         numpy.save(f_name, z_ppo)
