@@ -261,7 +261,9 @@ class AgentAetherMindAlpha():
 
 
         if len(self.room_ids) > 0:
+            count = steps.shape[0]
             room_ids = numpy.array(self.room_ids)
+            room_ids = room_ids[-count:, :]
 
             f_name = self.result_path + "/rooms_" + str(self.iterations) + ".npy"
             numpy.save(f_name, room_ids)
