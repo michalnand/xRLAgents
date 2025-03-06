@@ -25,6 +25,15 @@ def loss_cov_func(x):
     return loss
 
 
+# skewness loss 
+def loss_skew_func(x):
+    mean    = x.mean()
+    std     = x.std() + 1e-4 
+    loss    = ((x - mean) / std)**3
+
+    return torch.mean(loss)
+
+
 def loss_vicreg_func(za, zb):
     # invariance loss
     inv_loss = loss_mse_func(za, zb)
