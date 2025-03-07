@@ -26,15 +26,13 @@ def loss_cov_func(x):
 
 
 # skewness loss 
-def loss_skew_func(x, target_skew = 0.9):
+def loss_skew_func(x, target_skew = 0.98):
     mean    = x.mean()
     std     = x.std() + 1e-4 
     loss    = ((x - mean) / std)**3
     loss    = loss.mean()
 
     loss = (target_skew - loss)**2
-
-    print(loss)
 
     return loss
 
