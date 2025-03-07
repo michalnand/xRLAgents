@@ -32,8 +32,6 @@ def loss_skew_func(x, target_skew = 0.98):
     loss    = ((x - mean) / std)**3
     loss    = loss.mean()
 
-    print("skew = ", mean, std, loss)
-
     loss = (target_skew - loss)**2
 
     return loss
