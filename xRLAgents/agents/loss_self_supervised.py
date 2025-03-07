@@ -28,11 +28,11 @@ def loss_cov_func(x):
 # skewness loss 
 def loss_skew_func(x, target_skew = 0.98, dim=-1):
     mean    = x.mean(keepdim=True, dim=dim)
-    std     = x.std(keepdi =True, dim=dim) + 1e-6 
+    std     = x.std(keepdim =True, dim=dim) + 1e-6 
     loss    = ((x - mean) / std)**3
     loss    = loss.mean(dim=dim)
 
-    print(loss)
+    print(loss.shape, loss.mean())
 
     loss = torch.mean((target_skew - loss)**2)
 
