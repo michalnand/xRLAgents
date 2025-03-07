@@ -57,6 +57,12 @@ class AgentAetherMindAlpha():
             self.im_normalise = False
 
 
+        if hasattr(config, "contextual_im"):
+            self.contextual_im = config.contextual_im
+        else:
+            self.contextual_im = False
+
+
         self.n_envs         = len(envs)
         self.state_shape    = self.envs.observation_space.shape
 
@@ -130,6 +136,7 @@ class AgentAetherMindAlpha():
         print("denoising_steps      ", self.denoising_steps)
         print("state_normalise      ", self.state_normalise)
         print("im_normalise         ", self.im_normalise)
+        print("contextual_im        ", self.contextual_im)
         
 
         print("\n\n")
@@ -355,6 +362,9 @@ class AgentAetherMindAlpha():
       
         # obtain taget features from states and noised states
         z_target  = self.model.forward_im_features(states).detach()
+
+        if self.contextual_im:
+            z_target = self.model.forward_im_projector(z_target)
 
         # add noise into features
         z_noised, noise, alpha = self.im_noise(z_target, alpha_min, alpha_max)
