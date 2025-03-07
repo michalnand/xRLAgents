@@ -34,7 +34,7 @@ def loss_skew_func(x, upper = 10.0):
 
     print(loss)
 
-    loss = torch.mean(torch.relu(upper - loss))
+    loss = torch.relu(upper - loss)
 
     return loss
 
