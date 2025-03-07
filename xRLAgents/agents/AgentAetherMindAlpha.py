@@ -364,7 +364,7 @@ class AgentAetherMindAlpha():
         z_target  = self.model.forward_im_features(states).detach()
 
         if self.contextual_im:
-            z_target = self.model.forward_im_projector(z_target)
+            z_target = self.model.forward_im_projector(z_target).detach()
 
         # add noise into features
         z_noised, noise, alpha = self.im_noise(z_target, alpha_min, alpha_max)
