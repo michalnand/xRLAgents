@@ -26,13 +26,13 @@ def loss_cov_func(x):
 
 
 # skewness loss 
-def loss_skew_func(x, upper = 1.0):
+def loss_skew_func(x, target_skew = 0.9):
     mean    = x.mean()
     std     = x.std() + 1e-4 
     loss    = ((x - mean) / std)**3
     loss    = loss.mean()
 
-    loss = torch.relu(upper - loss)
+    loss = (target_skew - loss)**2
 
     return loss
 
