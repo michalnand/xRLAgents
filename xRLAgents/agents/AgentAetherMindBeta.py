@@ -372,8 +372,8 @@ class AgentAetherMindBeta():
             z_noised, noise, alpha = self._gaussian_noise(z_target)
 
         # randomly mix features to create noise
-        elif noise_type == "random_states":
-            w = torch.rand(batch_size)
+        elif noise_type == "random_states": 
+            w = torch.rand(batch_size).to(self.device)
             w = w/(w.sum() + 1e-6)
 
             noise = (w.unsqueeze(1)*q).sum(dim=0)
