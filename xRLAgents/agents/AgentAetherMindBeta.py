@@ -338,22 +338,20 @@ class AgentAetherMindBeta():
 
     # state denoising ability novely detection
     def _internal_motivation(self, states, noise_type, denoising_steps):
-        rewards_int = numpy.zeros((self.steps, self.n_envs))
+        rewards_int = torch.zeros((self.steps, self.n_envs))
 
         # process each env in buffer
         for e in range(self.n_envs):    
             states = self.trajectory_buffer.states[:, e].to(dtype=self.dtype, device=self.device)
 
-            tmp, _  = self._internal_motivation_batch(states, noise_type, denoising_steps)
-            tmp     = tmp.detach().cpu().float().numpy()
-            
-            rewards_int[:, e] = tmp.copy()
+            tmp, _  = self._internal_motivation_batch(states, noise_type, denoising_steps)            
+            rewards_int[:, e] = tmp.detach().cpu().float()
 
         self.trajectory_buffer.rewards_int = rewards_int.copy()   
 
         # save to log
-        self.log_rewards_int.add("mean", rewards_int.mean())
-        self.log_rewards_int.add("std",  rewards_int.std())
+        self.log_rewards_int.add("mean", rewards_int.detach().cpu().numpy().mean())
+        self.log_rewards_int.add("std",  rewards_int.detach().cpu().numpy().std())
 
     def _internal_motivation_batch(self, states, noise_type, denoising_steps):
         batch_size = states.shape[0]
