@@ -384,7 +384,8 @@ class AgentAetherMindBeta():
             _, attn = self.model.forward_im_contextual_features(q)
 
             # use off diagonal terms as noise
-            attn_off_diag   = (1.0 - torch.eye(attn.shape[0]))*attn
+            off_diag        = (1.0 - torch.eye(attn.shape[0])).to(self.device)
+            attn_off_diag   = off_diag*attn 
             noise           = attn_off_diag@q
             z_noised        = z_target + noise
 
