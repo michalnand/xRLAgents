@@ -347,7 +347,7 @@ class AgentAetherMindBeta():
             tmp, _  = self._internal_motivation_batch(states, noise_type, denoising_steps)            
             rewards_int[:, e] = tmp.detach().cpu().float()
 
-        self.trajectory_buffer.rewards_int = rewards_int.copy()   
+        self.trajectory_buffer.rewards_int = rewards_int.clone()   
 
         # save to log
         self.log_rewards_int.add("mean", rewards_int.detach().cpu().numpy().mean())
