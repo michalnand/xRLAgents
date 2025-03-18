@@ -24,6 +24,22 @@ def loss_cov_func(x):
     loss = _off_diagonal(cov_x).pow_(2).sum()/x.shape[1] 
     return loss
 
+
+# covariance loss 
+def loss_covariance(za, zb):
+    mu_a = za.mean(dim=0, keepdim=True)  # (1, n_features)
+    mu_b = zb.mean(dim=0, keepdim=True)  # (1, n_features)
+
+    # center the matrices
+    za_norm = za - mu_a  # (batch_size, n_features)
+    zb_norm = zb - mu_b  # (batch_size, n_features)
+
+    cov_matrix = (za_norm.T @ zb_norm) / (za.shape[0] - 1.0)
+
+    loss = (cov_matrix**2).mean()
+
+    return loss
+
     
 # skewness loss 
 def loss_skew_func(x, target_skew = 0.98, dim=-1):
