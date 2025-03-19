@@ -352,9 +352,6 @@ class AgentAetherMindBeta():
 
         noise = z_noised - z_target
 
-
-        print((z_target**2).mean(), (z_noised**2).mean(), (noise**2).mean())
-
         z_denoised = z_noised.to(self.dtype).detach().clone()
 
         # denoising by diffusion process
