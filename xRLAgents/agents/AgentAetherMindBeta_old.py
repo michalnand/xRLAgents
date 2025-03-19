@@ -42,15 +42,14 @@ class AgentAetherMindBeta():
         
         learning_rate             = config.learning_rate
         self.im_ssl_loss          = config.im_ssl_loss
-        self.im_noise             = config.im_noise
-        self.alpha_min            = config.alpha_min
-        self.alpha_max            = config.alpha_max
-        self.alpha_inf            = config.alpha_inf
-        self.denoising_steps      = config.denoising_steps
 
         self.state_normalise    = config.state_normalise
 
-
+        self.im_train_noise_type    = config.im_train_noise_type
+        self.im_inf_noise_type      = config.im_inf_noise_type
+        self.contextual_im          = config.contextual_im
+        self.denoising_steps        = config.denoising_steps
+        
 
 
         self.n_envs         = len(envs)
@@ -118,14 +117,13 @@ class AgentAetherMindBeta():
         print("ss_batch_size        ", self.ss_batch_size)
         print("training_epochs      ", self.training_epochs)
         print("learning_rate        ", learning_rate)
-        print("im_ssl_loss          ", self.im_ssl_loss)
-        print("im_noise             ", self.im_noise)
-        print("alpha_min            ", self.alpha_min)
-        print("alpha_max            ", self.alpha_max)
-        print("alpha_inf            ", self.alpha_inf)
-        print("denoising_steps      ", self.denoising_steps)
         print("state_normalise      ", self.state_normalise)
         
+        print("im_ssl_loss          ", self.im_ssl_loss)
+        print("im_train_noise_type  ", self.im_train_noise_type)
+        print("im_inf_noise_type    ", self.im_inf_noise_type)
+        print("contextual_im        ", self.contextual_im)
+        print("denoising_steps      ", self.denoising_steps)
 
         print("\n\n")
         
@@ -146,11 +144,6 @@ class AgentAetherMindBeta():
         # environment step  
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
-        # internal motivaiotn based on diffusion
-        rewards_int, _     = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
-        rewards_int        = rewards_int.float().detach().cpu().numpy()
-
-        rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
 
         if "room_id" in infos[0]:
             resp = self._process_room_ids(infos)
@@ -158,8 +151,10 @@ class AgentAetherMindBeta():
 
         # top PPO training part
         if training_enabled:     
+            rewards_int = numpy.zeros((self.n_envs, ))
+
             # put trajectory into policy buffer
-            self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext, rewards_int_scaled, dones, self.episode_steps)
+            self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext, rewards_int, dones, self.episode_steps)
 
             # if buffer is full, run training loop
             if self.trajectory_buffer.is_full():
@@ -167,6 +162,7 @@ class AgentAetherMindBeta():
                     self.save_features()
                     self.saving_enabled = False
 
+                self._internal_motivation(self.trajectory_buffer.states, self.im_inf_noise_type, self.denoising_steps)
                 self.trajectory_buffer.compute_returns(self.gamma_ext, self.gamma_int)
                 
                 self.train()
@@ -184,8 +180,7 @@ class AgentAetherMindBeta():
         self.iterations+= 1
 
      
-        self.log_rewards_int.add("mean", rewards_int.mean())
-        self.log_rewards_int.add("std",  rewards_int.std())
+    
 
         return states_new, rewards_ext, dones, infos
     
@@ -305,7 +300,7 @@ class AgentAetherMindBeta():
         for batch_idx in range(batch_count):    
             #internal motivation loss, MSE diffusion    
             states_now, states_next, _, _ = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
-            _, loss_diffusion  = self._internal_motivation(states_now, self.alpha_min, self.alpha_max, self.denoising_steps)
+            _, loss_diffusion  = self._internal_motivation_batch(states_now, self.im_train_noise_type, self.denoising_steps)
 
 
             #self supervised target regularisation
@@ -342,18 +337,71 @@ class AgentAetherMindBeta():
 
 
     # state denoising ability novely detection
-    def _internal_motivation(self, states, alpha_min, alpha_max, denoising_steps):
+    def _internal_motivation(self, states, noise_type, denoising_steps):
+        rewards_int = torch.zeros((self.steps, self.n_envs))
+
+        # process each env in buffer
+        for e in range(self.n_envs):    
+            states = self.trajectory_buffer.states[:, e].to(dtype=self.dtype, device=self.device)
+
+            tmp, _  = self._internal_motivation_batch(states, noise_type, denoising_steps)            
+            rewards_int[:, e] = tmp.detach().cpu().float()
+
+        self.trajectory_buffer.rewards_int = rewards_int.clone()   
+
+        # save to log
+        self.log_rewards_int.add("mean", rewards_int.detach().cpu().numpy().mean())
+        self.log_rewards_int.add("std",  rewards_int.detach().cpu().numpy().std())
+
+    def _internal_motivation_batch(self, states, noise_type, denoising_steps):
+        batch_size = states.shape[0]
         # obtain taget features from states and noised states
-        z_target  = self.model.forward_im_features(states).detach()
+        q = self.model.forward_im_features(states).detach()
 
-        # obtain noised features
-        states_noised = self.im_noise(states, alpha_min, alpha_max)
-        z_noised  = self.model.forward_im_features(states_noised).detach()
+        if self.contextual_im:
+            z_target, _ = self.model.forward_im_contextual_features(q)
+        else:
+            z_target = q
 
-        noise = z_noised - z_target
+        z_target = z_target.detach()
 
+        # add noise into features
+
+        # common gaussian noise for diffusion process
+        if noise_type == "guassian":
+            z_noised, noise, alpha = self._gaussian_noise(z_target)
+
+        # randomly mix features to create noise
+        elif noise_type == "random_states": 
+            w = torch.rand(batch_size).to(self.device)
+            w = w/(w.sum() + 1e-6)
+
+            noise = (w.unsqueeze(1)*q).sum(dim=0)
+            z_noised = z_target + noise
+
+        # use attention matrix to obtain weights for states
+        elif noise_type == "contextual_states":
+            _, attn = self.model.forward_im_contextual_features(q)
+
+            # use off diagonal terms as noise
+            off_diag        = (1.0 - torch.eye(attn.shape[0])).to(self.device)
+            attn_off_diag   = off_diag*attn 
+            noise           = attn_off_diag@q
+            z_noised        = z_target + noise
+
+        # no noise
+        else:
+            z_noised = z_target.detach().clone()
+            noise    = torch.zeros_like(z_noised)
+
+           
+        z_noised    = z_noised.detach()
+        noise       = noise.detach()
+
+
+        # denoising process
         z_denoised = z_noised.to(self.dtype).detach().clone()
-        
+    
         # denoising by diffusion process
         for n in range(denoising_steps):
             noise_hat = self.model.forward_im_diffusion(z_denoised)
@@ -482,5 +530,16 @@ class AgentAetherMindBeta():
         return result
 
 
+    def _gaussian_noise(self, z, alpha_min = 0.0, alpha_max = 0.5):
 
+        batch_size = z.shape[0]
+    
+        k     = torch.rand(size=(batch_size, ), device=z.device, dtype=z.dtype)
+        alpha = k*alpha_min + (1.0 - k)*alpha_max
+        alpha = alpha.unsqueeze(1)
+
+        noise    = alpha*torch.randn(z.shape, device=z.device, dtype=z.dtype)   
+        z_noised = z + noise
+    
+        return z_noised, noise, alpha
 
