@@ -347,13 +347,16 @@ class AgentAetherMindBeta():
         z_target  = self.model.forward_im_features(states).detach()
 
         # obtain noised features
-        states_noised = self.im_noise(states, alpha_min, alpha_max)
+        states_noised, _, _ = self.im_noise(states, alpha_min, alpha_max)
         z_noised  = self.model.forward_im_features(states_noised).detach()
 
         noise = z_noised - z_target
 
+
+        print((z_target**2).mean(), (z_noised**2).mean(), (noise**2).mean())
+
         z_denoised = z_noised.to(self.dtype).detach().clone()
-        
+
         # denoising by diffusion process
         for n in range(denoising_steps):
             noise_hat = self.model.forward_im_diffusion(z_denoised)
