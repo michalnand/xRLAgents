@@ -205,6 +205,7 @@ class AgentAetherMindBeta():
         # we save total steps*n_envs features (e.g. 128x128)
         z_ppo = []
         z_im  = []
+        z_noised  = []
         z_denoised = []
         for n in range(self.steps):
             x = self.trajectory_buffer.states[n]
@@ -218,6 +219,11 @@ class AgentAetherMindBeta():
             z = self.model.forward_im_features(x)
             z_im.append(z.detach().cpu().float().numpy())
 
+            # noised im features    
+            x_noised, _, _ = self.im_noise(x, self.alpha_min, self.alpha_max)
+            z = self.model.forward_im_features(x_noised)
+            z_noised.append(z.detach().cpu().float().numpy())
+
             # diffusion prediction
             noise_hat = self.model.forward_im_diffusion(z)
             z_hat = z - noise_hat
@@ -225,15 +231,19 @@ class AgentAetherMindBeta():
             z_denoised.append(z_hat.detach().cpu().float().numpy())
 
         # save features as numpy array
-        z_ppo = numpy.array(z_ppo)
-        z_im  = numpy.array(z_im)
-        z_denoised = numpy.array(z_denoised)
+        z_ppo       = numpy.array(z_ppo)
+        z_im        = numpy.array(z_im)
+        z_noised    = numpy.array(z_noised)
+        z_denoised  = numpy.array(z_denoised)
 
         f_name = self.result_path + "/z_ppo_" + str(self.iterations) + ".npy"
         numpy.save(f_name, z_ppo)
 
         f_name = self.result_path + "/z_im_" + str(self.iterations) + ".npy"
         numpy.save(f_name, z_im)    
+
+        f_name = self.result_path + "/z_noised_" + str(self.iterations) + ".npy"
+        numpy.save(f_name, z_noised)      
 
         f_name = self.result_path + "/z_denoised_" + str(self.iterations) + ".npy"
         numpy.save(f_name, z_denoised)      
@@ -264,10 +274,11 @@ class AgentAetherMindBeta():
             print("room_ids  ", room_ids.shape)
 
 
-        print("z_ppo  ", z_ppo.shape)  
-        print("z_im   ", z_im.shape)  
+        print("z_ppo        ", z_ppo.shape)  
+        print("z_im         ", z_im.shape)  
+        print("z_noised     ", z_noised.shape)  
         print("z_denoised   ", z_denoised.shape)  
-        print("steps  ", steps.shape)  
+        print("steps        ", steps.shape)  
 
         print("features saved\n\n")
 
