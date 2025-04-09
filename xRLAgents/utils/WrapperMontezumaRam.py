@@ -51,12 +51,13 @@ class RamStateEnv(gym.Wrapper):
         
     def reset(self, seed = None, options = None):
         state, info = self.env.reset()
-        return self._get_ram_state(state), info
+        return self._get_ram_state(), info
 
     def step(self, action):
         state, reward, done, truncated, info = self.env.step(action)
-        return self._get_ram_state(state), reward, done, truncated, info
+        return self._get_ram_state(), reward, done, truncated, info
 
+    '''
     def _get_ram_state(self, state):
         ram = numpy.array(state, dtype=numpy.uint8)
 
@@ -65,9 +66,9 @@ class RamStateEnv(gym.Wrapper):
         binary_arr = numpy.array(binary_arr*1.0, dtype=self.dtype)
 
         return binary_arr
-    
     '''
-    def _get_ram_state(self, state):
+    
+    def _get_ram_state(self):
         ram = self.env.unwrapped.ale.getRAM()
         ram = numpy.array(ram, dtype=numpy.uint8)
 
@@ -76,7 +77,7 @@ class RamStateEnv(gym.Wrapper):
         binary_arr = numpy.array(binary_arr*1.0, dtype=self.dtype)
 
         return binary_arr
-    '''
+    
 
 
 
