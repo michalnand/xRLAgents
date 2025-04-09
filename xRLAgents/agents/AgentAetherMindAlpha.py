@@ -80,18 +80,21 @@ class AgentAetherMindAlpha():
 
         self.trajectory_buffer = TrajectoryBufferIM(self.steps, self.state_shape, self.actions_count, self.n_envs, self.dtype)
 
+        # optional, for state mean and variance normalisation
+        if self.state_normalise:
+            self.state_mean  = torch.zeros((self.state_shape[1], self.state_shape[2]), dtype=self.dtype, device=self.device)
 
+            for e in range(self.n_envs):
+                state, _ = self.envs.reset(e)
+                self.state_mean+= torch.from_numpy(state[0]).to(self.dtype).to(self.device)
+
+            self.state_mean/= self.n_envs
+            self.state_var = torch.ones(self.state_mean.shape, dtype=self.dtype, device=self.device)
+        else:
+            for e in range(self.n_envs):
+                state, _ = self.envs.reset(e)
         
-        # optional, for state mean and variance normalisation        
-        self.state_mean  = torch.zeros((self.state_shape[1], self.state_shape[2]), dtype=self.dtype, device=self.device)
-
-        for e in range(self.n_envs):
-            state, _ = self.envs.reset(e)
-            self.state_mean+= torch.from_numpy(state[0]).to(self.dtype).to(self.device)
-
-        self.state_mean/= self.n_envs
-        self.state_var = torch.ones(self.state_mean.shape, dtype=self.dtype, device=self.device)
-       
+        
         self.episode_steps = torch.zeros((self.n_envs, ), dtype=int)
 
         # result loggers
