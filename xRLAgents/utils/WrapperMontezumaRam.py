@@ -57,7 +57,7 @@ class RamNopOpsEnv(gym.Wrapper):
             if done:
                 obs = self.env.reset()
            
-        return obs
+        return obs, None
 
     def step(self, action):
         return self.env.step(action)
