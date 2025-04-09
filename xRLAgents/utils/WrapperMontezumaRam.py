@@ -40,6 +40,45 @@ class RamVideoRecorder(gym.Wrapper):
 
 
 
+class RamStateEnv(gym.Wrapper):
+    def __init__(self, env):
+        gym.Wrapper.__init__(self, env)
+
+        state_shape = (128, 8)
+        self.dtype  = numpy.float32
+
+        self.observation_space = gym.spaces.Box(low=0.0, high=1.0, shape=state_shape, dtype=self.dtype)
+        
+    def reset(self, seed = None, options = None):
+        state, info = self.env.reset()
+        return self._get_ram_state(state), info
+
+    def step(self, action):
+        state, reward, done, truncated, info = self.env.step(action)
+        return self._get_ram_state(state), reward, done, truncated, info
+
+    def _get_ram_state(self, state):
+        ram = numpy.array(state, dtype=numpy.uint8)
+
+        # Convert to binary representation (shape: (n, 8))
+        binary_arr = numpy.unpackbits(ram[:, numpy.newaxis], axis=1)
+        binary_arr = numpy.array(binary_arr*1.0, dtype=self.dtype)
+
+        return binary_arr
+    
+    '''
+    def _get_ram_state(self, state):
+        ram = self.env.unwrapped.ale.getRAM()
+        ram = numpy.array(ram, dtype=numpy.uint8)
+
+        # Convert to binary representation (shape: (n, 8))
+        binary_arr = numpy.unpackbits(ram[:, numpy.newaxis], axis=1)
+        binary_arr = numpy.array(binary_arr*1.0, dtype=self.dtype)
+
+        return binary_arr
+    '''
+
+
 
 class RamNopOpsEnv(gym.Wrapper):
     def __init__(self, env=None, max_count=30):
@@ -100,34 +139,6 @@ class RamRepeatActionEnv(gym.Wrapper):
         return state, reward, done, truncated, info
 
 
-
-
-class RamStateEnv(gym.Wrapper):
-    def __init__(self, env):
-        gym.Wrapper.__init__(self, env)
-
-        state_shape = (128, 8)
-        self.dtype  = numpy.float32
-
-        self.observation_space = gym.spaces.Box(low=0.0, high=1.0, shape=state_shape, dtype=self.dtype)
-        
-    def reset(self, seed = None, options = None):
-        state, info = self.env.reset()
-        return self._get_ram_state(), info
-
-    def step(self, action):
-        state, reward, done, truncated, info = self.env.step(action)
-        return self._get_ram_state(), reward, done, truncated, info
-
-    def _get_ram_state(self):
-        ram = self.env.unwrapped.ale.getRAM()
-        ram = numpy.array(ram, dtype=numpy.uint8)
-
-        # Convert to binary representation (shape: (n, 8))
-        binary_arr = numpy.unpackbits(ram[:, numpy.newaxis], axis=1)
-        binary_arr = numpy.array(binary_arr*1.0, dtype=self.dtype)
-
-        return binary_arr
 
 
 
@@ -226,10 +237,10 @@ class RamExploredRoomsEnv(gym.Wrapper):
 
 def WrapperMontezumaRam(env, max_steps = 4500):
     #env = VideoRecorder(env)
+    env = RamStateEnv()
     env = RamNopOpsEnv(env)
     env = RamStickyActionEnv(env)
     env = RamRepeatActionEnv(env) 
-    env = RamStateEnv(env)
     env = RamMaxSteps(env, max_steps)
     env = RamRewards(env)
     env = RamExploredRoomsEnv(env, room_address = 3)     
@@ -240,10 +251,10 @@ def WrapperMontezumaRam(env, max_steps = 4500):
 
 def WrapperPitfallRam(env, max_steps = 4500):
     #env = VideoRecorder(env)
+    env = RamStateEnv()
     env = RamNopOpsEnv(env)
     env = RamStickyActionEnv(env)
     env = RamRepeatActionEnv(env) 
-    env = RamStateEnv(env)  
     env = RamMaxSteps(env, max_steps)
     env = RamRewards(env)
     env = RamExploredRoomsEnv(env, room_address = 1)     
