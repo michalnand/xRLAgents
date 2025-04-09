@@ -112,8 +112,8 @@ class RamStateEnv(gym.Wrapper):
         
 
     def reset(self, seed = None, options = None):
-        state, done = self.env.reset()
-        return self._get_ram_state(), done
+        state = self.env.reset()
+        return self._get_ram_state()
 
     def step(self, action):
         state, reward, done, truncated, info = self.env.step(action)
