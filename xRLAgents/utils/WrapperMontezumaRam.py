@@ -237,10 +237,10 @@ class RamExploredRoomsEnv(gym.Wrapper):
 
 def WrapperMontezumaRam(env, max_steps = 4500):
     #env = VideoRecorder(env)
-    env = RamStateEnv(env)
     env = RamNopOpsEnv(env)
     env = RamStickyActionEnv(env)
     env = RamRepeatActionEnv(env) 
+    env = RamStateEnv(env)
     env = RamMaxSteps(env, max_steps)
     env = RamRewards(env)
     env = RamExploredRoomsEnv(env, room_address = 3)     
@@ -251,10 +251,10 @@ def WrapperMontezumaRam(env, max_steps = 4500):
 
 def WrapperPitfallRam(env, max_steps = 4500):
     #env = VideoRecorder(env)
-    env = RamStateEnv(env)
     env = RamNopOpsEnv(env)
     env = RamStickyActionEnv(env)
     env = RamRepeatActionEnv(env) 
+    env = RamStateEnv(env)
     env = RamMaxSteps(env, max_steps)
     env = RamRewards(env)
     env = RamExploredRoomsEnv(env, room_address = 1)     
