@@ -62,6 +62,7 @@ class RamNopOpsEnv(gym.Wrapper):
     def step(self, action):
         return self.env.step(action)
 
+
 class RamStickyActionEnv(gym.Wrapper):
     def __init__(self, env, p=0.25):
         super(RamStickyActionEnv, self).__init__(env)
@@ -110,7 +111,6 @@ class RamStateEnv(gym.Wrapper):
 
         self.observation_space = gym.spaces.Box(low=0.0, high=1.0, shape=state_shape, dtype=self.dtype)
         
-
     def reset(self, seed = None, options = None):
         state, info = self.env.reset()
         return self._get_ram_state(), info
@@ -157,7 +157,6 @@ class RamRewards(gym.Wrapper):
     def __init__(self, env):
         gym.Wrapper.__init__(self, env)
        
-
     def reset(self, seed = None, options = None):
         return self.env.reset()
 
