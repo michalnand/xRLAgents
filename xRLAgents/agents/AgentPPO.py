@@ -42,8 +42,14 @@ class AgentPPO():
         self.trajectory_buffer = TrajectoryBuffer(self.steps, self.state_shape, self.actions_count, self.envs_count)
 
         self.log_loss_ppo = ValuesLogger("loss_ppo")
-     
-     
+
+        if hasattr(config, "ssl_loss"):
+            self.ssl_loss     = config.ssl_loss
+            self.log_loss_ssl = ValuesLogger("loss_ssl")
+        else:
+            self.ssl_loss       = None
+            self.log_loss_ssl   = None
+
         
   
     def step(self, states, training_enabled):        
@@ -83,7 +89,10 @@ class AgentPPO():
         self.model.load_state_dict(torch.load(result_path + "/model.pt", map_location = self.device, weights_only=True))
 
     def get_logs(self):
-        return [self.log_loss_ppo]
+        if self.log_loss_ssl is not None:
+            return [self.log_loss_ppo, self.log_loss_ssl]
+        else:
+            return [self.log_loss_ppo]
 
     def train(self): 
         samples_count = self.steps*self.envs_count
@@ -106,8 +115,25 @@ class AgentPPO():
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
                 self.optimizer.step() 
 
-         
+        # self supervised regularisation loss, optional
+        if self.ssl_loss is not None:
+            for batch_idx in range(batch_count):
+                    
+                states, logits, actions, returns, advantages = self.trajectory_buffer.sample_batch(self.batch_size, self.device)
 
+                loss_ssl, info_ssl = self.ssl_loss(self.model, states)
+
+                self.optimizer.zero_grad()        
+                loss_ssl.backward()
+                self.optimizer.step() 
+
+                # add to log
+                for key in info_ssl:
+                    self.log_loss_ssl.add(str(key), info_ssl[key])
+
+
+
+                
     '''
         main PPO loss
     '''
