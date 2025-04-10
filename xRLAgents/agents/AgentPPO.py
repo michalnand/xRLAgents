@@ -119,9 +119,9 @@ class AgentPPO():
         if self.ssl_loss is not None:
             for batch_idx in range(batch_count):
                     
-                states, logits, actions, returns, advantages = self.trajectory_buffer.sample_batch(self.batch_size, self.device)
+                states, states_next, actions = self.trajectory_buffer.sample_state_pairs(self.batch_size, self.device)
 
-                loss_ssl, info_ssl = self.ssl_loss(self.model, states)
+                loss_ssl, info_ssl = self.ssl_loss(self.model, states, states_next, actions)
 
                 self.optimizer.zero_grad()        
                 loss_ssl.backward()

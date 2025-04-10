@@ -69,6 +69,21 @@ class TrajectoryBuffer:
        
         return states, logits, actions, returns, advantages
     
+
+    def sample_state_pairs(self, batch_size, device):
+
+        count           = self.buffer_size*self.envs_count
+
+        indices_now     = torch.randint(0, count, size=(batch_size, ))
+        indices_next    = torch.clip(indices_now + self.envs_count, 0, count-1)
+
+        states          = self.states[indices_now].to(device)
+        states_next     = self.states[indices_next].to(device)
+
+        actions         = (self.actions[indices_now]).to(device=device) 
+        
+        return states, states_next, actions
+    
      
     def _gae(self, rewards, values, dones, gamma, lam):
         buffer_size = rewards.shape[0]
