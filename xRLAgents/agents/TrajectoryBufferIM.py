@@ -161,7 +161,7 @@ class TrajectoryBufferIM:
         d = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
 
         # substract current - prev state
-        d = (self.states[0:, :] - self.states[1:, :])**2
+        d = (self.states[0:-1, :] - self.states[1:, :])**2
         d[0:-2, :] = d.mean(dim=(2, 3))
 
         masks = []
@@ -174,6 +174,7 @@ class TrajectoryBufferIM:
         masks = torch.stack(masks)
 
         print("diffs")
+        print(d.mean(), d.std())
         print(d.shape, masks.shape)
         print("\n\n\n")
 
