@@ -177,11 +177,10 @@ class TrajectoryBufferIM:
 
         idx = torch.where(masks[:, :, 2])
 
-        print("diffs")
-        print(idx)
+        sel = d_res[idx]
+
         print(d_res.mean(), d_res.std())
-        print(d_res.shape, masks.shape)
-        print(masks[:, :, 0].mean(), masks[:, :, 1].mean(), masks[:, :, 2].mean())
+        print(sel.mean(), sel.std())
         print("\n\n\n")
 
         return d_res, masks
