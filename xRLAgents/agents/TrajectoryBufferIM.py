@@ -174,6 +174,7 @@ class TrajectoryBufferIM:
             masks.append(mask)
 
         masks = torch.stack(masks)
+        masks = torch.transpose(masks, 2, 0)
 
         print("diffs")
         print(d_res.mean(), d_res.std())
