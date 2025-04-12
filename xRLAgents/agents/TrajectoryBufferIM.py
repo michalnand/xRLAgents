@@ -133,8 +133,9 @@ class TrajectoryBufferIM:
 
         actions         = (self.actions[indices_now]).to(device=device)   
         steps           = (self.steps[indices_now]).to(device=device)   
+        state_types     = (self.state_types[indices_now]).to(device=device)   
 
-        return states_now, states_next, actions, steps
+        return states_now, states_next, actions, steps, state_types
     
 
 
