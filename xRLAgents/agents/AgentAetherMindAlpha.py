@@ -51,16 +51,12 @@ class AgentAetherMindAlpha():
         self.state_normalise    = config.state_normalise
 
 
-        if hasattr(config, "im_normalise"):
-            self.im_normalise = config.im_normalise
+        if hasattr(config, "scale_im"):
+            self.scale_im             = config.scale_im
+            self.reward_int_coeff_min = config.reward_int_coeff_min
+            self.reward_int_coeff_max = config.reward_int_coeff_max
         else:
-            self.im_normalise = False
-
-
-        if hasattr(config, "contextual_im"):
-            self.contextual_im = config.contextual_im
-        else:
-            self.contextual_im = False
+            self.scale_im           = False
 
 
         self.n_envs         = len(envs)
@@ -96,6 +92,10 @@ class AgentAetherMindAlpha():
         
         
         self.episode_steps = torch.zeros((self.n_envs, ), dtype=int)
+
+        self.episode_reward_curr = numpy.zeros((self.n_envs, ))
+        self.episode_reward_mean = 0.0
+        self.episode_reward_var  = 0.0
 
         # result loggers
         self.log_rewards_int    = ValuesLogger("rewards_int")
@@ -138,8 +138,7 @@ class AgentAetherMindAlpha():
         print("alpha_inf            ", self.alpha_inf)
         print("denoising_steps      ", self.denoising_steps)
         print("state_normalise      ", self.state_normalise)
-        print("im_normalise         ", self.im_normalise)
-        print("contextual_im        ", self.contextual_im)
+        print("scale_im             ", self.scale_im)
         
 
         print("\n\n")
@@ -165,15 +164,22 @@ class AgentAetherMindAlpha():
         rewards_int, _     = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
         rewards_int        = rewards_int.float().detach().cpu().numpy()
 
-        if self.im_normalise:
-            rewards_int        = (rewards_int - rewards_int.mean())/(rewards_int.std() + 1e-6)
-            rewards_int_scaled = self.reward_int_coeff*rewards_int
+
+        if self.scale_im:
+            diff                = numpy.clip(1.0 - self.episode_reward_var, 0.0, 1.0)
+            reward_int_coeff    = self.reward_int_coeff_min*(1.0 - diff) + self.reward_int_coeff_max*diff
         else:
-            rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
+            reward_int_coeff    = self.reward_int_coeff
+
+
+        rewards_int_scaled = numpy.clip(reward_int_coeff*rewards_int, 0.0, 1.0)
+
 
         if "room_id" in infos[0]:
             resp = self._process_room_ids(infos)
             self.room_ids.append(resp)
+
+            
 
         # top PPO training part
         if training_enabled:     
@@ -195,16 +201,29 @@ class AgentAetherMindAlpha():
         
         self.episode_steps+= 1
 
+        self.episode_reward_curr+= rewards_ext
+        
+
         # reset episode steps counter
         done_idx = numpy.where(dones)[0]
         for i in done_idx:
+
+            k = 0.9
+            self.episode_reward_mean = k*self.episode_reward_mean + (1.0 - k)*self.episode_reward_curr[i]
+            self.episode_reward_var  = k*self.episode_reward_mean + (1.0 - k)*((self.episode_reward_curr[i] - self.episode_reward_mean)**2)
+            
             self.episode_steps[i] = 0
+            self.episode_reward_curr[i] = 0.0
 
         self.iterations+= 1
 
      
         self.log_rewards_int.add("mean", rewards_int.mean())
         self.log_rewards_int.add("std",  rewards_int.std())
+        self.log_rewards_int.add("mean_s", rewards_int_scaled.mean())
+        self.log_rewards_int.add("std_s",  rewards_int_scaled.std())
+
+        self.log_rewards_int.add("reward_int_coeff",  reward_int_coeff)
 
         return states_new, rewards_ext, dones, infos
     
