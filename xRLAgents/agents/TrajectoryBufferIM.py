@@ -205,6 +205,7 @@ class TrajectoryBufferIM:
 
         print(d_res.mean(), d_res.std())
         print(sel.mean(), sel.std())
+        print(mask.mean(), mask.sum())
         print("\n\n\n")
 
         return d_res, mask
