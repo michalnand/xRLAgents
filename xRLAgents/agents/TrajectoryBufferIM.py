@@ -64,7 +64,7 @@ class TrajectoryBufferIM:
         self.ptr = 0  
  
     def compute_returns(self, gamma_ext, gamma_int, lam = 0.95):
-        diffs, percentiles = self._compute_diffs()
+        self.state_types = self._compute_diffs()
 
         self.returns_ext, self.advantages_ext = self._gae(self.rewards_ext, self.values_ext, self.dones, gamma_ext, lam)
         self.returns_int, self.advantages_int = self._gae(self.rewards_int, self.values_int, self.dones, gamma_int, lam)
@@ -87,6 +87,7 @@ class TrajectoryBufferIM:
       
         self.dones         = self.dones.reshape((self.buffer_size*self.envs_count, ))
         self.steps         = self.steps.reshape((self.buffer_size*self.envs_count, ))
+        self.state_types   = self.state_types.reshape((self.buffer_size*self.envs_count, ))
 
         self.returns_ext      = self.returns_ext.reshape((self.buffer_size*self.envs_count, ))
         self.advantages_ext   = self.advantages_ext.reshape((self.buffer_size*self.envs_count, ))
@@ -197,15 +198,13 @@ class TrajectoryBufferIM:
         d = d.mean(dim=(2, 3, 4))
         d_res[0:-1, :] = d  
 
+        # find high difference states and mark them
         p = torch.quantile(d_res, percentile)
-        mask = (d_res > p).float()
+        mask = (d_res > p).long()
 
-        idx = torch.where(mask > 0.5)
-        sel = d_res[idx]
 
-        print(d_res.mean(), d_res.std())
-        print(sel.mean(), sel.std())
-        print(mask.mean(), mask.sum())
-        print("\n\n\n")
+        #print(d_res.mean(), d_res.std())
+        #print(mask.mean(), mask.sum())
+        #print("\n\n\n")
 
-        return d_res, mask
+        return mask
