@@ -180,9 +180,6 @@ class AgentAetherMindAlpha():
         
         self.episode_steps+= 1
 
-        self.episode_reward_curr+= rewards_ext
-        
-
         # reset episode steps counter
         done_idx = numpy.where(dones)[0]
         for i in done_idx:
