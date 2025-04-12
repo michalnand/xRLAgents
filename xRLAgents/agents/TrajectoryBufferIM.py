@@ -164,7 +164,7 @@ class TrajectoryBufferIM:
         d = (self.states[0:-1, :] - self.states[1:, :])**2
         d = d.mean(dim=(2, 3, 4))
         print("D = ", d.shape)
-        d_res[0:-2, :] = d
+        d_res[0:-1, :] = d  
 
         masks = []
         for k in percentiles:
