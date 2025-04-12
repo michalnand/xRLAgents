@@ -190,7 +190,7 @@ class TrajectoryBufferIM:
     '''
 
 
-    def _compute_diffs(self, percentile = 0.9): 
+    def _compute_diffs(self, percentiles = [0.65, 0.9, 0.95, 0.997]): 
 
         d_res = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
 
@@ -199,9 +199,14 @@ class TrajectoryBufferIM:
         d = d.mean(dim=(2, 3, 4))
         d_res[0:-1, :] = d  
 
-        # find high difference states and mark them
-        p = torch.quantile(d_res, percentile)
-        mask = (d_res > p).long()
+        mask = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.long)
+
+        for i in range(len(percentiles)):
+            # find high difference states and mark them
+            p = torch.quantile(d_res, percentiles[i])
+            m = (d_res > p).long()
+
+            mask = torch.maximum(mask, m)
 
 
         #print(d_res.mean(), d_res.std())
