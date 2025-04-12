@@ -162,6 +162,7 @@ class TrajectoryBufferIM:
 
         # substract current - prev state
         d = (self.states[0:-1, :] - self.states[1:, :])**2
+        print("D = ", d.shape)
         d[0:-2, :] = d.mean(dim=(2, 3))
 
         masks = []
