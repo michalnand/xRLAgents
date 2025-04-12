@@ -59,11 +59,16 @@ class TrajectoryBufferIM:
         self.dones      = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
         self.steps      = torch.zeros((self.buffer_size, self.envs_count, ), dtype=int)
 
+        self.diffs      = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
+
         self.ptr = 0  
  
     def compute_returns(self, gamma_ext, gamma_int, lam = 0.95):
+        diffs, percentiles = self._compute_diffs()
+
         self.returns_ext, self.advantages_ext = self._gae(self.rewards_ext, self.values_ext, self.dones, gamma_ext, lam)
         self.returns_int, self.advantages_int = self._gae(self.rewards_int, self.values_int, self.dones, gamma_int, lam)
+        
         
         
         #reshape buffer for faster batch sampling
@@ -150,3 +155,27 @@ class TrajectoryBufferIM:
             advantages[n]   = last_gae
  
         return returns.to(self.dtype), advantages.to(self.dtype)
+
+    def _compute_diffs(self, percentiles = [0.68, 0.95, 0.997]):
+
+        d = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
+
+        # substract current - prev state
+        d = (self.states[0:, :] - self.states[1:, :])**2
+        d[0:-2, :] = d.mean(dim=(2, 3))
+
+        masks = []
+        for k in percentiles:
+            p = torch.quantile(d, k)
+            mask = (d > p).float()
+
+            masks.append(mask)
+
+        masks = torch.stack(masks)
+
+        print("diffs")
+        print(d.shape, masks.shape)
+        print("\n\n\n")
+
+        return d, masks
+

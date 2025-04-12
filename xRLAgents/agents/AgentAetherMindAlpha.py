@@ -51,13 +51,6 @@ class AgentAetherMindAlpha():
         self.state_normalise    = config.state_normalise
 
 
-        if hasattr(config, "scale_im"):
-            self.scale_im             = config.scale_im
-            self.reward_int_coeff_min = config.reward_int_coeff_min
-            self.reward_int_coeff_max = config.reward_int_coeff_max
-        else:
-            self.scale_im           = False
-
 
         self.n_envs         = len(envs)
         self.state_shape    = self.envs.observation_space.shape
@@ -93,10 +86,6 @@ class AgentAetherMindAlpha():
         
         self.episode_steps = torch.zeros((self.n_envs, ), dtype=int)
 
-        self.episode_reward_curr = numpy.zeros((self.n_envs, ))
-        self.episode_reward      = numpy.zeros((self.n_envs, ))
-        self.episode_reward_mean = 0.0
-        self.episode_reward_std  = 0.0
 
         # result loggers
         self.log_rewards_int    = ValuesLogger("rewards_int")
@@ -139,9 +128,7 @@ class AgentAetherMindAlpha():
         print("alpha_inf            ", self.alpha_inf)
         print("denoising_steps      ", self.denoising_steps)
         print("state_normalise      ", self.state_normalise)
-        print("scale_im             ", self.scale_im)
         
-
         print("\n\n")
         
      
@@ -165,15 +152,7 @@ class AgentAetherMindAlpha():
         rewards_int, _     = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
         rewards_int        = rewards_int.float().detach().cpu().numpy()
 
-
-        if self.scale_im:
-            diff                = numpy.clip(1.0 - self.episode_reward_std, 0.0, 1.0)            
-            reward_int_coeff    = self.reward_int_coeff_min*(1.0 - diff) + self.reward_int_coeff_max*diff
-        else:
-            reward_int_coeff    = self.reward_int_coeff
-
-
-        rewards_int_scaled = numpy.clip(reward_int_coeff*rewards_int, 0.0, 1.0)
+        rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
 
 
         if "room_id" in infos[0]:
@@ -181,7 +160,6 @@ class AgentAetherMindAlpha():
             self.room_ids.append(resp)
 
             
-
         # top PPO training part
         if training_enabled:     
             # put trajectory into policy buffer
@@ -208,26 +186,13 @@ class AgentAetherMindAlpha():
         # reset episode steps counter
         done_idx = numpy.where(dones)[0]
         for i in done_idx:
-
-            self.episode_reward[i]      = self.episode_reward_curr[i]
-            self.episode_reward_curr[i] = 0.0
-
-            self.episode_reward_mean = self.episode_reward.mean()
-            self.episode_reward_std  =  self.episode_reward.std()
-            
             self.episode_steps[i]   = 0
             
-
         self.iterations+= 1
-
      
         self.log_rewards_int.add("mean", rewards_int.mean())
         self.log_rewards_int.add("std",  rewards_int.std())
-        self.log_rewards_int.add("mean_s", rewards_int_scaled.mean())
-        self.log_rewards_int.add("std_s",  rewards_int_scaled.std())
-
-        self.log_rewards_int.add("reward_int_coeff",  reward_int_coeff)
-
+        
         return states_new, rewards_ext, dones, infos
     
 
