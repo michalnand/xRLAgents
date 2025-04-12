@@ -179,6 +179,7 @@ class TrajectoryBufferIM:
         print("diffs")
         print(d_res.mean(), d_res.std())
         print(d_res.shape, masks.shape)
+        print(masks[:, :, 0].mean(), masks[:, :, 1].mean(), masks[:, :, 2].mean())
         print("\n\n\n")
 
         return d_res, masks
