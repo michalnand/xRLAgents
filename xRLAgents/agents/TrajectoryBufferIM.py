@@ -64,7 +64,7 @@ class TrajectoryBufferIM:
         self.ptr = 0  
  
     def compute_returns(self, gamma_ext, gamma_int, lam = 0.95):
-        self.state_types = self._compute_diffs()
+        self.state_types = self._compute_outliers()
 
         self.returns_ext, self.advantages_ext = self._gae(self.rewards_ext, self.values_ext, self.dones, gamma_ext, lam)
         self.returns_int, self.advantages_int = self._gae(self.rewards_int, self.values_int, self.dones, gamma_int, lam)
@@ -159,7 +159,7 @@ class TrajectoryBufferIM:
         return returns.to(self.dtype), advantages.to(self.dtype)
 
     '''
-    def _compute_diffs(self, percentiles = [0.68, 0.95, 0.997]):
+    def _compute_outliers(self, percentiles = [0.68, 0.95, 0.997]):
 
         d_res = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
 
@@ -190,7 +190,7 @@ class TrajectoryBufferIM:
     '''
 
 
-    def _compute_diffs(self, percentiles = [0.65, 0.9, 0.95, 0.997]): 
+    def _compute_outliers(self, percentiles = [0.9, 0.95, 0.997]): 
 
         d_res = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
 
@@ -199,18 +199,13 @@ class TrajectoryBufferIM:
         d = d.mean(dim=(2, 3, 4))
         d_res[0:-1, :] = d  
 
-        mask = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.long)
+        outliers_rank = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.long)
 
         for i in range(len(percentiles)):
             # find high difference states and mark them
             p = torch.quantile(d_res, percentiles[i])
             m = (i+1)*(d_res > p).long()    
 
-            mask = torch.maximum(mask, m)
+            outliers_rank = torch.maximum(outliers_rank, m)
 
-
-        #print(d_res.mean(), d_res.std())
-        #print(mask.mean(), mask.sum())
-        #print("\n\n\n")
-
-        return mask
+        return outliers_rank
