@@ -190,7 +190,7 @@ class TrajectoryBufferIM:
     '''
 
 
-    def _compute_diffs(self, percentile = 0.95):
+    def _compute_diffs(self, percentile = 0.9): 
 
         d_res = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
 
