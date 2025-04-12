@@ -158,26 +158,27 @@ class TrajectoryBufferIM:
 
     def _compute_diffs(self, percentiles = [0.68, 0.95, 0.997]):
 
-        d = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
+        d_res = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
 
         # substract current - prev state
         d = (self.states[0:-1, :] - self.states[1:, :])**2
+        d = d.mean(dim=(2, 3, 4))
         print("D = ", d.shape)
-        d[0:-2, :] = d.mean(dim=(2, 3, 4))
+        d_res[0:-2, :] = d
 
         masks = []
         for k in percentiles:
-            p = torch.quantile(d, k)
-            mask = (d > p).float()
+            p = torch.quantile(d_res, k)
+            mask = (d_res > p).float()
 
             masks.append(mask)
 
         masks = torch.stack(masks)
 
         print("diffs")
-        print(d.mean(), d.std())
-        print(d.shape, masks.shape)
+        print(d_res.mean(), d_res.std())
+        print(d_res.shape, masks.shape)
         print("\n\n\n")
 
-        return d, masks
+        return d_res, masks
 
