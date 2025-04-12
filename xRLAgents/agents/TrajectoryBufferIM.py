@@ -204,7 +204,7 @@ class TrajectoryBufferIM:
         for i in range(len(percentiles)):
             # find high difference states and mark them
             p = torch.quantile(d_res, percentiles[i])
-            m = (d_res > p).long()
+            m = (i+1)*(d_res > p).long()    
 
             mask = torch.maximum(mask, m)
 
