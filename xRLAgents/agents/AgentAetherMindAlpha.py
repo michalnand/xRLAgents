@@ -94,8 +94,9 @@ class AgentAetherMindAlpha():
         self.episode_steps = torch.zeros((self.n_envs, ), dtype=int)
 
         self.episode_reward_curr = numpy.zeros((self.n_envs, ))
+        self.episode_reward      = numpy.zeros((self.n_envs, ))
         self.episode_reward_mean = 0.0
-        self.episode_reward_var  = 0.0
+        self.episode_reward_std  = 0.0
 
         # result loggers
         self.log_rewards_int    = ValuesLogger("rewards_int")
@@ -166,7 +167,7 @@ class AgentAetherMindAlpha():
 
 
         if self.scale_im:
-            diff                = numpy.clip(1.0 - self.episode_reward_var, 0.0, 1.0)            
+            diff                = numpy.clip(1.0 - self.episode_reward_std, 0.0, 1.0)            
             reward_int_coeff    = self.reward_int_coeff_min*(1.0 - diff) + self.reward_int_coeff_max*diff
         else:
             reward_int_coeff    = self.reward_int_coeff
@@ -208,12 +209,14 @@ class AgentAetherMindAlpha():
         done_idx = numpy.where(dones)[0]
         for i in done_idx:
 
-            k = 0.9
-            self.episode_reward_mean = k*self.episode_reward_mean + (1.0 - k)*self.episode_reward_curr[i]
-            self.episode_reward_var  = k*self.episode_reward_mean + (1.0 - k)*((self.episode_reward_curr[i] - self.episode_reward_mean)**2)
-            
-            self.episode_steps[i] = 0
+            self.episode_reward[i]      = self.episode_reward_curr[i]
             self.episode_reward_curr[i] = 0.0
+
+            self.episode_reward_mean = self.episode_reward.mean()
+            self.episode_reward_std  =  self.episode_reward.std()
+            
+            self.episode_steps[i]   = 0
+            
 
         self.iterations+= 1
 
