@@ -167,7 +167,10 @@ class AgentAetherMindAlpha():
 
         if self.scale_im:
             diff                = numpy.clip(1.0 - self.episode_reward_var, 0.0, 1.0)
+            
             reward_int_coeff    = self.reward_int_coeff_min*(1.0 - diff) + self.reward_int_coeff_max*diff
+
+            print(self.episode_reward_var, reward_int_coeff)
         else:
             reward_int_coeff    = self.reward_int_coeff
 
