@@ -200,7 +200,8 @@ class TrajectoryBufferIM:
         d_res[0:-1, :] = d  
         '''
 
-        d_res = ((self.state[:, :, 0] - self.state[:, :, 1])**2).mean(dim=(2, 3))
+        # substract two consenctutive frames
+        d_res = ((self.states[:, :, 0] - self.states[:, :, 1])**2).mean(dim=(2, 3))
 
         print(">>> ", d_res.shape)
 
