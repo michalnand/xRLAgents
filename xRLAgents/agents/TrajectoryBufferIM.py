@@ -207,7 +207,7 @@ class TrajectoryBufferIM:
     '''
 
 
-    def _compute_groups(self, percentile = 0.95): 
+    def _compute_groups(self, percentile = 0.8): 
         # substract two consenctutive frames
         d_res = ((self.states[:, :, 0] - self.states[:, :, 1])**2).mean(dim=(2, 3))
 
@@ -224,10 +224,11 @@ class TrajectoryBufferIM:
 
         for e in range(self.envs_count):
             for n in range(self.buffer_size//8):    
-                print(marks[n][e], end=" ")
-            for n in range(self.buffer_size//8):
-                print(groups[n][e], end=" ")
+                print(marks[n][e].detach().numpy().item(), end=" ")
             print()
+            for n in range(self.buffer_size//8):
+                print(groups[n][e].detach().numpy().item(), end=" ")
+            print("\n")
         
         print("\n")
 
