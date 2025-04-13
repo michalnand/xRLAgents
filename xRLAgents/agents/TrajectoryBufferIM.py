@@ -191,13 +191,18 @@ class TrajectoryBufferIM:
 
 
     def _compute_outliers(self, percentiles = [0.9, 0.95, 0.997]): 
-
+        '''
         d_res = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
 
         # substract current - prev state
         d = (self.states[0:-1, :] - self.states[1:, :])**2
         d = d.mean(dim=(2, 3, 4))
         d_res[0:-1, :] = d  
+        '''
+
+        d_res = ((self.state[:, :, 0] - self.state[:, :, 1])**2).mean(dim=(2, 3))
+
+        print(">>> ", d_res.shape)
 
         outliers_rank = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.long)
 
