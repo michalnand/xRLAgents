@@ -203,8 +203,6 @@ class TrajectoryBufferIM:
         # substract two consenctutive frames
         d_res = ((self.states[:, :, 0] - self.states[:, :, 1])**2).mean(dim=(2, 3))
 
-        print(">>> ", d_res.shape)
-
         outliers_rank = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.long)
 
         for i in range(len(percentiles)):
