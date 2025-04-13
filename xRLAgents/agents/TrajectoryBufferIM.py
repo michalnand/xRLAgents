@@ -189,17 +189,8 @@ class TrajectoryBufferIM:
         return d_res, masks
     '''
 
-
+    '''
     def _compute_outliers(self, percentiles = [0.9, 0.95, 0.997]): 
-        '''
-        d_res = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
-
-        # substract current - prev state
-        d = (self.states[0:-1, :] - self.states[1:, :])**2
-        d = d.mean(dim=(2, 3, 4))
-        d_res[0:-1, :] = d  
-        '''
-
         # substract two consenctutive frames
         d_res = ((self.states[:, :, 0] - self.states[:, :, 1])**2).mean(dim=(2, 3))
 
@@ -213,3 +204,50 @@ class TrajectoryBufferIM:
             outliers_rank = torch.maximum(outliers_rank, m)
 
         return outliers_rank
+    '''
+
+
+    def _compute_groups(self, percentile = 0.95): 
+        # substract two consenctutive frames
+        d_res = ((self.states[:, :, 0] - self.states[:, :, 1])**2).mean(dim=(2, 3))
+
+        # find high difference states and mark them
+        p = torch.quantile(d_res, percentile)
+
+        marks = (d_res > p).long()
+
+        # for each env create unique starting ID
+        start_groups_ids = (1 + torch.arange(self.envs_count))*self.buffer_size
+        start_groups_ids = start_groups_ids.unsqueeze(0)
+
+        groups = start_groups_ids + marks.long().cumsum(dim=0)
+
+        for e in range(self.envs_count):
+            for n in range(self.buffer_size//8):    
+                print(marks[n][e], end=" ")
+            for n in range(self.buffer_size//8):
+                print(groups[n][e], end=" ")
+            print()
+        
+        print("\n")
+
+
+        return groups   
+    
+
+        '''
+        # initialise result group IDs
+        groups = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.long)
+        
+        for n in range(self.buffer_size):
+            groups[n] = groups_ids
+
+            # find where marks flagging next transition 
+            indices = torch.where(marks[n])[0]
+
+            # increment for next group ID
+            for idx in indices:
+                groups_ids[idx]+= 1
+        '''
+
+        return groups
