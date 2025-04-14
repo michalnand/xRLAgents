@@ -207,9 +207,21 @@ class TrajectoryBufferIM:
     '''
 
 
-    def _compute_groups(self, percentile = 0.9): 
-        # substract two consenctutive frames
-        d_res = ((self.states[:, :, 0] - self.states[:, :, 1])**2).mean(dim=(2, 3))
+    def _compute_groups(self, percentile = 0.9, downsample = 4): 
+
+        d_res = torch.zeros((self.buffer_size, self.envs_count))
+
+
+        states = self.states[:, :, 0].unsqueeze(1)
+
+        for n in range(self.envs_count-1):    
+
+            downsampled = torch.nn.functional.avg_pool2d(states[:, n], downsample, stride=downsample)
+            print(states.shape, downsampled.shape)
+            # substract two consenctutive frames
+            diff = 0
+            d_res[:, n] = (diff**2).mean(dim=(2, 3))
+        
 
         # find high difference states and mark them
         p = torch.quantile(d_res, percentile)
