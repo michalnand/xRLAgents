@@ -214,13 +214,14 @@ class TrajectoryBufferIM:
 
         states = self.states[:, :, 0].unsqueeze(2)
 
-        for n in range(self.envs_count-1):    
+        for n in range(self.buffer_size - 1):    
 
-            downsampled = torch.nn.functional.avg_pool2d(states[:, n], downsample, stride=downsample)
+            downsampled = torch.nn.functional.avg_pool2d(states[n], downsample, stride=downsample)
             print(states.shape, downsampled.shape)
             # substract two consenctutive frames
-            diff = 0
-            d_res[:, n] = (diff**2).mean(dim=(2, 3))
+            diff = downsampled[0:-1] - downsampled[1:]
+            print(diff.shape)
+            d_res[n, :] = (diff**2).mean(dim=(2, 3))
         
 
         # find high difference states and mark them
