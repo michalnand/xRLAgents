@@ -218,7 +218,8 @@ class TrajectoryBufferIM:
             # substract two consenctutive frames
             diff = downsampled[0:-1] - downsampled[1:]
 
-            d_res[0:-1] = (diff**2).mean(dim=(2, 3))
+            # store difference
+            d_res[0:-1, e] = (diff**2).mean(dim=(2, 3))
         
 
         # find high difference states and mark them
