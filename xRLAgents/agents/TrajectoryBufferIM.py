@@ -212,7 +212,7 @@ class TrajectoryBufferIM:
         d_res = torch.zeros((self.buffer_size, self.envs_count))
 
 
-        states = self.states[:, :, 0].unsqueeze(1)
+        states = self.states[:, :, 0].unsqueeze(2)
 
         for n in range(self.envs_count-1):    
 
