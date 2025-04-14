@@ -207,7 +207,7 @@ class TrajectoryBufferIM:
     '''
 
 
-    def _compute_groups(self, percentile = 0.95): 
+    def _compute_groups(self, percentile = 0.9): 
         # substract two consenctutive frames
         d_res = ((self.states[:, :, 0] - self.states[:, :, 1])**2).mean(dim=(2, 3))
 
