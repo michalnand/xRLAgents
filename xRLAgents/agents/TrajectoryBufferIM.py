@@ -214,8 +214,7 @@ class TrajectoryBufferIM:
 
         states = self.states[:, :, 0].unsqueeze(2)
         for e in range(self.envs_count):        
-            #downsampled = torch.nn.functional.avg_pool2d(states[:, e], downsample, stride=downsample)
-            downsampled = states[:, e]
+            downsampled = torch.nn.functional.avg_pool2d(states[:, e], downsample, stride=downsample)
             # substract two consenctutive frames
             diff = downsampled[0:-1] - downsampled[1:]
 
