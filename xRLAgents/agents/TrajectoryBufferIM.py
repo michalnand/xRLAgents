@@ -214,7 +214,7 @@ class TrajectoryBufferIM:
         # find high difference states and mark them
         p = torch.quantile(d_res, percentile)
 
-        marks = (d_res > p).long()
+        marks = (d_res > p).long()  
 
         # for each env create unique starting ID
         start_groups_ids = (1 + torch.arange(self.envs_count))*self.buffer_size
