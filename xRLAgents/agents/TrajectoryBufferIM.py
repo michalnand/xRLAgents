@@ -211,7 +211,7 @@ class TrajectoryBufferIM:
 
         d_res = torch.zeros((self.buffer_size, self.envs_count))
 
-
+        '''
         states = self.states[:, :, 0].unsqueeze(2)
         for e in range(self.envs_count):        
             downsampled = torch.nn.functional.avg_pool2d(states[:, e], downsample, stride=downsample)
@@ -220,7 +220,7 @@ class TrajectoryBufferIM:
 
             # store difference
             d_res[0:-1, e] = (diff**2).mean(dim=(1, 2, 3))
-        
+        '''
 
         # find high difference states and mark them
         p = torch.quantile(d_res, percentile)
