@@ -64,7 +64,8 @@ class TrajectoryBufferIM:
         self.ptr = 0  
  
     def compute_returns(self, gamma_ext, gamma_int, lam = 0.95):
-        self.state_types = self._compute_groups()
+        #self.state_labels = self._compute_groups()
+        self.state_labels = torch.zeros((self.buffer_size, self.envs_count), dtype=int)
 
         self.returns_ext, self.advantages_ext = self._gae(self.rewards_ext, self.values_ext, self.dones, gamma_ext, lam)
         self.returns_int, self.advantages_int = self._gae(self.rewards_int, self.values_int, self.dones, gamma_int, lam)
@@ -87,7 +88,7 @@ class TrajectoryBufferIM:
       
         self.dones         = self.dones.reshape((self.buffer_size*self.envs_count, ))
         self.steps         = self.steps.reshape((self.buffer_size*self.envs_count, ))
-        self.state_types   = self.state_types.reshape((self.buffer_size*self.envs_count, ))
+        self.state_labels  = self.state_labels.reshape((self.buffer_size*self.envs_count, ))
 
         self.returns_ext      = self.returns_ext.reshape((self.buffer_size*self.envs_count, ))
         self.advantages_ext   = self.advantages_ext.reshape((self.buffer_size*self.envs_count, ))
@@ -133,9 +134,9 @@ class TrajectoryBufferIM:
 
         actions         = (self.actions[indices_now]).to(device=device)   
         steps           = (self.steps[indices_now]).to(device=device)   
-        state_types     = (self.state_types[indices_now]).to(device=device)   
+        state_labels     = (self.state_labels[indices_now]).to(device=device)   
 
-        return states_now, states_next, actions, steps, state_types
+        return states_now, states_next, actions, steps, state_labels
     
 
 
