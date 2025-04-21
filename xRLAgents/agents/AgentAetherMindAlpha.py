@@ -312,8 +312,8 @@ class AgentAetherMindAlpha():
 
 
             #self supervised target regularisation
-            states_now, states_next, actions, steps, types = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
-            loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_now, states_next, actions, steps, types)
+            states_now, states_next, states_random, actions, steps, labels = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
+            loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_now, states_next, states_random, actions, steps, labels)
 
             #final IM loss
             loss_im = loss_diffusion.mean() + loss_ssl

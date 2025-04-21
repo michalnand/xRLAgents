@@ -64,8 +64,8 @@ class TrajectoryBufferIM:
         self.ptr = 0  
  
     def compute_returns(self, gamma_ext, gamma_int, lam = 0.95):
-        #self.state_labels = self._compute_groups()
-        self.state_labels = torch.zeros((self.buffer_size, self.envs_count), dtype=int)
+        self.state_labels = self._compute_groups()
+        #self.state_labels = torch.zeros((self.buffer_size, self.envs_count), dtype=int)
 
         self.returns_ext, self.advantages_ext = self._gae(self.rewards_ext, self.values_ext, self.dones, gamma_ext, lam)
         self.returns_int, self.advantages_int = self._gae(self.rewards_int, self.values_int, self.dones, gamma_int, lam)
@@ -128,15 +128,17 @@ class TrajectoryBufferIM:
 
         indices_now     = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size, ))
         indices_next    = torch.clip(indices_now + self.envs_count, 0, count-1)
+        indices_random  = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size, ))
 
         states_now      = (self.states[indices_now]).to(dtype=dtype, device=device)
         states_next     = (self.states[indices_next]).to(dtype=dtype, device=device)
+        states_random   = (self.states[indices_random]).to(dtype=dtype, device=device)
 
         actions         = (self.actions[indices_now]).to(device=device)   
         steps           = (self.steps[indices_now]).to(device=device)   
-        state_labels     = (self.state_labels[indices_now]).to(device=device)   
+        state_labels    = (self.state_labels[indices_now]).to(device=device)   
 
-        return states_now, states_next, actions, steps, state_labels
+        return states_now, states_next, states_random, actions, steps, state_labels
     
 
 
@@ -209,10 +211,8 @@ class TrajectoryBufferIM:
 
 
     def _compute_groups(self, percentile = 0.9, downsample = 4): 
-
         d_res = torch.zeros((self.buffer_size, self.envs_count))
 
-        
         states = self.states[:, :, 0].unsqueeze(2)
         for e in range(self.envs_count):        
             downsampled = torch.nn.functional.avg_pool2d(states[:, e], downsample, stride=downsample)
@@ -248,23 +248,5 @@ class TrajectoryBufferIM:
         print("\n")
         '''
 
-
         return groups   
     
-
-        '''
-        # initialise result group IDs
-        groups = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.long)
-        
-        for n in range(self.buffer_size):
-            groups[n] = groups_ids
-
-            # find where marks flagging next transition 
-            indices = torch.where(marks[n])[0]
-
-            # increment for next group ID
-            for idx in indices:
-                groups_ids[idx]+= 1
-        '''
-
-        return groups
