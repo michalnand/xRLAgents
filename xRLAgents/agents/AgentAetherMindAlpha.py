@@ -47,6 +47,11 @@ class AgentAetherMindAlpha():
         self.alpha_max            = config.alpha_max
         self.alpha_inf            = config.alpha_inf
         self.denoising_steps      = config.denoising_steps
+        
+        if hasattr(config, "sim_distance"):
+            self.sim_distance = config.sim_distance
+        else:
+            self.sim_distance = 0
 
         self.state_normalise    = config.state_normalise
 
@@ -127,6 +132,7 @@ class AgentAetherMindAlpha():
         print("alpha_max            ", self.alpha_max)
         print("alpha_inf            ", self.alpha_inf)
         print("denoising_steps      ", self.denoising_steps)
+        print("sim_distance         ", self.sim_distance)
         print("state_normalise      ", self.state_normalise)
         
         print("\n\n")
@@ -307,13 +313,14 @@ class AgentAetherMindAlpha():
         #main IM training loop
         for batch_idx in range(batch_count):    
             #internal motivation loss, MSE diffusion    
-            states_now, _, _, _, _, _, _, _ = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
+            states_now, _, _, _, _, _, _ = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device, sim_max_dist=self.sim_distance)
             _, loss_diffusion  = self._internal_motivation(states_now, self.alpha_min, self.alpha_max, self.denoising_steps)
 
 
             #self supervised target regularisation
-            states_now, states_next, states_random, states_similar, actions, steps, labels_now, labels_similar = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
-            loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_now, states_next, states_random, states_similar, actions, steps, labels_now, labels_similar)
+            states_now, states_next, states_similar, actions, steps, labels_now, labels_similar = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device, sim_max_dist=self.sim_distance)
+            loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_now, states_next, states_similar, actions, steps, labels_now, labels_similar)
+
 
             #final IM loss
             loss_im = loss_diffusion.mean() + loss_ssl

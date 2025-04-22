@@ -128,7 +128,6 @@ class TrajectoryBufferIM:
 
         indices_now     = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size, ))
         indices_next    = torch.clip(indices_now + self.envs_count, 0, count-1)
-        indices_random  = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size, ))
 
         indices_similar  = torch.randint(0, sim_max_dist, size=(batch_size, ))
         indices_similar  = torch.clip(indices_now + indices_similar, 0, count-1)
@@ -136,7 +135,6 @@ class TrajectoryBufferIM:
 
         states_now      = (self.states[indices_now]).to(dtype=dtype, device=device)
         states_next     = (self.states[indices_next]).to(dtype=dtype, device=device)
-        states_random   = (self.states[indices_random]).to(dtype=dtype, device=device)
         states_similar  = (self.states[indices_similar]).to(dtype=dtype, device=device)
 
         actions          = (self.actions[indices_now]).to(device=device)   
@@ -144,7 +142,7 @@ class TrajectoryBufferIM:
         state_labels     = (self.state_labels[indices_now]).to(device=device)   
         state_labels_sim = (self.state_labels[indices_similar]).to(device=device)   
 
-        return states_now, states_next, states_random, states_similar, actions, steps, state_labels, state_labels_sim
+        return states_now, states_next, states_similar, actions, steps, state_labels, state_labels_sim
     
 
 
