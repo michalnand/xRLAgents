@@ -31,7 +31,7 @@ def aug_perm(x):
     # Generate N random permutations of C channels
     perms = torch.stack([torch.randperm(C) for _ in range(N)])
     # Create a batch index
-    batch_idx = torch.arange(N) #.unsqueeze(1).expand(-1, C)
+    batch_idx = torch.arange(N).unsqueeze(1).expand(-1, C)
     # Permute the channels using advanced indexing
     return x[batch_idx, perms, :, :]
 
