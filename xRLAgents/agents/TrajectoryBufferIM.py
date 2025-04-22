@@ -120,7 +120,7 @@ class TrajectoryBufferIM:
         return states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int
     
 
-    def sample_state_pairs(self, batch_size, device, dtype = None, sim_max_dist = 16):
+    def sample_state_pairs(self, batch_size, device, dtype = None):
         if dtype is None:
             dtype = torch.float32
 
