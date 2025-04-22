@@ -34,3 +34,21 @@ def Augmentations(aug_names, x):
         x, _ = aug_random_apply(x, 0.5, aug_noise)
     
     return x
+
+
+
+# random black mask
+def blend_mask(xa, xb, gw = 16, gh = 16):
+    up_h = xa.shape[2]//gh
+    up_w = xa.shape[3]//gw 
+
+    mask = torch.rand((xa.shape[0], xa.shape[1], gh, gw), device = xa.device, dtype=xa.dtype)
+    
+    mask = torch.nn.functional.interpolate(mask, scale_factor = (up_h, up_w), mode="bicubic")
+    mask = (mask > 0.5).float().to(xa.dtype)
+    
+    y = (1.0 - mask)*xa + mask*xb
+
+    alpha = mask.mean(axis=(1, 2, 3))
+
+    return y, alpha

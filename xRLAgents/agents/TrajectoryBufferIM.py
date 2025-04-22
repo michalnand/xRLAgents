@@ -64,8 +64,8 @@ class TrajectoryBufferIM:
         self.ptr = 0  
  
     def compute_returns(self, gamma_ext, gamma_int, lam = 0.95):
-        self.state_labels = self._compute_groups()
-        #self.state_labels = torch.zeros((self.buffer_size, self.envs_count), dtype=int)
+        #self.state_labels = self._compute_groups()
+        self.state_labels = torch.zeros((self.buffer_size, self.envs_count), dtype=int)
 
         self.returns_ext, self.advantages_ext = self._gae(self.rewards_ext, self.values_ext, self.dones, gamma_ext, lam)
         self.returns_int, self.advantages_int = self._gae(self.rewards_int, self.values_int, self.dones, gamma_int, lam)
@@ -129,20 +129,18 @@ class TrajectoryBufferIM:
         indices_now     = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size, ))
         indices_next    = torch.clip(indices_now + self.envs_count, 0, count-1)
 
-        indices_similar  = torch.randint(0, sim_max_dist, size=(batch_size, ))
-        indices_similar  = torch.clip(indices_now + indices_similar, 0, count-1)
+        indices_random  = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size, ))
 
 
         states_now      = (self.states[indices_now]).to(dtype=dtype, device=device)
         states_next     = (self.states[indices_next]).to(dtype=dtype, device=device)
-        states_similar  = (self.states[indices_similar]).to(dtype=dtype, device=device)
+        states_random   = (self.states[indices_random]).to(dtype=dtype, device=device)
 
         actions          = (self.actions[indices_now]).to(device=device)   
         steps            = (self.steps[indices_now]).to(device=device)   
-        state_labels     = (self.state_labels[indices_now]).to(device=device)   
-        state_labels_sim = (self.state_labels[indices_similar]).to(device=device)   
+        labels           = (self.state_labels[indices_now]).to(device=device)   
 
-        return states_now, states_next, states_similar, actions, steps, state_labels, state_labels_sim
+        return states_now, states_next, states_random, actions, steps, labels
     
 
 

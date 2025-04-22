@@ -313,13 +313,13 @@ class AgentAetherMindAlpha():
         #main IM training loop
         for batch_idx in range(batch_count):    
             #internal motivation loss, MSE diffusion    
-            states_now, _, _, _, _, _, _ = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device, sim_max_dist=self.sim_distance)
+            states_now, _, _, _, _, _  = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device, sim_max_dist=self.sim_distance)
             _, loss_diffusion  = self._internal_motivation(states_now, self.alpha_min, self.alpha_max, self.denoising_steps)
 
 
             #self supervised target regularisation
-            states_now, states_next, states_similar, actions, steps, labels_now, labels_similar = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device, sim_max_dist=self.sim_distance)
-            loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_now, states_next, states_similar, actions, steps, labels_now, labels_similar)
+            states_now, states_next, states_random, actions, steps, labels = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device, sim_max_dist=self.sim_distance)
+            loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_now, states_next, states_random, actions, steps, labels)
 
 
             #final IM loss
