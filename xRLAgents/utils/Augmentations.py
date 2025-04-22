@@ -46,8 +46,10 @@ def blend_mask(xa, xb, gw = 16, gh = 16):
 
     mask = torch.rand((xa.shape[0], xa.shape[1], gh, gw), device = xa.device, dtype=xa.dtype)
     
+    p = torch.rand((xa.shape[0], 1, 1, 1), device = xa.device, dtype=xa.dtype)
+    
     mask = torch.nn.functional.interpolate(mask, scale_factor = (up_h, up_w), mode="bicubic")
-    mask = (mask > 0.5).float().to(xa.dtype)
+    mask = (mask > p).float().to(xa.dtype)
     
     y = (1.0 - mask)*xa + mask*xb
 
