@@ -26,14 +26,16 @@ def aug_mask(x, p = 0.75, gw = 16, gh = 16):
     return mask*x 
 
 
-def Augmentations(aug_names, x):
-    if "mask" in aug_names:
-        x, _ = aug_random_apply(x, 0.5, aug_mask)
-    
-    if "noise" in aug_names:
-        x, _ = aug_random_apply(x, 0.5, aug_noise)
-    
-    return x
+def aug_perm(x): 
+    N, C, H, W = x.shape
+    # Generate N random permutations of C channels
+    perms = torch.stack([torch.randperm(C) for _ in range(N)])
+    # Create a batch index
+    batch_idx = torch.arange(N) #.unsqueeze(1).expand(-1, C)
+    # Permute the channels using advanced indexing
+    return x[batch_idx, perms, :, :]
+
+
 
 
 
@@ -52,3 +54,18 @@ def blend_mask(xa, xb, gw = 16, gh = 16):
     alpha = mask.mean(axis=(1, 2, 3))
 
     return y, alpha
+
+
+
+
+def Augmentations(aug_names, x):
+    if "mask" in aug_names:
+        x, _ = aug_random_apply(x, 0.5, aug_mask)
+    
+    if "noise" in aug_names:
+        x, _ = aug_random_apply(x, 0.5, aug_noise)
+
+    if "perm" in aug_names:
+        x, _ = aug_random_apply(x, 0.5, aug_perm)
+    
+    return x
