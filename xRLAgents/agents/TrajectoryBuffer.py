@@ -11,7 +11,7 @@ class TrajectoryBuffer:
         self.clear()   
     
 
-    def add(self, state, logits, value, actions, reward, dones):  
+    def add(self, state, logits, value, actions, reward, dones, hidden_state = None):  
         self.states[self.ptr]    = state.detach().to("cpu").clone() 
         self.logits[self.ptr]    = logits.detach().to("cpu").clone() 
         self.values[self.ptr]    = value.squeeze(1).detach().to("cpu").clone() 
@@ -19,6 +19,13 @@ class TrajectoryBuffer:
         
         self.reward[self.ptr]    = torch.from_numpy(reward)
         self.dones[self.ptr]     = torch.from_numpy(dones).float()
+
+        if hidden_state is not None:
+            if self.hidden_states is None:
+                self.hidden_shape = list(hidden_state.shape)[1:]
+                self.hidden_states = torch.zeros((self.buffer_size, ) + hidden_state.shape, dtype=torch.float32) 
+            
+            self.hidden_states[self.ptr] = hidden_state.detach().to("cpu").clone() 
         
         self.ptr = self.ptr + 1 
 
@@ -34,6 +41,8 @@ class TrajectoryBuffer:
         self.actions    = torch.zeros((self.buffer_size, self.envs_count, ), dtype=int)
         self.reward     = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
         self.dones      = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
+
+        self.hidden_states = None
 
         self.ptr = 0  
  
@@ -54,6 +63,9 @@ class TrajectoryBuffer:
 
         self.returns    = self.returns.reshape((self.buffer_size*self.envs_count, ))
         self.advantages = self.advantages.reshape((self.buffer_size*self.envs_count, ))
+
+        if self.hidden_states is not None:
+            self.hidden_states  = self.hidden_states.reshape((self.buffer_size*self.envs_count, ) + self.hidden_shape)
    
 
     def sample_batch(self, batch_size, device):
@@ -66,8 +78,39 @@ class TrajectoryBuffer:
         
         returns         = self.returns[indices].to(device)
         advantages      = self.advantages[indices].to(device)
+
        
         return states, logits, actions, returns, advantages
+    
+
+    def sample_rnn_batch(self, batch_size, steps, device):
+        indices         = torch.randint(0, self.envs_count*(self.buffer_size - steps), size=(batch_size, ))
+
+        states          = []
+        logits          = []
+        actions         = []
+        returns         = []
+        advantages      = []
+        hidden_states   = []
+
+        for n in range(steps):
+            idx = indices + n*self.envs_count
+
+            states.append(self.states[idx].to(device))
+            logits.append(self.logits[idx].to(device))
+            actions.append(self.actions[idx].to(device))
+            returns.append(self.returns[idx].to(device))
+            advantages.append(self.advantages[idx].to(device))
+            hidden_states.append(self.hidden_states[idx].to(device))
+
+        states          = torch.stack(states, dim=0)
+        logits          = torch.stack(logits, dim=0)
+        actions         = torch.stack(actions, dim=0)
+        returns         = torch.stack(returns, dim=0)
+        advantages      = torch.stack(advantages, dim=0)
+        hidden_states   = torch.stack(hidden_states, dim=0)
+
+        return states, logits, actions, returns, advantages, hidden_states
     
 
     def sample_state_pairs(self, batch_size, device):
