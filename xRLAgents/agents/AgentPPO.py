@@ -115,8 +115,8 @@ class AgentPPO():
         if self.log_loss_ssl is not None:
             result.append(self.log_loss_ssl)
 
-        if self.log__rnn is not None:
-            result.append(self.log__rnn)
+        if self.log_rnn is not None:
+            result.append(self.log_rnn)
         
         return result
     
