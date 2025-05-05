@@ -22,7 +22,7 @@ class TrajectoryBuffer:
 
         if hidden_state is not None:
             if self.hidden_states is None:
-                self.hidden_shape = list(hidden_state.shape)[1:]
+                self.hidden_shape = hidden_state.shape[1:]
                 self.hidden_states = torch.zeros((self.buffer_size, ) + hidden_state.shape, dtype=torch.float32) 
             
             self.hidden_states[self.ptr] = hidden_state.detach().to("cpu").clone() 
