@@ -55,10 +55,12 @@ class AgentPPO():
             self.rnn_policy     = config.rnn_policy
             self.rnn_steps      = config.rnn_steps
             self.hidden_state_t = torch.zeros((self.envs_count, ) + self.model.hidden_shape, device=self.device)
+            self.log_rnn        = ValuesLogger("log_rnn")
         else:
             self.rnn_policy     = False
             self.rnn_steps      = 0
             self.hidden_state_t = None
+            self.log_rnn        = None
 
         
   
@@ -107,10 +109,17 @@ class AgentPPO():
         self.model.load_state_dict(torch.load(result_path + "/model.pt", map_location = self.device, weights_only=True))
 
     def get_logs(self):
+        result = []
+        result.append(self.log_loss_ppo)
+    
         if self.log_loss_ssl is not None:
-            return [self.log_loss_ppo, self.log_loss_ssl]
-        else:
-            return [self.log_loss_ppo]
+            result.append(self.log_loss_ssl)
+
+        if self.log__rnn is not None:
+            result.append(self.log__rnn)
+        
+        return result
+    
 
      # sample action, probs computed from logits
     def _sample_actions(self, logits):
@@ -181,6 +190,12 @@ class AgentPPO():
 
         for n in range(seq_len):
             logits_new, values_new, hidden_state = self.model.forward(states[n], hidden_state)
+
+        self.log_rnn.add("hidden_mean",  hidden_states.mean().detach().cpu().numpy().item())
+        self.log_rnn.add("hidden_std",   hidden_states.std().detach().cpu().numpy().item())
+        self.log_rnn.add("hidden_mag_mean", (hidden_states**2).mean().detach().cpu().numpy().item())
+        self.log_rnn.add("hidden_mag_std",  (hidden_states**2).std().detach().cpu().numpy().item())
+
       
         return self._loss_ppo(logits[-1], actions[-1], returns[-1], advantages[-1], logits_new, values_new)
 
