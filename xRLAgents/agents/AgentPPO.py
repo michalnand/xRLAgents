@@ -55,7 +55,7 @@ class AgentPPO():
             self.rnn_policy     = config.rnn_policy
             self.rnn_steps      = config.rnn_steps
             self.hidden_state_t = torch.zeros((self.envs_count, ) + self.model.hidden_shape, device=self.device)
-            self.log_rnn        = ValuesLogger("log_rnn")
+            self.log_rnn        = ValuesLogger("rnn")
         else:
             self.rnn_policy     = False
             self.rnn_steps      = 0
