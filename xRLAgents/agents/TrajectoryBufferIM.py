@@ -143,7 +143,7 @@ class TrajectoryBufferIM:
         return states_now, states_next, states_random, actions, steps, labels
     
 
-    def sample_state_seq(self, batch_size, time_distances, device, dtype = None):
+    def sample_states_seq(self, batch_size, time_distances, device, dtype = None):
         if dtype is None:
             dtype = torch.float32
 
