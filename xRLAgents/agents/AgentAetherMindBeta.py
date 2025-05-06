@@ -48,8 +48,9 @@ class AgentAetherMindBeta():
         self.alpha_inf            = config.alpha_inf
         self.denoising_steps      = config.denoising_steps
 
+        self.time_distances       = config.time_distances
+        
         self.state_normalise    = config.state_normalise
-
 
 
 
@@ -70,19 +71,23 @@ class AgentAetherMindBeta():
 
         self.trajectory_buffer = TrajectoryBufferIM(self.steps, self.state_shape, self.actions_count, self.n_envs, self.dtype)
 
+        # optional, for state mean and variance normalisation
+        if self.state_normalise:
+            self.state_mean  = torch.zeros((self.state_shape[1], self.state_shape[2]), dtype=self.dtype, device=self.device)
 
+            for e in range(self.n_envs):
+                state, _ = self.envs.reset(e)
+                self.state_mean+= torch.from_numpy(state[0]).to(self.dtype).to(self.device)
+
+            self.state_mean/= self.n_envs
+            self.state_var = torch.ones(self.state_mean.shape, dtype=self.dtype, device=self.device)
+        else:
+            for e in range(self.n_envs):
+                state, _ = self.envs.reset(e)
         
-        # optional, for state mean and variance normalisation        
-        self.state_mean  = torch.zeros((self.state_shape[1], self.state_shape[2]), dtype=self.dtype, device=self.device)
-
-        for e in range(self.n_envs):
-            state, _ = self.envs.reset(e)
-            self.state_mean+= torch.from_numpy(state[0]).to(self.dtype).to(self.device)
-
-        self.state_mean/= self.n_envs
-        self.state_var = torch.ones(self.state_mean.shape, dtype=self.dtype, device=self.device)
-       
+        
         self.episode_steps = torch.zeros((self.n_envs, ), dtype=int)
+
 
         # result loggers
         self.log_rewards_int    = ValuesLogger("rewards_int")
@@ -124,9 +129,9 @@ class AgentAetherMindBeta():
         print("alpha_max            ", self.alpha_max)
         print("alpha_inf            ", self.alpha_inf)
         print("denoising_steps      ", self.denoising_steps)
+        print("time_distances       ", self.time_distances)
         print("state_normalise      ", self.state_normalise)
         
-
         print("\n\n")
         
      
@@ -152,10 +157,12 @@ class AgentAetherMindBeta():
 
         rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
 
+
         if "room_id" in infos[0]:
             resp = self._process_room_ids(infos)
             self.room_ids.append(resp)
 
+            
         # top PPO training part
         if training_enabled:     
             # put trajectory into policy buffer
@@ -179,14 +186,13 @@ class AgentAetherMindBeta():
         # reset episode steps counter
         done_idx = numpy.where(dones)[0]
         for i in done_idx:
-            self.episode_steps[i] = 0
-
+            self.episode_steps[i]   = 0
+            
         self.iterations+= 1
-
      
         self.log_rewards_int.add("mean", rewards_int.mean())
         self.log_rewards_int.add("std",  rewards_int.std())
-
+        
         return states_new, rewards_ext, dones, infos
     
 
@@ -205,7 +211,6 @@ class AgentAetherMindBeta():
         # we save total steps*n_envs features (e.g. 128x128)
         z_ppo = []
         z_im  = []
-        z_noised  = []
         z_denoised = []
         for n in range(self.steps):
             x = self.trajectory_buffer.states[n]
@@ -219,11 +224,6 @@ class AgentAetherMindBeta():
             z = self.model.forward_im_features(x)
             z_im.append(z.detach().cpu().float().numpy())
 
-            # noised im features    
-            x_noised, _, _ = self.im_noise(x, self.alpha_min, self.alpha_max)
-            z = self.model.forward_im_features(x_noised)
-            z_noised.append(z.detach().cpu().float().numpy())
-
             # diffusion prediction
             noise_hat = self.model.forward_im_diffusion(z)
             z_hat = z - noise_hat
@@ -231,19 +231,15 @@ class AgentAetherMindBeta():
             z_denoised.append(z_hat.detach().cpu().float().numpy())
 
         # save features as numpy array
-        z_ppo       = numpy.array(z_ppo)
-        z_im        = numpy.array(z_im)
-        z_noised    = numpy.array(z_noised)
-        z_denoised  = numpy.array(z_denoised)
+        z_ppo = numpy.array(z_ppo)
+        z_im  = numpy.array(z_im)
+        z_denoised = numpy.array(z_denoised)
 
         f_name = self.result_path + "/z_ppo_" + str(self.iterations) + ".npy"
         numpy.save(f_name, z_ppo)
 
         f_name = self.result_path + "/z_im_" + str(self.iterations) + ".npy"
         numpy.save(f_name, z_im)    
-
-        f_name = self.result_path + "/z_noised_" + str(self.iterations) + ".npy"
-        numpy.save(f_name, z_noised)      
 
         f_name = self.result_path + "/z_denoised_" + str(self.iterations) + ".npy"
         numpy.save(f_name, z_denoised)      
@@ -274,11 +270,10 @@ class AgentAetherMindBeta():
             print("room_ids  ", room_ids.shape)
 
 
-        print("z_ppo        ", z_ppo.shape)  
-        print("z_im         ", z_im.shape)  
-        print("z_noised     ", z_noised.shape)  
+        print("z_ppo  ", z_ppo.shape)  
+        print("z_im   ", z_im.shape)  
         print("z_denoised   ", z_denoised.shape)  
-        print("steps        ", steps.shape)  
+        print("steps  ", steps.shape)  
 
         print("features saved\n\n")
 
@@ -315,14 +310,15 @@ class AgentAetherMindBeta():
         #main IM training loop
         for batch_idx in range(batch_count):    
             #internal motivation loss, MSE diffusion    
-            states_now, states_next, _, _ = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
+            states_now, _, _, _, _, _  = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
             _, loss_diffusion  = self._internal_motivation(states_now, self.alpha_min, self.alpha_max, self.denoising_steps)
 
 
             #self supervised target regularisation
-            states_now, states_next, actions, steps = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
-            loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_now, states_next, actions, steps)
+            states_seq, labels = self.trajectory_buffer.sample_states_seq(self.ss_batch_size, self.time_distances, self.device)
+            loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_seq, labels)
 
+            
             #final IM loss
             loss_im = loss_diffusion.mean() + loss_ssl
 
@@ -354,17 +350,15 @@ class AgentAetherMindBeta():
 
     # state denoising ability novely detection
     def _internal_motivation(self, states, alpha_min, alpha_max, denoising_steps):
+      
         # obtain taget features from states and noised states
         z_target  = self.model.forward_im_features(states).detach()
 
-        # obtain noised features
-        states_noised, _, _ = self.im_noise(states, alpha_min, alpha_max)
-        z_noised  = self.model.forward_im_features(states_noised).detach()
-
-        noise = z_noised - z_target
+        # add noise into features
+        z_noised, noise, alpha = self.im_noise(z_target, alpha_min, alpha_max)
 
         z_denoised = z_noised.to(self.dtype).detach().clone()
-
+    
         # denoising by diffusion process
         for n in range(denoising_steps):
             noise_hat = self.model.forward_im_diffusion(z_denoised)

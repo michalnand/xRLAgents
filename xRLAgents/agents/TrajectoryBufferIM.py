@@ -143,6 +143,31 @@ class TrajectoryBufferIM:
         return states_now, states_next, states_random, actions, steps, labels
     
 
+    def sample_state_seq(self, batch_size, time_distances, device, dtype = None):
+        if dtype is None:
+            dtype = torch.float32
+
+        count = self.buffer_size*self.envs_count
+
+        states_result = []
+        labels_result = []
+
+        indices_now = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size, ))
+
+        for n in range(len(time_distances)):
+            d_max   = time_distances[n]
+            indices = indices_now + self.envs_count*torch.randint(0, d_max + 1, size=(batch_size, ))
+            indices = torch.clip(indices, 0, count-1)
+
+            states = (self.states[indices]).to(dtype=dtype, device=device)
+            labels = (self.state_labels[indices]).to(device=device) 
+
+            states_result.append(states)
+            labels_result.append(labels)
+
+       
+        return states_result, labels_result
+    
 
      
     def _gae(self, rewards, values, dones, gamma, lam):
