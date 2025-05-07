@@ -47,6 +47,8 @@ class AgentAetherMindGamma():
         self.im_learning_rate     = config.im_learning_rate
         self.im_training_steps    = config.im_training_steps
 
+        self.time_distances     = config.time_distances
+
         
         self.state_normalise    = config.state_normalise
 
@@ -127,6 +129,7 @@ class AgentAetherMindGamma():
         print("im_dictionary_size   ", self.im_dictionary_size)
         print("im_learning_rate     ", self.im_learning_rate)
         print("im_training_steps    ", self.im_training_steps)
+        print("time_distances       ", self.time_distances)
         print("state_normalise      ", self.state_normalise)
         
         print("\n\n")
