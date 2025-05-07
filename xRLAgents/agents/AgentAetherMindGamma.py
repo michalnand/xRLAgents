@@ -265,7 +265,6 @@ class AgentAetherMindGamma():
 
         print("z_ppo  ", z_ppo.shape)  
         print("z_im   ", z_im.shape)  
-        print("z_denoised   ", z_denoised.shape)  
         print("steps  ", steps.shape)  
 
         print("features saved\n\n")
