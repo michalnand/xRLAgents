@@ -52,6 +52,11 @@ class AgentAetherMindBeta():
         
         self.state_normalise    = config.state_normalise
 
+        if hasattr(config, "shared_features"):
+            self.shared_features = config.shared_features
+        else:
+            self.shared_features = False
+
 
 
         self.n_envs         = len(envs)
@@ -131,6 +136,7 @@ class AgentAetherMindBeta():
         print("denoising_steps      ", self.denoising_steps)
         print("time_distances       ", self.time_distances)
         print("state_normalise      ", self.state_normalise)
+        print("shared_features      ", self.shared_features)
         
         print("\n\n")
         
@@ -296,8 +302,20 @@ class AgentAetherMindBeta():
                 # compute main PPO loss
                 loss_ppo = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
 
+                loss = loss_ppo
+                if self.shared_features:
+                    #self supervised regularisation
+                    states_seq, labels = self.trajectory_buffer.sample_states_seq(self.ss_batch_size, self.time_distances, self.device)
+                    loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_seq, labels)
+
+                    loss+= loss_ssl
+
+                    for key in info_ssl:
+                        self.log_loss_im_ssl.add(str(key), info_ssl[key])
+
+
                 self.optimizer.zero_grad()        
-                loss_ppo.backward()
+                loss.backward()
 
                 # gradient clip for stabilising training
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
@@ -313,28 +331,29 @@ class AgentAetherMindBeta():
             states_now, _, _, _, _, _  = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
             _, loss_diffusion  = self._internal_motivation(states_now, self.alpha_min, self.alpha_max, self.denoising_steps)
 
+            loss_diffusion = loss_diffusion.mean()
 
-            #self supervised target regularisation
-            states_seq, labels = self.trajectory_buffer.sample_states_seq(self.ss_batch_size, self.time_distances, self.device)
-            loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_seq, labels)
+            loss = loss_diffusion
+            if self.shared_features == False:
+                #self supervised target regularisation
+                states_seq, labels = self.trajectory_buffer.sample_states_seq(self.ss_batch_size, self.time_distances, self.device)
+                loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_seq, labels)
+                
+                loss+= loss_ssl
 
-            
-            #final IM loss
-            loss_im = loss_diffusion.mean() + loss_ssl
+                for key in info_ssl:
+                    self.log_loss_im_ssl.add(str(key), info_ssl[key])
 
 
             self.optimizer.zero_grad()        
-            loss_im.mean().backward() 
+            loss.mean().backward() 
             self.optimizer.step() 
 
             # log results
             self.log_loss_diffusion.add("mean", loss_diffusion.float().mean().detach().cpu().numpy())
             self.log_loss_diffusion.add("std", loss_diffusion.float().std().detach().cpu().numpy())
                 
-            for key in info_ssl:
-                self.log_loss_im_ssl.add(str(key), info_ssl[key])
-
-
+           
 
 
     # sample action, probs computed from logits
