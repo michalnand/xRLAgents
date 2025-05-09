@@ -331,9 +331,8 @@ class AgentAetherMindBeta():
             states_now, _, _, _, _, _  = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
             _, loss_diffusion  = self._internal_motivation(states_now, self.alpha_min, self.alpha_max, self.denoising_steps)
 
-            loss_diffusion = loss_diffusion.mean()
+            loss = loss_diffusion.mean()
 
-            loss = loss_diffusion
             if self.shared_features == False:
                 #self supervised target regularisation
                 states_seq, labels = self.trajectory_buffer.sample_states_seq(self.ss_batch_size, self.time_distances, self.device)
