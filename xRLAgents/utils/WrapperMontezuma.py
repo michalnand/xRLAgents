@@ -198,6 +198,31 @@ class Rewards(gym.Wrapper):
 
 
 
+
+class RewardsLog(gym.Wrapper):
+    def __init__(self, env):
+        gym.Wrapper.__init__(self, env)
+       
+
+    def reset(self, seed = None, options = None):
+        return self.env.reset()
+
+    def step(self, action):
+       
+        state, reward, done, truncated, info = self.env.step(action)
+
+        info["raw_reward"] = reward
+
+        if reward < 0.0:
+            reward = 0.0        
+
+        reward = numpy.log10(1.0 + reward/10.0)
+            
+        return state, reward, done, truncated, info
+
+
+
+
 class ExploredRoomsEnv(gym.Wrapper):
     '''
     room_address for games : 
@@ -254,6 +279,21 @@ def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps
     env = ResizeEnv(env, height, width, frame_stacking)
     env = MaxSteps(env, max_steps)
     env = Rewards(env)
+    env = ExploredRoomsEnv(env, room_address = 3)     
+
+    return env
+
+
+
+
+def WrapperMontezumaB(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
+    #env = VideoRecorder(env)
+    env = NopOpsEnv(env)
+    env = StickyActionEnv(env)
+    env = RepeatActionEnv(env) 
+    env = ResizeEnv(env, height, width, frame_stacking)
+    env = MaxSteps(env, max_steps)
+    env = RewardsLog(env)
     env = ExploredRoomsEnv(env, room_address = 3)     
 
     return env
