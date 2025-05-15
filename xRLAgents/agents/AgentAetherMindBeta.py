@@ -303,12 +303,13 @@ class AgentAetherMindBeta():
                 loss_ppo = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
 
                 loss = loss_ppo
+
+                #self supervised regularisation
                 if self.shared_features:
-                    #self supervised regularisation
                     states_seq, labels = self.trajectory_buffer.sample_states_seq(self.ss_batch_size, self.time_distances, self.device)
                     loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_seq, labels)
 
-                    loss+= loss_ssl
+                    loss+= loss_ssl*(1.0/self.training_epochs)
 
                     for key in info_ssl:
                         self.log_loss_im_ssl.add(str(key), info_ssl[key])
