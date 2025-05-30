@@ -180,14 +180,14 @@ class TrajectoryBufferIM:
 
         indices_now = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size, ))
 
-        for n in range(len(length)):
+        for n in range(length):
             indices = indices_now + self.envs_count*n
             indices = torch.clip(indices, 0, count-1)
 
             states = (self.states[indices]).to(dtype=dtype, device=device)
             actions = (self.actions[indices]).to(device=device) 
 
-            states_result.append(states)
+            states_result.append(states)    
             actions_results.append(actions)
 
 
