@@ -228,7 +228,7 @@ class AgentAetherMindGamma():
         # we save total steps*n_envs features (e.g. 128x128)
         z_ppo = []
         z_im  = []
-        z_denoised = []
+        #z_denoised = []
         for n in range(self.steps):
             x = self.trajectory_buffer.states[n]
             x = x.to(device=self.device, dtype=self.dtype)
@@ -242,15 +242,15 @@ class AgentAetherMindGamma():
             z_im.append(z.detach().cpu().float().numpy())
 
             # diffusion prediction
-            noise_hat = self.model.forward_im_diffusion(z)
-            z_hat = z - noise_hat
+            #noise_hat = self.model.forward_im_diffusion(z)
+            #z_hat = z - noise_hat
 
-            z_denoised.append(z_hat.detach().cpu().float().numpy())
+            #z_denoised.append(z_hat.detach().cpu().float().numpy())
 
         # save features as numpy array
         z_ppo = numpy.array(z_ppo)
         z_im  = numpy.array(z_im)
-        z_denoised = numpy.array(z_denoised)
+        #z_denoised = numpy.array(z_denoised)
 
         f_name = self.result_path + "/z_ppo_" + str(self.iterations) + ".npy"
         numpy.save(f_name, z_ppo)
@@ -258,8 +258,8 @@ class AgentAetherMindGamma():
         f_name = self.result_path + "/z_im_" + str(self.iterations) + ".npy"
         numpy.save(f_name, z_im)    
 
-        f_name = self.result_path + "/z_denoised_" + str(self.iterations) + ".npy"
-        numpy.save(f_name, z_denoised)      
+        #f_name = self.result_path + "/z_denoised_" + str(self.iterations) + ".npy"
+        #numpy.save(f_name, z_denoised)      
 
         # save episode steps count
         steps = []
