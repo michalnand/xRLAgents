@@ -412,8 +412,6 @@ class AgentAetherMindGamma():
             # inverse model
             # predict action from two consecutive states
             a_pred = model.forward_im(z_curr, z_pred)
-
-            print(">>> ", a_pred.shape, actions_curr.shape)
             
             loss_im_ = loss_func(a_pred, actions_curr) 
             loss_im+= loss_im_
