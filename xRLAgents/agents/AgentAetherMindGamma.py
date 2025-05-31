@@ -165,11 +165,13 @@ class AgentAetherMindGamma():
         # environment step  
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
-        # internal motivaiotn based on diffusion state prediction
-        states_new_t    = torch.from_numpy(states_new).to(self.device)
+        # internal motivation based on diffusion state prediction
+        states_next_t   = torch.from_numpy(states_new).to(self.device)
+        states_next_t   = self._state_normalise(states_next_t)
+
         actions_t       = torch.from_numpy(actions).to(self.device)
 
-        rewards_int     = self._internal_motivation(self.model, states_t, states_new_t, actions_t)
+        rewards_int     = self._internal_motivation(self.model, states_t, states_next_t, actions_t)
         rewards_int     = rewards_int.float().detach().cpu().numpy()
 
         rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
@@ -372,10 +374,10 @@ class AgentAetherMindGamma():
 
 
    
-    def _internal_motivation(self, model, state_prev, state_curr, action):
+    def _internal_motivation(self, model, state_curr, state_next, action):
         # obtain features, initial and terminal
-        z0 = model.forward_im_features(state_prev)
-        zh = model.forward_im_features(state_curr)
+        z0 = model.forward_im_features(state_curr)
+        zh = model.forward_im_features(state_next)
 
         # obtain prediction
         zh_pred = model.forward_fm(z0, action)
