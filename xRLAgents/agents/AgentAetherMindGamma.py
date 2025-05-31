@@ -405,7 +405,7 @@ class AgentAetherMindGamma():
 
         for n in range(h_steps):
             actions_curr = actions[n]
-            print("actions = ", actions_curr.shape)
+
             # predict next state
             z_pred = model.forward_fm(z_curr, actions_curr)
 
