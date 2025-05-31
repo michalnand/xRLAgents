@@ -404,13 +404,16 @@ class AgentAetherMindGamma():
         loss_func = torch.nn.CrossEntropyLoss()
 
         for n in range(h_steps):
+            actions_curr = actions[n]
+            print("actions = ", actions_curr.shape)
             # predict next state
-            z_pred = model.forward_fm(z_curr, actions[n])
+            z_pred = model.forward_fm(z_curr, actions_curr)
 
             # inverse model
             # predict action from two consecutive states
             a_pred = model.forward_im(z_curr, z_pred)
-            loss_im_ = loss_func(a_pred, actions[n]) 
+            
+            loss_im_ = loss_func(a_pred, actions_curr) 
             loss_im+= loss_im_
 
             # next step
@@ -418,7 +421,7 @@ class AgentAetherMindGamma():
 
             # for each step evaluate accuracy 
             key = "im_" + str(n) + "_acc"
-            acc =  (torch.argmax(a_pred, dim=-1) == actions[n]).float().mean()
+            acc =  (torch.argmax(a_pred, dim=-1) == actions_curr).float().mean()
             info[key] = acc.detach().cpu().numpy()
 
             key = "im_" + str(n) + "_loss"
