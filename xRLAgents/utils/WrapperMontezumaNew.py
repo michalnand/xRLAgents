@@ -67,8 +67,8 @@ class ResizeWrapper(gym.ObservationWrapper):
         img = img.convert('L')
         img = img.resize((self.width, self.height))
 
-        self.state    = numpy.roll(self.state, 1, axis=0)
-        self.state[0] = (numpy.array(img).astype(self.dtype)/255.0).copy()
+        self.state    = numpy.roll(self.state, 1, axis=0)   
+        self.state[0] = numpy.array(img/255.0, dtype=numpy.float32)
         
         return self.state 
 
