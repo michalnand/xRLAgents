@@ -166,8 +166,9 @@ class AgentAetherMindGamma():
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
         # internal motivation based on diffusion state prediction
-        states_next_t   = torch.from_numpy(states_new).to(self.device)
-        states_next_t   = self._state_normalise(states_next_t)
+        states_next_t   = torch.from_numpy(states_new).to(self.dtype).to(self.device)
+        if self.state_normalise:
+            states_next_t   = self._state_normalise(states_next_t)
 
         actions_t       = torch.from_numpy(actions).to(self.device)
 
