@@ -3,4 +3,4 @@ from .WrapperMontezuma  import WrapperMontezuma, WrapperMontezumaB, WrapperPitfa
 from .WrapperMontezumaRam  import WrapperMontezumaRam, WrapperPitfallRam
 from .Augmentations     import *
 
-from .WrapperMontezumaNew  import WrapperMontezumaNew
+from .WrapperMontezumaNew  import WrapperMontezumaNew, WrapperMontezumaBNew
