@@ -94,7 +94,7 @@ class AgentAetherMindGamma():
         
         self.episode_max_score  = 0.0
         self.episode_score      = numpy.zeros((self.n_envs, ), dtype=numpy.float32)
-        self.temperature        = torch.zeros((self.n_envs, ), dtype=torch.float32, device=self.device)
+        self.temperature        = torch.ones((self.n_envs, ), dtype=torch.float32, device=self.device)
 
         # result loggers
         self.log_rewards_int    = ValuesLogger("rewards_int")
