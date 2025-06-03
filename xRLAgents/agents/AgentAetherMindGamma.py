@@ -214,14 +214,14 @@ class AgentAetherMindGamma():
                 # if non zero reward reached (promissing state)
                 # and random prob of exploration mode reached
 
-                p = rewards_ext[i]/(self.episode_max_score + 1e-6)
+                p = self.episode_score[i]/(self.episode_max_score + 1e-6)
 
                 if (rewards_ext[i] > 0) and (numpy.random.rand() < p):
                     self.agent_state[i] = 1
 
                 self.temperature[i] = 1.0
 
-            elif self.agent_state[i] == 1:
+            elif self.agent_state[i] == 1:  
                 
                 self.exploring_steps[i]+= 1
                 self.temperature[i] = self.exploring_temperature
