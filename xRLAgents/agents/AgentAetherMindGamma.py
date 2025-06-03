@@ -102,7 +102,7 @@ class AgentAetherMindGamma():
         self.log_loss_diffusion = ValuesLogger("loss_diffusion")
         self.log_loss_im_ssl    = ValuesLogger("loss_im_ssl")
 
-        self.log_agent_state          = ValuesLogger("agent_state")
+        self.log_agent_state    = ValuesLogger("agent_state")
   
 
 
@@ -404,7 +404,7 @@ class AgentAetherMindGamma():
     # sample action, probs computed from logits
     def _sample_actions(self, logits, temperature):
         logits                = logits.to(torch.float32)
-        logits                = logits/temperature.unsqueeze(1)
+        logits                = logits/(temperature.unsqueeze(1) + 1e-6)
         action_probs_t        = torch.nn.functional.softmax(logits, dim = 1)
         action_distribution_t = torch.distributions.Categorical(action_probs_t)
         action_t              = action_distribution_t.sample()
