@@ -210,6 +210,7 @@ class AgentAetherMindDelta():
 
         # update new max score
         max_score = torch.max(self.episode_score)
+        max_score = float(max_score)
         print(max_score)
         if max_score > 0:
             if max_score > self.episode_score_max:
@@ -242,7 +243,7 @@ class AgentAetherMindDelta():
         self.log_rewards_int.add("mean", rewards_int.mean())
         self.log_rewards_int.add("std",  rewards_int.std())
         self.log_agent_role.add("score_max", self.episode_score_max)
-        self.log_agent_role.add("roles", roles_ratio.detach().numpy().cpu())
+        self.log_agent_role.add("roles", roles_ratio.detach().cpu().numpy())
 
         
         return states_new, rewards_ext, dones, infos
