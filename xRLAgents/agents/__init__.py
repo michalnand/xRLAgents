@@ -19,5 +19,6 @@ from .AgentPPOInDiffD       import *
 from .AgentAetherMindAlpha  import *
 from .AgentAetherMindBeta   import *
 from .AgentAetherMindGamma  import *
+from .AgentAetherMindDelta  import *
 
 from .loss_self_supervised  import *
