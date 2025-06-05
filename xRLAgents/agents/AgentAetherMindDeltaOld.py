@@ -4,10 +4,9 @@ import numpy
 from .TrajectoryBufferIM  import *
 from ..training.ValuesLogger           import *
 
-from scipy.linalg import hadamard
 
 
-class AgentAetherMindDelta(): 
+class AgentAetherMindGamma(): 
     def __init__(self, envs, Config, Model):
         self.envs = envs
  
@@ -31,7 +30,6 @@ class AgentAetherMindDelta():
         
         self.adv_ext_coeff      = config.adv_ext_coeff
         self.adv_int_coeff      = config.adv_int_coeff
-        self.role_loss_coeff    = config.role_loss_coeff
         self.val_coeff          = config.val_coeff
         self.reward_ext_coeff   = config.reward_ext_coeff
         self.reward_int_coeff   = config.reward_int_coeff
@@ -48,19 +46,16 @@ class AgentAetherMindDelta():
         self.alpha_min            = config.alpha_min
         self.alpha_max            = config.alpha_max
         self.alpha_inf            = config.alpha_inf
-        self.denoising_steps      = config.denoising_steps
+        self.prediction_steps     = config.prediction_steps
 
         self.time_distances       = config.time_distances
         
-        self.state_normalise      = config.state_normalise
+        self.state_normalise    = config.state_normalise
 
-        self.roles_count          = config.roles_count
 
 
         self.n_envs         = len(envs)
-        self.state_shape    = list(self.envs.observation_space.shape)
-        # add extra channel for agent role
-        self.state_shape[0]+= 1
+        self.state_shape    = self.envs.observation_space.shape
 
         self.actions_count  = self.envs.action_space.n
 
@@ -91,24 +86,28 @@ class AgentAetherMindDelta():
                 state, _ = self.envs.reset(e)
         
         
-        self.episode_steps      = torch.zeros((self.n_envs, ), dtype=int)
-
-        self.episode_score      = torch.zeros((self.n_envs, ), dtype=torch.float32)
-        self.episode_score_max  = 0.0
-
-        self.agent_roles        = torch.zeros((self.n_envs, ), dtype=int)
-
-        self.roles_matrices     = self._generate_roles_matrices(1 + self.roles_count, base_size = 8, upscale = self.state_shape[1]//8)
-        self.roles_matrices     = torch.from_numpy(self.roles_matrices).to(self.dtype).to(self.device).unsqueeze(1)
-
+        self.episode_steps = torch.zeros((self.n_envs, ), dtype=int)
 
 
         # result loggers
         self.log_rewards_int    = ValuesLogger("rewards_int")
         self.log_loss_ppo       = ValuesLogger("loss_ppo")
-        self.log_loss_diffusion = ValuesLogger("loss_diffusion")
         self.log_loss_im_ssl    = ValuesLogger("loss_im_ssl")
-        self.log_agent_role     = ValuesLogger("agent_role")
+        
+        self.log_loss_fm        = ValuesLogger("loss_fm")
+
+        # initalise log for forward model
+        for n in range(self.prediction_steps):
+            key = "fm_" + str(n) + "_loss"
+            self.log_loss_fm.add(str(key), 0.0)
+
+        for n in range(self.prediction_steps):
+            key = "im_" + str(n) + "_loss"
+            self.log_loss_fm.add(str(key), 0.0)
+
+        for n in range(self.prediction_steps):
+            key = "im_" + str(n) + "_acc"
+            self.log_loss_fm.add(str(key), 0.0)
 
 
         self.saving_enabled = False
@@ -130,7 +129,6 @@ class AgentAetherMindDelta():
         print("eps_clip             ", self.eps_clip)
         print("adv_ext_coeff        ", self.adv_ext_coeff)
         print("adv_int_coeff        ", self.adv_int_coeff)
-        print("role_loss_coeff      ", self.role_loss_coeff)
         print("val_coeff            ", self.val_coeff)
         print("reward_ext_coeff     ", self.reward_ext_coeff)
         print("reward_int_coeff     ", self.reward_int_coeff)
@@ -144,10 +142,9 @@ class AgentAetherMindDelta():
         print("alpha_min            ", self.alpha_min)
         print("alpha_max            ", self.alpha_max)
         print("alpha_inf            ", self.alpha_inf)
-        print("denoising_steps      ", self.denoising_steps)
+        print("prediction_steps     ", self.prediction_steps)
         print("time_distances       ", self.time_distances)
         print("state_normalise      ", self.state_normalise)
-        print("roles_count          ", self.roles_count)
         
         print("\n\n")
         
@@ -160,9 +157,6 @@ class AgentAetherMindDelta():
             self._update_normalisation(states_t, alpha = 0.99)
             states_t = self._state_normalise(states_t)
 
-        # TODO -> add current role to state vector
-        states_t = self._add_role(states_t, self.agent_roles)
-
         # obtain model output, logits and values, use abstract state space z
         logits_t, values_ext_t, values_int_t = self.model.forward(states_t)
 
@@ -171,9 +165,15 @@ class AgentAetherMindDelta():
         # environment step  
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
-        # internal motivaiotn based on diffusion
-        rewards_int, _     = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
-        rewards_int        = rewards_int.float().detach().cpu().numpy()
+        # internal motivation based on diffusion state prediction
+        states_next_t   = torch.from_numpy(states_new).to(self.dtype).to(self.device)
+        if self.state_normalise:
+            states_next_t   = self._state_normalise(states_next_t)
+
+        actions_t       = torch.from_numpy(actions).to(self.device)
+
+        rewards_int     = self._internal_motivation(self.model, states_t, states_next_t, actions_t)
+        rewards_int     = rewards_int.float().detach().cpu().numpy()
 
         rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
 
@@ -186,7 +186,7 @@ class AgentAetherMindDelta():
         # top PPO training part
         if training_enabled:     
             # put trajectory into policy buffer
-            self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext, rewards_int_scaled, dones, self.episode_steps, self.agent_roles)
+            self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext, rewards_int_scaled, dones, self.episode_steps)
 
             # if buffer is full, run training loop
             if self.trajectory_buffer.is_full():
@@ -203,45 +203,15 @@ class AgentAetherMindDelta():
         
         self.episode_steps+= 1
 
-
-        # accumulate reward per episode
-        self.episode_score+= rewards_ext
-
-        # update new max score
-        max_score = numpy.max(self.episode_score)
-        if max_score > 0:
-            if max_score > self.episode_score_max:
-                self.episode_score_max = max_score
-            else:
-                self.episode_score_max*= 0.99   
-
-
-        for i in range(self.n_envs):
-            # agent in starting role
-            if self.agent_roles[i] == 0:
-                # if non zero reward reached (promissing state)
-                # and random prob of alternate role
-                p = self.episode_score[i]/(self.episode_score_max + 1e-6)
-
-                if (rewards_ext[i] > 0) and (numpy.random.rand() < p):
-                    self.agent_roles[i] = 1 + torch.randint(0, self.roles_count)
-
         # reset episode steps counter
         done_idx = numpy.where(dones)[0]
         for i in done_idx:
             self.episode_steps[i]   = 0
-            self.episode_score[i]   = 0
-            self.agent_roles[i]     = 0
-
-        roles_ratio = (self.agent_roles != 0).float().mean()
-
+            
         self.iterations+= 1
      
         self.log_rewards_int.add("mean", rewards_int.mean())
         self.log_rewards_int.add("std",  rewards_int.std())
-        self.log_agent_role.add("score_max", self.episode_score_max)
-        self.log_agent_role.add("roles", roles_ratio.detach().numpy().cpu())
-
         
         return states_new, rewards_ext, dones, infos
     
@@ -261,7 +231,7 @@ class AgentAetherMindDelta():
         # we save total steps*n_envs features (e.g. 128x128)
         z_ppo = []
         z_im  = []
-        z_denoised = []
+        #z_denoised = []
         for n in range(self.steps):
             x = self.trajectory_buffer.states[n]
             x = x.to(device=self.device, dtype=self.dtype)
@@ -275,15 +245,15 @@ class AgentAetherMindDelta():
             z_im.append(z.detach().cpu().float().numpy())
 
             # diffusion prediction
-            noise_hat = self.model.forward_im_diffusion(z)
-            z_hat = z - noise_hat
+            #noise_hat = self.model.forward_im_diffusion(z)
+            #z_hat = z - noise_hat
 
-            z_denoised.append(z_hat.detach().cpu().float().numpy())
+            #z_denoised.append(z_hat.detach().cpu().float().numpy())
 
         # save features as numpy array
         z_ppo = numpy.array(z_ppo)
         z_im  = numpy.array(z_im)
-        z_denoised = numpy.array(z_denoised)
+        #z_denoised = numpy.array(z_denoised)
 
         f_name = self.result_path + "/z_ppo_" + str(self.iterations) + ".npy"
         numpy.save(f_name, z_ppo)
@@ -291,8 +261,8 @@ class AgentAetherMindDelta():
         f_name = self.result_path + "/z_im_" + str(self.iterations) + ".npy"
         numpy.save(f_name, z_im)    
 
-        f_name = self.result_path + "/z_denoised_" + str(self.iterations) + ".npy"
-        numpy.save(f_name, z_denoised)      
+        #f_name = self.result_path + "/z_denoised_" + str(self.iterations) + ".npy"
+        #numpy.save(f_name, z_denoised)      
 
         # save episode steps count
         steps = []
@@ -322,7 +292,7 @@ class AgentAetherMindDelta():
 
         print("z_ppo  ", z_ppo.shape)  
         print("z_im   ", z_im.shape)  
-        print("z_denoised   ", z_denoised.shape)  
+        #print("z_denoised   ", z_denoised.shape)  
         print("steps  ", steps.shape)  
 
         print("features saved\n\n")
@@ -330,7 +300,7 @@ class AgentAetherMindDelta():
      
 
     def get_logs(self):
-        return [self.log_rewards_int, self.log_loss_ppo, self.log_loss_diffusion, self.log_loss_im_ssl, self.log_agent_role]
+        return [self.log_rewards_int, self.log_loss_ppo, self.log_loss_im_ssl, self.log_loss_fm]
 
     def train(self): 
         samples_count = self.steps*self.n_envs
@@ -346,15 +316,9 @@ class AgentAetherMindDelta():
                 # compute main PPO loss
                 loss_ppo = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
 
-                # policy diversity loss
-                states, role_ids = self.trajectory_buffer.sample_roles_batch(self.ss_batch_size, self.device)
-
-                loss_role = self._loss_role(states, role_ids)
-
-                loss = loss_ppo + self.role_loss_coeff*loss_role
-
+             
                 self.optimizer.zero_grad()        
-                loss.backward()
+                loss_ppo.backward()
 
                 # gradient clip for stabilising training
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
@@ -366,29 +330,37 @@ class AgentAetherMindDelta():
         
         #main IM training loop
         for batch_idx in range(batch_count):    
-            #internal motivation loss, MSE diffusion    
-            states_now, _, _, _, _, _  = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
-            _, loss_diffusion  = self._internal_motivation(states_now, self.alpha_min, self.alpha_max, self.denoising_steps)
-
             #self supervised target regularisation
             states_seq, labels = self.trajectory_buffer.sample_states_seq(self.ss_batch_size, self.time_distances, self.device)
             loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_seq, labels)
             
 
-            for key in info_ssl:
-                self.log_loss_im_ssl.add(str(key), info_ssl[key])
 
-            loss = loss_diffusion.mean() + loss_ssl
+            #forward model training, TODO
+            h_steps = numpy.random.randint(1, self.prediction_steps+1)
+            states_traj, actions = self.trajectory_buffer.sample_states_traj(self.ss_batch_size, h_steps, self.device)
+
+            state_0 = states_traj[0]
+            state_h = states_traj[-1]
+            loss_pred, info_fm = self._im_fm_loss(self.model, state_0, state_h, h_steps, actions, self.alpha_min, self.alpha_max)
+            
+            # final IM loss
+            loss = loss_ssl + loss_pred
+
 
             self.optimizer.zero_grad()        
             loss.mean().backward() 
             self.optimizer.step() 
 
             # log results
-            self.log_loss_diffusion.add("mean", loss_diffusion.float().mean().detach().cpu().numpy())
-            self.log_loss_diffusion.add("std", loss_diffusion.float().std().detach().cpu().numpy())
-                
-           
+            for key in info_ssl:
+                self.log_loss_im_ssl.add(str(key), info_ssl[key])
+
+            # log results
+            for key in info_fm:
+                self.log_loss_fm.add(str(key), info_fm[key])
+
+
 
 
     # sample action, probs computed from logits
@@ -402,31 +374,74 @@ class AgentAetherMindDelta():
         return actions
 
 
-    # state denoising ability novely detection
-    def _internal_motivation(self, states, alpha_min, alpha_max, denoising_steps):
-      
-        # obtain taget features from states and noised states
-        z_target  = self.model.forward_im_features(states).detach()
+   
+    def _internal_motivation(self, model, state_curr, state_next, action):
+        # obtain features, initial and terminal
+        z0 = model.forward_im_features(state_curr)
+        zh = model.forward_im_features(state_next)
 
-        # add noise into features
-        z_noised, noise, alpha = self.im_noise(z_target, alpha_min, alpha_max)
+        # obtain prediction
+        zh_pred = model.forward_fm(z0, action)
 
-        z_denoised = z_noised.to(self.dtype).detach().clone()
+        # internal motivation
+        result_im = ((zh - zh_pred)**2).mean(dim=-1)
+
+        return result_im
+
+    def _im_fm_loss(self, model, state_0, state_h, h_steps, actions, alpha_min, alpha_max):
+        # log for loss
+        info = {}
+
+        # obtain features, initial and terminal
+        z0 = model.forward_im_features(state_0).detach()
+        zh = model.forward_im_features(state_h).detach()
+
+        z_curr = z0.detach().clone()
+        # add noise, optional
+        z_curr, noise, alpha = self.im_noise(z_curr, alpha_min, alpha_max)
+
+        # action prediction, classification loss
+        loss_im = 0.0
+        loss_func = torch.nn.CrossEntropyLoss()
+
+        for n in range(h_steps):
+            actions_curr = actions[n]
+
+            # predict next state
+            z_pred = model.forward_fm(z_curr, actions_curr)
+
+            # inverse model
+            # predict action from two consecutive states
+            a_pred = model.forward_im(z_curr, z_pred)
+            
+            loss_im_ = loss_func(a_pred, actions_curr) 
+            loss_im+= loss_im_
+
+            # next step
+            z_curr = z_pred
+
+            # for each step evaluate accuracy 
+            key = "im_" + str(n) + "_acc"
+            acc =  (torch.argmax(a_pred, dim=-1) == actions_curr).float().mean()
+            info[key] = acc.detach().cpu().numpy()
+
+            key = "im_" + str(n) + "_loss"
+            info[key] = loss_im_.detach().cpu().numpy()
+
+        loss_im = loss_im/h_steps
+
+        # state features predicion on final step, MSE loss
+        loss_fm = ((zh - z_curr)**2).mean()
+
+        loss = loss_im + loss_fm
+
+        # add forward model loss to log in corresponding step
+        key = "fm_" + str(h_steps-1) + "_loss"
+        info[key] = loss_fm.detach().cpu().numpy()
+
+        return loss, info
     
-        # denoising by diffusion process
-        for n in range(denoising_steps):
-            noise_hat = self.model.forward_im_diffusion(z_denoised)
-            z_denoised = z_denoised - noise_hat
-
-        # denoising novelty
-        novelty    = ((z_target - z_denoised)**2).mean(dim=1)
-
-        # MSE noise loss prediction
-        noise_pred = z_noised - z_denoised
-        loss = ((noise - noise_pred)**2).mean(dim=1)
-        
-        return novelty.detach(), loss
-
+       
 
 
 
@@ -435,6 +450,7 @@ class AgentAetherMindDelta():
     def _loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
 
         logits_new, values_ext_new, values_int_new  = self.model.forward(states)
+
 
         #critic loss
         loss_critic = self._ppo_critic_loss(values_ext_new, returns_ext, values_int_new, returns_int)
@@ -454,13 +470,16 @@ class AgentAetherMindDelta():
         loss = self.val_coeff*loss_critic + loss_policy + loss_entropy
 
 
+
         self.log_loss_ppo.add("loss_policy",  loss_policy.float().detach().cpu().numpy().item())
         self.log_loss_ppo.add("loss_critic",  loss_critic.float().detach().cpu().numpy().item())
         self.log_loss_ppo.add("loss_entropy", loss_entropy.float().detach().cpu().numpy().item())
 
         return loss
 
-  
+
+        
+
 
     #MSE critic loss
     def _ppo_critic_loss(self, values_ext_new, returns_ext, values_int_new, returns_int):
@@ -512,27 +531,6 @@ class AgentAetherMindDelta():
 
         return loss_policy, loss_entropy
 
-    
-    # policy diversity loss
-    def _loss_role(self, states, role_ids):
-        logits, _, _  = self.model.forward(states)
-
-        # works only with non zero role
-        role_mask = (role_ids != 0).float()
-        role_mask = (role_mask.unsqueeze(0) == role_mask.unsqueeze(1)).float()
-
-        # each by each role IDs similarity mask
-        # ones are on position where are different roles
-        diff_mask = 1 - (role_ids.unsqueeze(0) == role_ids.unsqueeze(1)).float()
-
-        logits_sim = (logits@logits.T)/logits.shape[-1]
-
-        # masking, minimize logits_sim on different roles - makes it orthogonal
-        loss_role = ((role_mask*diff_mask*logits_sim)**2).mean()
-
-        return loss_role
-
-
 
 
     #update running stats when training enabled
@@ -559,21 +557,4 @@ class AgentAetherMindDelta():
 
 
 
-    def _generate_roles_matrices(self, n, base_size = 8, upscale = 12):
 
-        ones_ids    = numpy.random.randint(1, n, (base_size, base_size))
-        result      = numpy.zeros((n, base_size, base_size))
-        rows, cols  = numpy.indices((base_size, base_size))
-
-        result[ones_ids, rows, cols] = 1
-
-        result_up = numpy.repeat(numpy.repeat(result, upscale, axis=1), upscale, axis=2)
-
-        return result_up
-    
-
-    def _add_role(self, states_t, agent_roles):
-        curr_role = self.roles_matrices[agent_roles]
-        result = torch.concatenate([states_t, curr_role], dim=1)
-
-        return result

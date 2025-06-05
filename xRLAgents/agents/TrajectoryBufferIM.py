@@ -18,7 +18,7 @@ class TrajectoryBufferIM:
         print("\n")
     
 
-    def add(self, state, logits, values_ext, values_int, actions, rewards_ext, rewards_int, dones, steps):  
+    def add(self, state, logits, values_ext, values_int, actions, rewards_ext, rewards_int, dones, steps, role_id = None):  
         self.states[self.ptr]       = state.detach().to(dtype=self.dtype, device="cpu").clone() 
         self.logits[self.ptr]       = logits.detach().float().to(device="cpu").clone() 
         
@@ -34,6 +34,9 @@ class TrajectoryBufferIM:
 
         if steps is not None:
             self.steps[self.ptr]   = steps.detach().to(device="cpu").clone()
+
+        if role_id is not None:
+            self.role_ids[self.ptr]   = role_id.detach().to(device="cpu").clone()
         
         self.ptr = self.ptr + 1 
 
@@ -58,6 +61,7 @@ class TrajectoryBufferIM:
 
         self.dones      = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
         self.steps      = torch.zeros((self.buffer_size, self.envs_count, ), dtype=int)
+        self.role_ids   = torch.zeros((self.buffer_size, self.envs_count, ), dtype=int)
 
         self.diffs      = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
 
@@ -89,6 +93,7 @@ class TrajectoryBufferIM:
         self.dones         = self.dones.reshape((self.buffer_size*self.envs_count, ))
         self.steps         = self.steps.reshape((self.buffer_size*self.envs_count, ))
         self.state_labels  = self.state_labels.reshape((self.buffer_size*self.envs_count, ))
+        self.role_ids      = self.role_ids.reshape((self.buffer_size*self.envs_count, ))
 
         self.returns_ext      = self.returns_ext.reshape((self.buffer_size*self.envs_count, ))
         self.advantages_ext   = self.advantages_ext.reshape((self.buffer_size*self.envs_count, ))
@@ -193,6 +198,18 @@ class TrajectoryBufferIM:
 
         return states_result, actions_results
     
+
+    def sample_roles_batch(self, batch_size, device, dtype = None):
+        if dtype is None:
+            dtype = torch.float32
+
+        indices         = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size, ))
+
+        states          = (self.states[indices]).to(dtype=dtype, device=device)
+        role_ids        = (self.role_ids[indices]).to(dtype=dtype, device=device)
+
+        return states, role_ids 
+
 
      
     def _gae(self, rewards, values, dones, gamma, lam):
