@@ -209,7 +209,8 @@ class AgentAetherMindDelta():
         self.episode_score+= rewards_ext
 
         # update new max score
-        max_score = numpy.max(self.episode_score)
+        max_score = torch.max(self.episode_score)
+        print(max_score)
         if max_score > 0:
             if max_score > self.episode_score_max:
                 self.episode_score_max = max_score
