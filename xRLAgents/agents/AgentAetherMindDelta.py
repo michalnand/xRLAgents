@@ -61,6 +61,7 @@ class AgentAetherMindDelta():
         self.state_shape    = list(self.envs.observation_space.shape)
         # add extra channel for agent role
         self.state_shape[0]+= 1
+        self.state_shape    = tuple(self.state_shape)
 
         self.actions_count  = self.envs.action_space.n
 
