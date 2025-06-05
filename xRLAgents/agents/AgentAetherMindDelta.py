@@ -243,7 +243,7 @@ class AgentAetherMindDelta():
         self.log_rewards_int.add("mean", rewards_int.mean())
         self.log_rewards_int.add("std",  rewards_int.std())
         self.log_agent_role.add("score_max", self.episode_score_max)
-        self.log_agent_role.add("roles", roles_ratio.detach().cpu().numpy())
+        self.log_agent_role.add("roles", float(roles_ratio.detach().cpu().numpy()))
 
         
         return states_new, rewards_ext, dones, infos
