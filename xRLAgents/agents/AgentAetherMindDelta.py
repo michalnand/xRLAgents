@@ -228,9 +228,6 @@ class AgentAetherMindDelta():
                 if (rewards_ext[i] > 0) and (numpy.random.rand() < p):
                     self.agent_roles[i] = 1 + torch.randint(0, self.roles_count, (1, ))
 
-                self.agent_roles[i] = 1 + torch.randint(0, self.roles_count, (1, ))
-                print(self.agent_roles[i])
-
         # reset episode steps counter
         done_idx = numpy.where(dones)[0]
         for i in done_idx:
