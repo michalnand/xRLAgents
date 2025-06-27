@@ -44,6 +44,8 @@ class RLLogger:
 
         return result_str
     
+    def get_logs(self):
+        return [self.logs]
 
     def _create_log_files(self, rl_logger, agent_logs, envs_logs):
 
