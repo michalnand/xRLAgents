@@ -62,7 +62,7 @@ class AgentAetherMindGamma():
         self.actions_count  = self.envs.action_space.n
 
         # create mdoel
-        self.model = Model(self.state_shape, self.actions_count)
+        self.model = Model(self.state_shape, self.actions_count, self.num_modes)
         self.model.to(self.device)
         
         self.model = self.model.to(dtype=self.dtype, device="cuda")
