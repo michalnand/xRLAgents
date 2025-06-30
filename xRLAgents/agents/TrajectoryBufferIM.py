@@ -126,7 +126,7 @@ class TrajectoryBufferIM:
         indices         = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size, ))
 
         states          = (self.states[indices]).to(dtype=dtype, device=device)
-        labels          = (self.labels[indices]).to(dtype=dtype, device=device)
+        labels          = (self.labels[indices]).to(device=device)
         logits          = (self.logits[indices]).to(dtype=dtype, device=device)
         
         actions         = (self.actions[indices]).to(device=device)
