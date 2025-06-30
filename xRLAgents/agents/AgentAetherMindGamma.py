@@ -212,7 +212,6 @@ class AgentAetherMindGamma():
         reward_idx = numpy.where(rewards_ext)[0]
         for i in reward_idx:
             self.modes[i] = numpy.random.randint(0, self.num_modes)
-            print("mode chagned to ", i, self.modes[i])
             
         self.iterations+= 1
 
