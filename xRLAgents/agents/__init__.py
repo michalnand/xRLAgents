@@ -2,6 +2,9 @@ from .AgentPPO              import *
 from .AgentPPORNN           import *
 from .AgentPPOContinuous    import *
 
+
+from .AgentPPOModes        import *
+
 from .AgentPPOMultiAgent    import *
 
 from .EnvsList              import *

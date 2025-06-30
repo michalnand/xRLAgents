@@ -6,7 +6,7 @@ from ..training.ValuesLogger           import *
 
 
 
-class AgentAetherMindGamma(): 
+class AgentAetherMindGama(): 
     def __init__(self, envs, Config, Model):
         self.envs = envs
  
@@ -32,7 +32,8 @@ class AgentAetherMindGamma():
         self.adv_int_coeff      = config.adv_int_coeff
         self.val_coeff          = config.val_coeff
         self.reward_ext_coeff   = config.reward_ext_coeff
-        self.reward_int_coeff   = config.reward_int_coeff
+        self.reward_int_a_coeff = config.reward_int_a_coeff
+        self.reward_int_b_coeff = config.reward_int_b_coeff
 
         self.steps              = config.steps
         self.batch_size         = config.batch_size
@@ -47,14 +48,13 @@ class AgentAetherMindGamma():
         self.alpha_max            = config.alpha_max
         self.alpha_inf            = config.alpha_inf
         self.denoising_steps      = config.denoising_steps
-
-        self.exploring_temperature  = config.exploring_temperature
-        self.max_exploring_steps    = config.max_exploring_steps
+        self.num_modes            = config.num_modes
 
         self.time_distances       = config.time_distances
         
         self.state_normalise    = config.state_normalise
 
+    
 
         self.n_envs         = len(envs)
         self.state_shape    = self.envs.observation_space.shape
@@ -73,6 +73,8 @@ class AgentAetherMindGamma():
 
         self.trajectory_buffer = TrajectoryBufferIM(self.steps, self.state_shape, self.actions_count, self.n_envs, self.dtype)
 
+        self.mode_id = numpy.zeros((self.envs_count, ), dtype=int)
+
         # optional, for state mean and variance normalisation
         if self.state_normalise:
             self.state_mean  = torch.zeros((self.state_shape[1], self.state_shape[2]), dtype=self.dtype, device=self.device)
@@ -88,22 +90,20 @@ class AgentAetherMindGamma():
                 state, _ = self.envs.reset(e)
         
         
-        self.episode_steps      = torch.zeros((self.n_envs, ), dtype=int)
-        self.exploring_steps    = torch.zeros((self.n_envs, ), dtype=int)
-        self.agent_state        = numpy.zeros((self.n_envs, ), dtype=int)
-        
-        self.episode_max_score  = 0.0
-        self.episode_score      = numpy.zeros((self.n_envs, ), dtype=numpy.float32)
-        self.temperature        = torch.ones((self.n_envs, ), dtype=torch.float32, device=self.device)
+        self.episode_steps = torch.zeros((self.n_envs, ), dtype=int)
+
 
         # result loggers
         self.log_rewards_int    = ValuesLogger("rewards_int")
         self.log_loss_ppo       = ValuesLogger("loss_ppo")
-        self.log_loss_diffusion = ValuesLogger("loss_diffusion")
+        self.log_loss_im        = ValuesLogger("loss_im")
         self.log_loss_im_ssl    = ValuesLogger("loss_im_ssl")
 
-        self.log_agent_state    = ValuesLogger("agent_state")
-  
+        self.log_modes_acc      = ValuesLogger("modes_acc")
+
+        for n in range(self.n_modes):
+            self.log_modes_acc.add("mode_" + str(n), 0.0)
+        
 
 
         self.saving_enabled = False
@@ -127,7 +127,8 @@ class AgentAetherMindGamma():
         print("adv_int_coeff        ", self.adv_int_coeff)
         print("val_coeff            ", self.val_coeff)
         print("reward_ext_coeff     ", self.reward_ext_coeff)
-        print("reward_int_coeff     ", self.reward_int_coeff)
+        print("reward_int_a_coeff   ", self.reward_int_a_coeff)
+        print("reward_int_b_coeff   ", self.reward_int_b_coeff)
         print("steps                ", self.steps)
         print("batch_size           ", self.batch_size)
         print("ss_batch_size        ", self.ss_batch_size)
@@ -139,10 +140,7 @@ class AgentAetherMindGamma():
         print("alpha_max            ", self.alpha_max)
         print("alpha_inf            ", self.alpha_inf)
         print("denoising_steps      ", self.denoising_steps)
-        print("exploring_temperature ", self.exploring_temperature)
-        print("max_exploring_steps   ", self.max_exploring_steps)
-
-     
+        print("num_modes            ", self.num_modes)
         print("time_distances       ", self.time_distances)
         print("state_normalise      ", self.state_normalise)
         
@@ -152,24 +150,31 @@ class AgentAetherMindGamma():
   
     def step(self, states, training_enabled):     
         states_t = torch.from_numpy(states).to(self.dtype).to(self.device)
+        modes_t  = torch.from_numpy(self.modes).to(self.device)
 
         if self.state_normalise:
             self._update_normalisation(states_t, alpha = 0.99)
             states_t = self._state_normalise(states_t)
 
-        # obtain model output, logits and values, use abstract state space z
-        logits_t, values_ext_t, values_int_t = self.model.forward(states_t)
+        
 
-        actions = self._sample_actions(logits_t, self.temperature)
+        # obtain model output, logits and values, use abstract state space z
+        logits_t, values_ext_t, values_int_t = self.model.forward(states_t, modes_t)
+
+        actions = self._sample_actions(logits_t)
       
         # environment step  
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
         # internal motivaiotn based on diffusion
-        rewards_int, _     = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
-        rewards_int        = rewards_int.float().detach().cpu().numpy()
+        rewards_int_a, rewards_int_b, _, _, pred = self._internal_motivation(states_t, modes_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
+        
 
-        rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
+        rewards_int_a        = rewards_int_a.float().detach().cpu().numpy()
+        rewards_int_b        = rewards_int_b.float().detach().cpu().numpy()
+
+        rewards_int = self.reward_int_a_coeff*rewards_int_a + self.reward_int_b_coeff*rewards_int_b
+        rewards_int_scaled = numpy.clip(rewards_int, 0.0, 1.0)
 
 
         if "room_id" in infos[0]:
@@ -180,7 +185,7 @@ class AgentAetherMindGamma():
         # top PPO training part
         if training_enabled:     
             # put trajectory into policy buffer
-            self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext, rewards_int_scaled, dones, self.episode_steps)
+            self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext, rewards_int_scaled, dones, self.episode_steps, modes_t)
 
             # if buffer is full, run training loop
             if self.trajectory_buffer.is_full():
@@ -197,67 +202,32 @@ class AgentAetherMindGamma():
         
         self.episode_steps+= 1
 
-        # accumulate reward per episode
-        self.episode_score+= rewards_ext
-
-        # update new max score
-        max_score = numpy.max(self.episode_score)
-        if max_score > 0:
-            if max_score > self.episode_max_score:
-                self.episode_max_score = max_score
-            else:
-                self.episode_max_score*= 0.99
-
-        for i in range(self.n_envs):
-            # agent in starting mode
-            if self.agent_state[i] == 0:
-                # if non zero reward reached (promissing state)
-                # and random prob of exploration mode reached
-
-                p = self.episode_score[i]/(self.episode_max_score + 1e-6)
-
-                if (rewards_ext[i] > 0) and (numpy.random.rand() < p):
-                    self.agent_state[i] = 1
-
-                self.temperature[i] = 1.0
-
-            elif self.agent_state[i] == 1:  
-                
-                self.exploring_steps[i]+= 1
-                self.temperature[i] = self.exploring_temperature
-
-                if self.exploring_steps[i] >= self.max_exploring_steps:
-                    self.agent_state[i] = 2
-            
-            else:
-                self.temperature[i] = 1.0
-
-
-                    
-                
-
-
-
         # reset episode steps counter
         done_idx = numpy.where(dones)[0]
         for i in done_idx:
             self.episode_steps[i]   = 0
-            self.episode_score[i]   = 0
+            self.modes[i]           = 0
 
-            self.agent_state[i]     = 0
-            self.exploring_steps[i] = 0
+        # if non zero reward reached, make decission to select random behaviour
+        reward_idx = rewards_ext.where(dones)[0]
+        for i in reward_idx:
+            self.modes[i] = numpy.random.randint(0, self.num_modes)
             
-            self.temperature[i]     = 1.0
-
         self.iterations+= 1
-     
-        self.log_rewards_int.add("mean", rewards_int.mean())
-        self.log_rewards_int.add("std",  rewards_int.std())
 
-        self.log_agent_state.add("score ",  self.episode_max_score)
-        self.log_agent_state.add("s0 ",  (1.0*(self.agent_state == 0)).mean() )
-        self.log_agent_state.add("s1 ",  (1.0*(self.agent_state == 1)).mean() )
-        self.log_agent_state.add("s2 ",  (1.0*(self.agent_state == 2)).mean() )
+        # log internal reward
+        self.log_rewards_int.add("mean_a", rewards_int_a.mean())
+        self.log_rewards_int.add("std_a",  rewards_int_a.std())
+        self.log_rewards_int.add("mean_b", rewards_int_b.mean())
+        self.log_rewards_int.add("std_b",  rewards_int_b.std())
+
+        # log modes prediction accuracies  
+        pred = pred.detach().cpu().numpy()
+        acc  = 1.0*(pred == self.modes)
+       
+        for n in range(self.n_envs):
+            mode_id = self.modes[n]
+            self.log_modes_acc.add("mode_" + str(mode_id), acc[n])
         
         return states_new, rewards_ext, dones, infos
     
@@ -346,7 +316,7 @@ class AgentAetherMindGamma():
      
 
     def get_logs(self):
-        return [self.log_rewards_int, self.log_loss_ppo, self.log_loss_diffusion, self.log_loss_im_ssl, self.log_agent_state]
+        return [self.log_rewards_int, self.log_loss_ppo, self.log_loss_im, self.log_loss_im_ssl, self.log_modes_acc]
 
     def train(self): 
         samples_count = self.steps*self.n_envs
@@ -376,35 +346,35 @@ class AgentAetherMindGamma():
         #main IM training loop
         for batch_idx in range(batch_count):    
             #internal motivation loss, MSE diffusion    
-            states_now, _, _, _, _, _  = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
-            _, loss_diffusion  = self._internal_motivation(states_now, self.alpha_min, self.alpha_max, self.denoising_steps)
+            states_now, _, _, _, _, modes       = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
+            _, _, loss_diffusion, loss_mode, _  = self._internal_motivation(states_now, modes, self.alpha_min, self.alpha_max, self.denoising_steps)
+
 
 
             #self supervised target regularisation
             states_seq, labels = self.trajectory_buffer.sample_states_seq(self.ss_batch_size, self.time_distances, self.device)
             loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_seq, labels)
             
+            loss = loss_diffusion + loss_mode + loss_ssl
 
             for key in info_ssl:
                 self.log_loss_im_ssl.add(str(key), info_ssl[key])
 
-            loss = loss_diffusion.mean() + loss_ssl
 
             self.optimizer.zero_grad()        
             loss.mean().backward() 
             self.optimizer.step() 
 
             # log results
-            self.log_loss_diffusion.add("mean", loss_diffusion.float().mean().detach().cpu().numpy())
-            self.log_loss_diffusion.add("std", loss_diffusion.float().std().detach().cpu().numpy())
+            self.log_loss_im.add("loss_diffusion", loss_diffusion.float().detach().cpu().numpy())
+            self.log_loss_im.add("loss_mode",      loss_mode.float().detach().cpu().numpy())
                 
            
 
 
     # sample action, probs computed from logits
-    def _sample_actions(self, logits, temperature):
+    def _sample_actions(self, logits):
         logits                = logits.to(torch.float32)
-        logits                = logits/(temperature.unsqueeze(1) + 1e-6)
         action_probs_t        = torch.nn.functional.softmax(logits, dim = 1)
         action_distribution_t = torch.distributions.Categorical(action_probs_t)
         action_t              = action_distribution_t.sample()
@@ -414,13 +384,13 @@ class AgentAetherMindGamma():
 
 
     # state denoising ability novely detection
-    def _internal_motivation(self, states, alpha_min, alpha_max, denoising_steps):
+    def _internal_motivation(self, states, modes, alpha_min, alpha_max, denoising_steps):
       
         # obtain taget features from states and noised states
         z_target  = self.model.forward_im_features(states).detach()
 
         # add noise into features
-        z_noised, noise, alpha = self.im_noise(z_target, alpha_min, alpha_max)
+        z_noised, noise, alpha = self.im_noise(z_target.detach(), alpha_min, alpha_max)
 
         z_denoised = z_noised.to(self.dtype).detach().clone()
     
@@ -430,13 +400,29 @@ class AgentAetherMindGamma():
             z_denoised = z_denoised - noise_hat
 
         # denoising novelty
-        novelty    = ((z_target - z_denoised)**2).mean(dim=1)
+        novelty_a    = ((z_target - z_denoised)**2).mean(dim=1)
 
         # MSE noise loss prediction
         noise_pred = z_noised - z_denoised
-        loss = ((noise - noise_pred)**2).mean(dim=1)
-        
-        return novelty.detach(), loss
+        loss_diffusion = ((noise - noise_pred)**2).mean()
+       
+        # mode estimating novelty
+
+        # mode prediction term
+        logits = self.model.forward_im_modes(z_target)
+        loss_mode = torch.nn.functional.cross_entropy(logits, modes)
+
+        # prediction confidence based novelty
+        probs = torch.nn.functional.softmax(logits, dim=1) 
+        novelty_b = probs[torch.arange(len(modes)), modes]
+
+        # accuracy for log
+        pred = torch.argmax(logits, dim=-1)
+      
+        return novelty_a.detach(), novelty_b.detach(), loss_diffusion, loss_mode, pred
+
+
+
 
 
 

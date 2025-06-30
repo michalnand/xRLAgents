@@ -17,8 +17,7 @@ class TrajectoryBufferIM:
         print("logits : ", self.logits.shape)
         print("\n")
     
-
-    def add(self, state, logits, values_ext, values_int, actions, rewards_ext, rewards_int, dones, steps, role_id = None):  
+    def add(self, state, logits, values_ext, values_int, actions, rewards_ext, rewards_int, dones, steps, label = None):  
         self.states[self.ptr]       = state.detach().to(dtype=self.dtype, device="cpu").clone() 
         self.logits[self.ptr]       = logits.detach().float().to(device="cpu").clone() 
         
@@ -35,8 +34,8 @@ class TrajectoryBufferIM:
         if steps is not None:
             self.steps[self.ptr]   = steps.detach().to(device="cpu").clone()
 
-        if role_id is not None:
-            self.role_ids[self.ptr]   = role_id.detach().to(device="cpu").clone()
+        if label is not None:
+            self.labels[self.ptr]   = label.detach().to(device="cpu").clone()
         
         self.ptr = self.ptr + 1 
 
@@ -61,21 +60,17 @@ class TrajectoryBufferIM:
 
         self.dones      = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
         self.steps      = torch.zeros((self.buffer_size, self.envs_count, ), dtype=int)
-        self.role_ids   = torch.zeros((self.buffer_size, self.envs_count, ), dtype=int)
+        
+        self.labels     = torch.zeros((self.buffer_size, self.envs_count, ), dtype=int)
 
-        self.diffs      = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
 
         self.ptr = 0  
  
     def compute_returns(self, gamma_ext, gamma_int, lam = 0.95):
-        #self.state_labels = self._compute_groups()
-        self.state_labels = torch.zeros((self.buffer_size, self.envs_count), dtype=int)
-
         self.returns_ext, self.advantages_ext = self._gae(self.rewards_ext, self.values_ext, self.dones, gamma_ext, lam)
         self.returns_int, self.advantages_int = self._gae(self.rewards_int, self.values_int, self.dones, gamma_int, lam)
         
-        
-        
+      
         #reshape buffer for faster batch sampling
         self.states     = self.states.reshape((self.buffer_size*self.envs_count, ) + self.state_shape)
         self.logits     = self.logits.reshape((self.buffer_size*self.envs_count, self.actions_size))
@@ -90,10 +85,9 @@ class TrajectoryBufferIM:
         self.rewards_int = self.rewards_int.reshape((self.buffer_size*self.envs_count, ))
 
       
-        self.dones         = self.dones.reshape((self.buffer_size*self.envs_count, ))
-        self.steps         = self.steps.reshape((self.buffer_size*self.envs_count, ))
-        self.state_labels  = self.state_labels.reshape((self.buffer_size*self.envs_count, ))
-        self.role_ids      = self.role_ids.reshape((self.buffer_size*self.envs_count, ))
+        self.dones          = self.dones.reshape((self.buffer_size*self.envs_count, ))
+        self.steps          = self.steps.reshape((self.buffer_size*self.envs_count, ))
+        self.labels         = self.labels.reshape((self.buffer_size*self.envs_count, ))
 
         self.returns_ext      = self.returns_ext.reshape((self.buffer_size*self.envs_count, ))
         self.advantages_ext   = self.advantages_ext.reshape((self.buffer_size*self.envs_count, ))
@@ -143,7 +137,7 @@ class TrajectoryBufferIM:
 
         actions          = (self.actions[indices_now]).to(device=device)   
         steps            = (self.steps[indices_now]).to(device=device)   
-        labels           = (self.state_labels[indices_now]).to(device=device)   
+        labels           = (self.labels[indices_now]).to(device=device)   
 
         return states_now, states_next, states_random, actions, steps, labels
     
@@ -165,7 +159,7 @@ class TrajectoryBufferIM:
             indices = torch.clip(indices, 0, count-1)
 
             states = (self.states[indices]).to(dtype=dtype, device=device)
-            labels = (self.state_labels[indices]).to(device=device) 
+            labels = (self.labels[indices]).to(device=device) 
 
             states_result.append(states)
             labels_result.append(labels)
@@ -199,18 +193,6 @@ class TrajectoryBufferIM:
         return states_result, actions_results
     
 
-    def sample_roles_batch(self, batch_size, device, dtype = None):
-        if dtype is None:
-            dtype = torch.float32
-
-        indices         = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size, ))
-
-        states          = (self.states[indices]).to(dtype=dtype, device=device)
-        role_ids        = (self.role_ids[indices]).to(dtype=dtype, device=device)
-
-        return states, role_ids 
-
-
      
     def _gae(self, rewards, values, dones, gamma, lam):
         buffer_size = rewards.shape[0]
@@ -229,93 +211,3 @@ class TrajectoryBufferIM:
             advantages[n]   = last_gae
  
         return returns.to(self.dtype), advantages.to(self.dtype)
-
-    '''
-    def _compute_outliers(self, percentiles = [0.68, 0.95, 0.997]):
-
-        d_res = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
-
-        # substract current - prev state
-        d = (self.states[0:-1, :] - self.states[1:, :])**2
-        d = d.mean(dim=(2, 3, 4))
-        d_res[0:-1, :] = d  
-
-        masks = []
-        for k in percentiles:
-            p = torch.quantile(d_res, k)
-            mask = (d_res > p).float()
-
-            masks.append(mask)
-
-        masks = torch.stack(masks)
-        masks = torch.transpose(masks, 2, 0)
-
-        idx = torch.where(masks[:, :, 2])
-
-        sel = d_res[idx]
-
-        print(d_res.mean(), d_res.std())
-        print(sel.mean(), sel.std())
-        print("\n\n\n")
-
-        return d_res, masks
-    '''
-
-    '''
-    def _compute_outliers(self, percentiles = [0.9, 0.95, 0.997]): 
-        # substract two consenctutive frames
-        d_res = ((self.states[:, :, 0] - self.states[:, :, 1])**2).mean(dim=(2, 3))
-
-        outliers_rank = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.long)
-
-        for i in range(len(percentiles)):
-            # find high difference states and mark them
-            p = torch.quantile(d_res, percentiles[i])
-            m = (i+1)*(d_res > p).long()    
-
-            outliers_rank = torch.maximum(outliers_rank, m)
-
-        return outliers_rank
-    '''
-
-
-    def _compute_groups(self, percentile = 0.9, downsample = 4): 
-        d_res = torch.zeros((self.buffer_size, self.envs_count))
-
-        states = self.states[:, :, 0].unsqueeze(2)
-        for e in range(self.envs_count):        
-            downsampled = torch.nn.functional.avg_pool2d(states[:, e], downsample, stride=downsample)
-            
-            # substract two consenctutive frames
-            diff = downsampled[0:-1] - downsampled[1:]
-            diff = (diff**2).mean(dim=(1, 2, 3))
-            
-            # store difference
-            d_res[0:-1, e] = diff
-        
-
-        # find high difference states and mark them
-        p = torch.quantile(d_res, percentile)
-
-        marks = (d_res > p).long()  
-
-        # for each env create unique starting ID
-        start_groups_ids = (1 + torch.arange(self.envs_count))*self.buffer_size
-        start_groups_ids = start_groups_ids.unsqueeze(0)
-
-        groups = start_groups_ids + marks.long().cumsum(dim=0)
-
-        '''
-        for e in range(self.envs_count):
-            for n in range(self.buffer_size//8):    
-                print(marks[n][e].detach().numpy().item(), end=" ")
-            print()
-            for n in range(self.buffer_size//8):
-                print(groups[n][e].detach().numpy().item(), end=" ")
-            print("\n")
-        
-        print("\n")
-        '''
-
-        return groups   
-    
