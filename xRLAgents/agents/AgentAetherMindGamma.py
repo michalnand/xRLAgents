@@ -400,7 +400,7 @@ class AgentAetherMindGamma():
             z_denoised = z_denoised - noise_hat
 
         # denoising novelty
-        novelty_a    = ((z_target - z_denoised)**2).mean(dim=1)
+        novelty_a = ((z_target - z_denoised)**2).mean(dim=1)
 
         # MSE noise loss prediction
         noise_pred = z_noised - z_denoised
@@ -415,6 +415,8 @@ class AgentAetherMindGamma():
         # prediction confidence based novelty
         probs = torch.nn.functional.softmax(logits, dim=1) 
         novelty_b = probs[torch.arange(len(modes)), modes]
+
+        print(modes.shape, logits.shape, probs.shape, novelty_b.shape, novelty_a.shape)    
 
         # accuracy for log
         pred = torch.argmax(logits, dim=-1)
