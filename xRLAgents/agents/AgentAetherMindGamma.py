@@ -209,7 +209,7 @@ class AgentAetherMindGamma():
             self.modes[i]           = 0
 
         # if non zero reward reached, make decission to select random behaviour
-        reward_idx = rewards_ext.where(dones)[0]
+        reward_idx = numpy.where(rewards_ext)[0]
         for i in reward_idx:
             self.modes[i] = numpy.random.randint(0, self.num_modes)
             
