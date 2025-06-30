@@ -6,7 +6,7 @@ from ..training.ValuesLogger           import *
 
 
 
-class AgentAetherMindGama(): 
+class AgentAetherMindGamma(): 
     def __init__(self, envs, Config, Model):
         self.envs = envs
  
