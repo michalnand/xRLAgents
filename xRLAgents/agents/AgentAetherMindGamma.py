@@ -212,6 +212,7 @@ class AgentAetherMindGamma():
         reward_idx = numpy.where(rewards_ext)[0]
         for i in reward_idx:
             self.modes[i] = numpy.random.randint(0, self.num_modes)
+            print("mode chagned to ", n, self.modes[n])
             
         self.iterations+= 1
 
@@ -228,6 +229,7 @@ class AgentAetherMindGamma():
         for n in range(self.n_envs):
             mode_id = self.modes[n] 
             self.log_modes_acc.add("mode_" + str(mode_id), acc[n])
+            
         
         return states_new, rewards_ext, dones, infos
     
@@ -416,7 +418,6 @@ class AgentAetherMindGamma():
         probs = torch.nn.functional.softmax(logits, dim=1) 
         novelty_b = probs[torch.arange(len(modes)), modes]
 
-        print(modes.shape, logits.shape, probs.shape, novelty_b.shape, novelty_a.shape)    
 
         # accuracy for log
         pred = torch.argmax(logits, dim=-1)
