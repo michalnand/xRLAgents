@@ -72,8 +72,8 @@ class AgentAetherMindGamma():
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
 
         self.trajectory_buffer = TrajectoryBufferIM(self.steps, self.state_shape, self.actions_count, self.n_envs, self.dtype)
-
-        self.mode_id = numpy.zeros((self.envs_count, ), dtype=int)
+        
+        self.mode_id = numpy.zeros((self.n_envs, ), dtype=int)
 
         # optional, for state mean and variance normalisation
         if self.state_normalise:
