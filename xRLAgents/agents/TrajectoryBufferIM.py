@@ -119,6 +119,29 @@ class TrajectoryBufferIM:
         return states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int
     
 
+    def sample_batch_with_labels(self, batch_size, device, dtype = None):
+        if dtype is None:
+            dtype = self.dtype  
+        
+        indices         = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size, ))
+
+        states          = (self.states[indices]).to(dtype=dtype, device=device)
+        labels          = (self.labels[indices]).to(dtype=dtype, device=device)
+        logits          = (self.logits[indices]).to(dtype=dtype, device=device)
+        
+        actions         = (self.actions[indices]).to(device=device)
+         
+        returns_ext     = (self.returns_ext[indices]).to(dtype=dtype, device=device)
+        returns_int     = (self.returns_int[indices]).to(dtype=dtype, device=device)
+
+        advantages_ext  = (self.advantages_ext[indices]).to(dtype=dtype, device=device)
+        advantages_int  = (self.advantages_int[indices]).to(dtype=dtype, device=device)
+
+
+        return states, labels, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int
+    
+
+
     def sample_state_pairs(self, batch_size, device, dtype = None):
         if dtype is None:
             dtype = torch.float32

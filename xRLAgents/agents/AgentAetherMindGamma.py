@@ -327,10 +327,10 @@ class AgentAetherMindGamma():
             for batch_idx in range(batch_count):
                 
                 # sample batch
-                states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.trajectory_buffer.sample_batch(self.batch_size, self.device)
+                states, modes, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.trajectory_buffer.sample_batch_with_labels(self.batch_size, self.device)
                 
                 # compute main PPO loss
-                loss_ppo = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
+                loss_ppo = self._loss_ppo(states, modes, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
 
                 self.optimizer.zero_grad()        
                 loss_ppo.backward()
@@ -429,9 +429,9 @@ class AgentAetherMindGamma():
 
 
     # main PPO loss
-    def _loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
+    def _loss_ppo(self, states, modes, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
 
-        logits_new, values_ext_new, values_int_new  = self.model.forward(states)
+        logits_new, values_ext_new, values_int_new  = self.model.forward(states, modes)
 
 
         #critic loss
