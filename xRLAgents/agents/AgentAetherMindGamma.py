@@ -73,7 +73,7 @@ class AgentAetherMindGamma():
 
         self.trajectory_buffer = TrajectoryBufferIM(self.steps, self.state_shape, self.actions_count, self.n_envs, self.dtype)
 
-        self.mode_id = numpy.zeros((self.n_envs, ), dtype=int)
+        self.modes = numpy.zeros((self.n_envs, ), dtype=int)
 
         # optional, for state mean and variance normalisation
         if self.state_normalise:
@@ -226,7 +226,7 @@ class AgentAetherMindGamma():
         acc  = 1.0*(pred == self.modes)
        
         for n in range(self.n_envs):
-            mode_id = self.modes[n]
+            mode_id = self.modes[n] 
             self.log_modes_acc.add("mode_" + str(mode_id), acc[n])
         
         return states_new, rewards_ext, dones, infos
