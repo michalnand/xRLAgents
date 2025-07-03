@@ -214,7 +214,7 @@ class AgentRolePlay():
         reward_idx = numpy.where(rewards_ext)[0]
         for i in reward_idx:
             self.modes[i] = numpy.random.randint(0, self.num_modes)
-        ''''
+        '''
 
 
         self.iterations+= 1
