@@ -23,4 +23,7 @@ from .AgentAetherMindAlpha  import *
 from .AgentAetherMindBeta   import *
 from .AgentAetherMindGamma  import *
 
+
+from .AgentRolePlay         import *
+
 from .loss_self_supervised  import *
