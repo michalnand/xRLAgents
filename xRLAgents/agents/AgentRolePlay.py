@@ -202,18 +202,21 @@ class AgentRolePlay():
         
         self.episode_steps+= 1
 
-        # reset episode steps counter
+        # reset episode steps counter and select random mode
         done_idx = numpy.where(dones)[0]
         for i in done_idx:
             self.episode_steps[i]   = 0
-            #self.modes[i]           = 0
+            # random modes
             self.modes[i] = numpy.random.randint(0, self.num_modes)
 
+        '''
         # if non zero reward reached, make decission to select random behaviour
         reward_idx = numpy.where(rewards_ext)[0]
         for i in reward_idx:
             self.modes[i] = numpy.random.randint(0, self.num_modes)
-            
+        ''''
+
+
         self.iterations+= 1
 
         # log internal reward
