@@ -36,6 +36,7 @@ class TrajectoryBufferIM:
 
         if label is not None:
             self.labels[self.ptr]   = label.detach().to(device="cpu").clone()
+            print(label)
         
         self.ptr = self.ptr + 1 
 

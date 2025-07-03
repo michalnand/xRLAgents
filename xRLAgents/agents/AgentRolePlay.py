@@ -354,8 +354,8 @@ class AgentRolePlay():
             
 
             #self supervised target regularisation
-            states_seq, labels = self.trajectory_buffer.sample_states_seq(self.ss_batch_size, self.time_distances, self.device)
-            loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_seq, labels)
+            states_seq, modes = self.trajectory_buffer.sample_states_seq(self.ss_batch_size, self.time_distances, self.device)
+            loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_seq, modes)
             
             loss = loss_diffusion + loss_ssl
 
