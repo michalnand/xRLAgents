@@ -206,7 +206,8 @@ class AgentAetherMindGamma():
         done_idx = numpy.where(dones)[0]
         for i in done_idx:
             self.episode_steps[i]   = 0
-            self.modes[i]           = 0
+            #self.modes[i]           = 0
+            self.modes[i] = numpy.random.randint(0, self.num_modes)
 
         # if non zero reward reached, make decission to select random behaviour
         reward_idx = numpy.where(rewards_ext)[0]
@@ -249,6 +250,7 @@ class AgentAetherMindGamma():
         z_ppo = []
         z_im  = []
         z_denoised = []
+        
         for n in range(self.steps):
             x = self.trajectory_buffer.states[n]
             x = x.to(device=self.device, dtype=self.dtype)
