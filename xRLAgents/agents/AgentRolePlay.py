@@ -73,7 +73,7 @@ class AgentRolePlay():
 
         self.trajectory_buffer = TrajectoryBufferIM(self.steps, self.state_shape, self.actions_count, self.n_envs, self.dtype)
 
-        self.modes = numpy.zeros((self.n_envs, ), dtype=int)
+        self.modes = numpy.random.randint(0, self.num_modes, (self.n_envs, ), dtype=int)
 
         # optional, for state mean and variance normalisation
         if self.state_normalise:
