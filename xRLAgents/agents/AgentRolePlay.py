@@ -351,7 +351,7 @@ class AgentRolePlay():
         for batch_idx in range(batch_count):    
             #internal motivation loss, MSE diffusion    
             states_now, _, _, _, _, modes      = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
-            _, _, loss_diffusion, loss_mode, _ = self._internal_motivation(states_now, modes_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
+            _, _, loss_diffusion, loss_mode, _ = self._internal_motivation(states_now, modes, self.alpha_inf, self.alpha_inf, self.denoising_steps)
 
             #self supervised target regularisation
             states_seq, modes = self.trajectory_buffer.sample_states_seq(self.ss_batch_size, self.time_distances, self.device)
