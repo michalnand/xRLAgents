@@ -407,7 +407,7 @@ class AgentRolePlay():
 
         # MSE noise loss prediction
         noise_pred = z_noised - z_denoised
-        loss_diffusion = ((noise - noise_pred)**2).mean(dim=-1)
+        loss_diffusion = ((noise - noise_pred)**2).mean()
        
         # mode estimating novelty
 
@@ -416,7 +416,7 @@ class AgentRolePlay():
         loss_mode = torch.nn.functional.cross_entropy(logits, modes)
 
         # prediction confidence based novelty
-        probs = torch.nn.functional.softmax(logits, dim=1) 
+        probs = torch.nn.functional.softmax(logits, dim=1)  
         novelty_b = probs[torch.arange(len(modes)), modes]
 
 
