@@ -209,13 +209,12 @@ class AgentRolePlay():
             # random modes
             self.modes[i] = numpy.random.randint(0, self.num_modes)
 
-        '''
+        
         # if non zero reward reached, make decission to select random behaviour
         reward_idx = numpy.where(rewards_ext)[0]
         for i in reward_idx:
             self.modes[i] = numpy.random.randint(0, self.num_modes)
-        '''
-
+        
 
         self.iterations+= 1
 
