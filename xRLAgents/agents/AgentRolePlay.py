@@ -96,7 +96,7 @@ class AgentRolePlay():
         # result loggers
         self.log_rewards_int    = ValuesLogger("rewards_int")
         self.log_loss_ppo       = ValuesLogger("loss_ppo")
-        self.log_loss_diffusion = ValuesLogger("loss_diffusion")
+        self.log_loss_im        = ValuesLogger("loss_im")
         self.log_loss_im_ssl    = ValuesLogger("loss_im_ssl")
 
         self.log_modes_acc      = ValuesLogger("modes_acc")
@@ -167,8 +167,7 @@ class AgentRolePlay():
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
         # internal motivaiotn based on diffusion
-        rewards_int_a, rewards_int_b, _, pred = self._internal_motivation(states_t, modes_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
-        
+        rewards_int_a, rewards_int_b, _, _, pred = self._internal_motivation(states_t, modes_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
 
         rewards_int_a        = rewards_int_a.float().detach().cpu().numpy()
         rewards_int_b        = rewards_int_b.float().detach().cpu().numpy()
@@ -321,7 +320,7 @@ class AgentRolePlay():
      
 
     def get_logs(self):
-        return [self.log_rewards_int, self.log_loss_ppo, self.log_loss_diffusion, self.log_loss_im_ssl, self.log_modes_acc]
+        return [self.log_rewards_int, self.log_loss_ppo, self.log_loss_im, self.log_loss_im_ssl, self.log_modes_acc]
 
     def train(self): 
         samples_count = self.steps*self.n_envs
@@ -351,15 +350,14 @@ class AgentRolePlay():
         #main IM training loop
         for batch_idx in range(batch_count):    
             #internal motivation loss, MSE diffusion    
-            states_now, _, _, _, _, modes       = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
-            _, _, loss_diffusion, _  = self._internal_motivation(states_now, modes, self.alpha_min, self.alpha_max, self.denoising_steps)
-            
+            states_now, _, _, _, _, modes      = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
+            _, _, loss_diffusion, loss_mode, _ = self._internal_motivation(states_t, modes_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
 
             #self supervised target regularisation
             states_seq, modes = self.trajectory_buffer.sample_states_seq(self.ss_batch_size, self.time_distances, self.device)
             loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_seq, modes)
             
-            loss = loss_diffusion + loss_ssl
+            loss = loss_diffusion + loss_mode + loss_ssl
 
             for key in info_ssl:
                 self.log_loss_im_ssl.add(str(key), info_ssl[key])
@@ -370,8 +368,8 @@ class AgentRolePlay():
             self.optimizer.step() 
 
             # log results
-            self.log_loss_diffusion.add("mean", loss_diffusion.mean().float().detach().cpu().numpy())
-            self.log_loss_diffusion.add("std", loss_diffusion.std().float().detach().cpu().numpy())
+            self.log_loss_im.add("diffusion", loss_diffusion.float().detach().cpu().numpy())
+            self.log_loss_im.add("mode", loss_mode.float().detach().cpu().numpy())
             
 
            
@@ -415,6 +413,7 @@ class AgentRolePlay():
 
         # mode prediction term
         logits = self.model.forward_im_modes(z_target)
+        loss_mode = torch.nn.functional.cross_entropy(logits, modes)
 
         # prediction confidence based novelty
         probs = torch.nn.functional.softmax(logits, dim=1) 
@@ -424,7 +423,7 @@ class AgentRolePlay():
         # accuracy for log
         pred = torch.argmax(logits, dim=-1)
       
-        return novelty_a.detach(), novelty_b.detach(), loss_diffusion, pred
+        return novelty_a.detach(), novelty_b.detach(), loss_diffusion, loss_mode, pred
 
 
 
