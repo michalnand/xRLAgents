@@ -213,10 +213,10 @@ class RewardsLog(gym.Wrapper):
 
         info["raw_reward"] = reward
 
-        if reward < 0.0:
-            reward = 0.0        
-
-        reward = numpy.log10(1.0 + reward/10.0)
+        if reward > 0.0:
+            reward = numpy.log10(reward*10.0/50.0)
+        else:
+            reward = 0.0
             
         return state, reward, done, truncated, info
 
@@ -286,7 +286,7 @@ def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps
 
 
 
-def WrapperMontezumaB(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
+def WrapperMontezumaScaled(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
     #env = VideoRecorder(env)
     env = NopOpsEnv(env)
     env = StickyActionEnv(env)
