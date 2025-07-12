@@ -49,6 +49,7 @@ class AgentRolePlay():
         self.alpha_inf            = config.alpha_inf
         self.denoising_steps      = config.denoising_steps
         self.num_modes            = config.num_modes
+        self.episodic_modes       = config.episodic_modes
 
         self.time_distances       = config.time_distances
         
@@ -141,6 +142,7 @@ class AgentRolePlay():
         print("alpha_inf            ", self.alpha_inf)
         print("denoising_steps      ", self.denoising_steps)
         print("num_modes            ", self.num_modes)
+        print("episodic_modes       ", self.episodic_modes)
         print("time_distances       ", self.time_distances)
         print("state_normalise      ", self.state_normalise)
         
@@ -201,19 +203,19 @@ class AgentRolePlay():
         
         self.episode_steps+= 1
 
-        # reset episode steps counter and select random mode
+        # reset episode steps counter and select random behaviour mode
         done_idx = numpy.where(dones)[0]
         for i in done_idx:
             self.episode_steps[i]   = 0
-            # random modes
             self.modes[i] = numpy.random.randint(0, self.num_modes)
 
         
-        # if non zero reward reached, make decission to select random behaviour
-        reward_idx = numpy.where(rewards_ext)[0]
-        for i in reward_idx:
-            self.modes[i] = numpy.random.randint(0, self.num_modes)
-        
+        # if non zero reward reached, make decission to select random behaviour mode
+        if self.episodic_modes != True:
+            reward_idx = numpy.where(rewards_ext)[0]
+            for i in reward_idx:
+                self.modes[i] = numpy.random.randint(0, self.num_modes)
+            
 
         self.iterations+= 1
 

@@ -29,6 +29,11 @@ class AgentPPOModes():
         self.num_modes         = config.num_modes
         self.int_reward_coeff   = config.int_reward_coeff
 
+        if hasattr(config, "entropy_scaled"):
+            self.entropy_scaled = config.entropy_scaled
+        else:
+            self.entropy_scaled = False
+
 
         self.envs_count         = len(envs)
         self.state_shape        = self.envs.observation_space.shape
@@ -232,8 +237,13 @@ class AgentPPOModes():
 
 
         probs = torch.nn.functional.softmax(logits, dim=1) 
+        
         reward = probs[torch.arange(len(z)), z]
 
+        if self.entropy_scaled:
+            reward = (reward - reward.mean())/(reward.std() + 1e-8)
+            reward = torch.clip(reward, 0.0, 4.0)
+                 
         pred = torch.argmax(logits, dim=-1)
         acc = (pred == z).float().mean()
 
