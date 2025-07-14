@@ -421,6 +421,8 @@ class AgentRolePlay():
         probs = torch.nn.functional.softmax(logits, dim=1)  
         novelty_b = probs[torch.arange(len(modes)), modes]
 
+        print(novelty_a.shape, novelty_b.shape, loss_diffusion, loss_mode)
+
 
         # accuracy for log
         pred = torch.argmax(logits, dim=-1)
