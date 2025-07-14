@@ -414,14 +414,12 @@ class AgentRolePlay():
         # mode estimating novelty
 
         # mode prediction term
-        logits = self.model.forward_im_modes(z_target)
+        logits = self.model.forward_im_modes(z_target.detach())
         loss_mode = torch.nn.functional.cross_entropy(logits, modes)
 
         # prediction confidence based novelty
         probs = torch.nn.functional.softmax(logits, dim=1)  
         novelty_b = probs[torch.arange(len(modes)), modes]
-
-        print(novelty_a.shape, novelty_b.shape, loss_diffusion, loss_mode)
 
 
         # accuracy for log
