@@ -407,6 +407,7 @@ class AgentRolePlay():
 
         # mode prediction term
         logits = self.model.forward_im_modes(z_target)
+        print(z_target.shape, logits.shape, modes.shape)
         loss_mode = torch.nn.functional.cross_entropy(logits, modes)
 
         # prediction confidence based novelty
