@@ -334,8 +334,6 @@ class AgentRolePlay():
                 # compute main PPO loss
                 loss_ppo = self._loss_ppo(states, modes, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
 
-                print(modes)
-
                 self.optimizer.zero_grad()        
                 loss_ppo.backward()
 
@@ -417,7 +415,7 @@ class AgentRolePlay():
 
         # mode prediction term
         logits = self.model.forward_im_modes(z_target)
-        print(z_target.shape, logits.shape, modes.shape)
+        
         loss_mode = torch.nn.functional.cross_entropy(logits, modes)
 
         # prediction confidence based novelty
