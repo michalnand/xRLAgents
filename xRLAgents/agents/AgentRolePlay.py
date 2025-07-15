@@ -94,7 +94,7 @@ class AgentRolePlay():
         self.episode_steps = torch.zeros((self.n_envs, ), dtype=int)
 
         # start with random modes
-        self.modes = numpy.random.randint(0, self.num_modes, (self.num_modes, ))
+        self.modes = numpy.random.randint(0, self.num_modes, (self.n_envs, ))
 
 
         # result loggers
@@ -202,6 +202,14 @@ class AgentRolePlay():
         done_idx = numpy.where(dones)[0]
         for i in done_idx:
             self.episode_steps[i]   = 0
+            self.modes[i] = numpy.random.randint(0, self.num_modes)
+
+
+        # if non zero reward reached, make decission to select random behaviour mode
+        if self.episodic_modes != True:
+            reward_idx = numpy.where(rewards_ext)[0]
+            for i in reward_idx:
+                self.modes[i] = numpy.random.randint(0, self.num_modes)
             
         self.iterations+= 1
      
