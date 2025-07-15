@@ -173,6 +173,8 @@ class AgentRolePlay():
         rewards_int         = self.reward_int_a_coeff*rewards_int_a + self.reward_int_b_coeff*rewards_int_b
         rewards_int_scaled  = numpy.clip(rewards_int, 0.0, 1.0)
 
+        print(rewards_int_scaled)
+
 
         if "room_id" in infos[0]:
             resp = self._process_room_ids(infos)
@@ -348,8 +350,8 @@ class AgentRolePlay():
         #main IM training loop
         for batch_idx in range(batch_count):    
             #internal motivation loss, MSE diffusion    
-            states_now, _, _, _, _, modes  = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
-            _, _, loss_diffusion, loss_mode, acc = self._internal_motivation(states_now, modes, self.alpha_min, self.alpha_max, self.denoising_steps)
+            states_now, _, _, _, _, modes       = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
+            _, _, loss_diffusion, loss_mode, _  = self._internal_motivation(states_now, modes, self.alpha_min, self.alpha_max, self.denoising_steps)
 
             #self supervised target regularisation
             states_seq, labels = self.trajectory_buffer.sample_states_seq(self.ss_batch_size, self.time_distances, self.device)
