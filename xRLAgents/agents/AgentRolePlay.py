@@ -334,6 +334,7 @@ class AgentRolePlay():
                 # compute main PPO loss
                 loss_ppo = self._loss_ppo(states, modes, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
 
+                print(modes)
 
                 self.optimizer.zero_grad()        
                 loss_ppo.backward()

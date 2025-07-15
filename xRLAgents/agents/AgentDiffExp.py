@@ -295,7 +295,6 @@ class AgentDiffExp():
                 # compute main PPO loss
                 loss_ppo = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
 
-                print(logits)
                 self.optimizer.zero_grad()        
                 loss_ppo.backward()
 
