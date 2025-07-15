@@ -166,11 +166,12 @@ class AgentRolePlay():
 
         # internal motivation based on diffusion and modes
         rewards_int_a, rewards_int_b, _, _, pred = self._internal_motivation(states_t, modes_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
+
+        rewards_int_a       = rewards_int_a.float().detach().cpu().numpy()
+        rewards_int_b       = rewards_int_b.float().detach().cpu().numpy()
         
         rewards_int         = self.reward_int_a_coeff*rewards_int_a + self.reward_int_b_coeff*rewards_int_b
-        
         rewards_int_scaled  = numpy.clip(rewards_int, 0.0, 1.0)
-        rewards_int_scaled  = rewards_int_scaled.float().detach().cpu().numpy()
 
 
         if "room_id" in infos[0]:
