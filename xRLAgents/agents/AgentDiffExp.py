@@ -52,6 +52,11 @@ class AgentDiffExp():
         
         self.state_normalise    = config.state_normalise
 
+        if hasattr(config, "im_normalise"):
+            self.im_normalise = config.im_normalise
+        else:
+            self.im_normalise = False
+
        
         self.n_envs         = len(envs)
         self.state_shape    = self.envs.observation_space.shape
@@ -130,6 +135,7 @@ class AgentDiffExp():
         print("denoising_steps      ", self.denoising_steps)
         print("time_distances       ", self.time_distances)
         print("state_normalise      ", self.state_normalise)
+        print("im_normalise         ", self.im_normalise)
         
         print("\n\n")
         
@@ -154,7 +160,11 @@ class AgentDiffExp():
         rewards_int, _     = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
         rewards_int        = rewards_int.float().detach().cpu().numpy()
 
-        rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
+        if self.im_normalise:
+            rewards_int_norm    = (rewards_int - rewards_int.mean())/(rewards_int.std() + 1e-6)
+            rewards_int_scaled  = numpy.clip(self.reward_int_coeff*rewards_int_norm, -4.0, 4.0)
+        else:
+            rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
 
 
         if "room_id" in infos[0]:
