@@ -202,8 +202,7 @@ class AgentDiffExp():
 
                     self.model.im_diffusion.init_weights()
                     print("reseting model at ", tmp, self.episode_counter.mean())
-        
-        self.model.im_diffusion.init_weights()
+
                 
         self.iterations+= 1
      
