@@ -52,10 +52,10 @@ class AgentDiffExp():
         
         self.state_normalise    = config.state_normalise
 
-        if hasattr(config, "im_normalise"):
-            self.im_normalise = config.im_normalise
+        if hasattr(config, "episodic_reset"):
+            self.episodic_reset = config.episodic_reset
         else:
-            self.im_normalise = False
+            self.episodic_reset = 0
 
        
         self.n_envs         = len(envs)
@@ -90,7 +90,8 @@ class AgentDiffExp():
                 state, _ = self.envs.reset(e)
         
         
-        self.episode_steps = torch.zeros((self.n_envs, ), dtype=int)
+        self.episode_steps   = torch.zeros((self.n_envs, ), dtype=int)
+        self.episode_counter = numpy.zeros((self.n_envs, ), dtype=int)
 
 
         # result loggers
@@ -135,7 +136,7 @@ class AgentDiffExp():
         print("denoising_steps      ", self.denoising_steps)
         print("time_distances       ", self.time_distances)
         print("state_normalise      ", self.state_normalise)
-        print("im_normalise         ", self.im_normalise)
+        print("episodic_reset       ", self.episodic_reset)
         
         print("\n\n")
         
@@ -195,8 +196,17 @@ class AgentDiffExp():
         # reset episode steps counter
         done_idx = numpy.where(dones)[0]
         for i in done_idx:
+            self.episode_counter[i]+= 1
             self.episode_steps[i]   = 0
-            
+
+            if self.episodic_reset > 0:
+                tmp = int(self.episode_counter.max())
+
+                if (tmp%self.episodic_reset) == 0:
+
+                    self.model.im_diffusion.init_weights()
+                    print("reseting model at ", tmp, self.episode_counter.mean())
+                
         self.iterations+= 1
      
         self.log_rewards_int.add("mean", rewards_int.mean())
