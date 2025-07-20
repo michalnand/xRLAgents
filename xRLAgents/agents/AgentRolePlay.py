@@ -32,9 +32,7 @@ class AgentRolePlay():
         self.adv_int_coeff      = config.adv_int_coeff
         self.val_coeff          = config.val_coeff
         self.reward_ext_coeff   = config.reward_ext_coeff
-        self.reward_int_a_coeff = config.reward_int_a_coeff
-        self.reward_int_b_coeff = config.reward_int_b_coeff
-
+        self.reward_int_coeff   = config.reward_int_coeff
 
         self.steps              = config.steps
         self.batch_size         = config.batch_size
@@ -49,14 +47,14 @@ class AgentRolePlay():
         self.alpha_max            = config.alpha_max
         self.alpha_inf            = config.alpha_inf
         self.denoising_steps      = config.denoising_steps
-
-        self.num_modes              = config.num_modes
-        self.episodic_modes         = config.episodic_modes
-
+        self.num_modes            = config.num_modes
+        self.diversity_coeff      = config.diversity_coeff
 
         self.time_distances       = config.time_distances
         
         self.state_normalise    = config.state_normalise
+        
+
 
        
         self.n_envs         = len(envs)
@@ -65,7 +63,7 @@ class AgentRolePlay():
         self.actions_count  = self.envs.action_space.n
 
         # create mdoel
-        self.model = Model(self.state_shape, self.actions_count, self.num_modes)
+        self.model = Model(self.state_shape, self.actions_count)
         self.model.to(self.device)
         
         self.model = self.model.to(dtype=self.dtype, device="cuda")
@@ -89,25 +87,25 @@ class AgentRolePlay():
         else:
             for e in range(self.n_envs):
                 state, _ = self.envs.reset(e)
+                
+        self.episode_steps      = torch.zeros((self.n_envs, ), dtype=int)
         
+        self.episode_score_curr = numpy.zeros((self.n_envs, ))
+        self.episode_score      = numpy.zeros((self.n_envs, ))
+        self.episode_max_score  = 0.0
+
+        self.modes           = numpy.random.zeros((self.n_envs, ), dtype=int)
         
-        self.episode_steps = torch.zeros((self.n_envs, ), dtype=int)
-
-        # start with random modes
-        self.modes = numpy.random.randint(0, self.num_modes, (self.n_envs, ))
-
-
         # result loggers
         self.log_rewards_int    = ValuesLogger("rewards_int")
         self.log_loss_ppo       = ValuesLogger("loss_ppo")
-        self.log_loss_im        = ValuesLogger("loss_im")
+        self.log_loss_diffusion = ValuesLogger("loss_diffusion")
         self.log_loss_im_ssl    = ValuesLogger("loss_im_ssl")
-        self.log_modes_acc      = ValuesLogger("modes_acc")
 
 
-        self.saving_enabled = False
-        self.iterations = 0
-        self.room_ids = []
+        self.saving_enabled     = False
+        self.iterations         = 0
+        self.room_ids           = []
 
         # print parameters summary
         print("\n\n\n\n")
@@ -126,8 +124,7 @@ class AgentRolePlay():
         print("adv_int_coeff        ", self.adv_int_coeff)
         print("val_coeff            ", self.val_coeff)
         print("reward_ext_coeff     ", self.reward_ext_coeff)
-        print("reward_int_a_coeff   ", self.reward_int_a_coeff)
-        print("reward_int_b_coeff   ", self.reward_int_b_coeff)
+        print("reward_int_coeff     ", self.reward_int_coeff)
         print("steps                ", self.steps)
         print("batch_size           ", self.batch_size)
         print("ss_batch_size        ", self.ss_batch_size)
@@ -140,9 +137,8 @@ class AgentRolePlay():
         print("alpha_inf            ", self.alpha_inf)
         print("denoising_steps      ", self.denoising_steps)
         print("time_distances       ", self.time_distances)
-        print("num_modes            ", self.num_modes)  
-        print("episodic_modes       ", self.episodic_modes)
         print("state_normalise      ", self.state_normalise)
+        print("num_modes            ", self.num_modes)
         
         print("\n\n")
         
@@ -164,21 +160,18 @@ class AgentRolePlay():
         # environment step  
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
-        # internal motivation based on diffusion and modes
-        rewards_int_a, rewards_int_b, _, _, pred = self._internal_motivation(states_t, modes_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
+        # internal motivation based on diffusion
+        rewards_int, _     = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
+        rewards_int        = rewards_int.float().detach().cpu().numpy()
 
-        rewards_int_a       = rewards_int_a.float().detach().cpu().numpy()
-        rewards_int_b       = rewards_int_b.float().detach().cpu().numpy()
+        rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
+
         
-        rewards_int_scaled  = numpy.clip(self.reward_int_a_coeff*rewards_int_a + self.reward_int_b_coeff*rewards_int_b, 0.0, 1.0)
-
-
-
         if "room_id" in infos[0]:
             resp = self._process_room_ids(infos)
             self.room_ids.append(resp)
 
-        
+            
         # top PPO training part
         if training_enabled:     
             # put trajectory into policy buffer
@@ -199,37 +192,36 @@ class AgentRolePlay():
         
         self.episode_steps+= 1
 
+        # accumulate episode score
+        self.episode_score_curr+= rewards_ext
+
         # reset episode steps counter
+        # estimate episode score and score max
         done_idx = numpy.where(dones)[0]
         for i in done_idx:
-            self.episode_steps[i]   = 0
-            self.modes[i] = numpy.random.randint(0, self.num_modes)
+            self.episode_steps[i]       = 0
+            self.episode_score[i]       = float(self.episode_score_curr[i])
+            self.episode_score_curr[i]  = 0.0
 
+            self.modes[i]               = 0
 
-        # if non zero reward reached, make decission to select random behaviour mode
-        if self.episodic_modes != True:
-            reward_idx = numpy.where(rewards_ext)[0]
-            for i in reward_idx:
-                self.modes[i] = numpy.random.randint(0, self.num_modes)
-            
+        k = 0.9
+        self.episode_max_score  = k*self.episode_max_score + (1.0 - k)*numpy.max(self.episode_score)
+
+        # non zero reward reached, choose new mode
+        reward_idx = numpy.where(rewards_ext)[0]
+        for i in reward_idx:
+            p = self.episode_score[i]/(self.episode_max_score + 1e-6)
+            if numpy.random.rand() < p:
+                self.modes[i] = numpy.random.randint(self.num_modes)
+
+      
+
         self.iterations+= 1
+
      
-
-        # log internal reward
-        self.log_rewards_int.add("mean_a", rewards_int_a.mean())
-        self.log_rewards_int.add("std_a",  rewards_int_a.std())
-        self.log_rewards_int.add("mean_b", rewards_int_b.mean())
-        self.log_rewards_int.add("std_b",  rewards_int_b.std())
-
-        # log modes prediction accuracies  
-        pred = pred.detach().cpu().numpy()
-        acc  = 1.0*(pred == self.modes)
-       
-        for n in range(self.n_envs):    
-            mode_id = self.modes[n] 
-            self.log_modes_acc.add("mode_" + str(mode_id), acc[n])
-
-            
+        self.log_rewards_int.add("mean", rewards_int.mean())
+        self.log_rewards_int.add("std",  rewards_int.std())
         
         return states_new, rewards_ext, dones, infos
     
@@ -318,7 +310,7 @@ class AgentRolePlay():
      
 
     def get_logs(self):
-        return [self.log_rewards_int, self.log_loss_ppo, self.log_loss_im, self.log_loss_im_ssl, self.log_modes_acc]
+        return [self.log_rewards_int, self.log_loss_ppo, self.log_loss_diffusion, self.log_loss_im_ssl]
 
     def train(self): 
         samples_count = self.steps*self.n_envs
@@ -330,12 +322,16 @@ class AgentRolePlay():
                 
                 # sample batch
                 states, modes, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.trajectory_buffer.sample_batch_with_labels(self.batch_size, self.device)
-
+                
                 # compute main PPO loss
                 loss_ppo = self._loss_ppo(states, modes, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
 
+                loss_diversity = self._loss_diversity(states)
+
+                loss = loss_ppo + self.diversity_coeff*loss_diversity
+
                 self.optimizer.zero_grad()        
-                loss_ppo.backward()
+                loss.backward()
 
                 # gradient clip for stabilising training
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
@@ -348,14 +344,15 @@ class AgentRolePlay():
         #main IM training loop
         for batch_idx in range(batch_count):    
             #internal motivation loss, MSE diffusion    
-            states_now, _, _, _, _, modes       = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
-            _, _, loss_diffusion, loss_mode, _  = self._internal_motivation(states_now, modes, self.alpha_min, self.alpha_max, self.denoising_steps)
+            states_now, _, _, _, _, _  = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
+            _, loss_diffusion  = self._internal_motivation(states_now, self.alpha_min, self.alpha_max, self.denoising_steps)
+
 
             #self supervised target regularisation
             states_seq, labels = self.trajectory_buffer.sample_states_seq(self.ss_batch_size, self.time_distances, self.device)
             loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_seq, labels)
             
-            loss = loss_diffusion + loss_mode + loss_ssl
+            loss = loss_diffusion + loss_ssl
 
             for key in info_ssl:
                 self.log_loss_im_ssl.add(str(key), info_ssl[key])
@@ -366,8 +363,7 @@ class AgentRolePlay():
             self.optimizer.step() 
 
             # log results
-            self.log_loss_im.add("loss_diffusion", loss_diffusion.float().detach().cpu().numpy())
-            self.log_loss_im.add("loss_mode",      loss_mode.float().detach().cpu().numpy())
+            self.log_loss_diffusion.add("loss_diffusion", loss_diffusion.float().detach().cpu().numpy())
                 
            
 
@@ -384,13 +380,10 @@ class AgentRolePlay():
 
 
     # state denoising ability novely detection
-    #rewards_int_a, rewards_int_b, _, _, _ = 
-    def _internal_motivation(self, states, modes, alpha_min, alpha_max, denoising_steps):
+    def _internal_motivation(self, states, alpha_min, alpha_max, denoising_steps):
       
         # obtain taget features from states and noised states
         z_target  = self.model.forward_im_features(states).detach()
-
-        # diffusion novelty detection 
 
         # add noise into features
         z_noised, noise, alpha = self.im_noise(z_target, alpha_min, alpha_max)
@@ -403,30 +396,13 @@ class AgentRolePlay():
             z_denoised = z_denoised - noise_hat
 
         # denoising novelty
-        novelty_a    = ((z_target - z_denoised)**2).mean(dim=1)
+        novelty    = ((z_target - z_denoised)**2).mean(dim=1)
 
         # MSE noise loss prediction
         noise_pred = z_noised - z_denoised
-        loss_diffusion = ((noise - noise_pred)**2).mean()
-
-
-
-        # modes diversity novelty detection
-
-        # mode prediction term
-        logits = self.model.forward_im_modes(z_target)
+        loss = ((noise - noise_pred)**2).mean()
         
-        loss_mode = torch.nn.functional.cross_entropy(logits, modes)
-
-        # prediction confidence based novelty
-        probs = torch.nn.functional.softmax(logits, dim=-1)  
-        novelty_b = probs[torch.arange(len(modes)), modes]
-
-        # accuracy for log
-        pred = torch.argmax(logits, dim=-1)
-      
-        
-        return novelty_a.detach(), novelty_b.detach(), loss_diffusion, loss_mode, pred
+        return novelty.detach(), loss
 
 
 
@@ -436,7 +412,6 @@ class AgentRolePlay():
     def _loss_ppo(self, states, modes, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
 
         logits_new, values_ext_new, values_int_new  = self.model.forward(states, modes)
-
 
         #critic loss
         loss_critic = self._ppo_critic_loss(values_ext_new, returns_ext, values_int_new, returns_int)
@@ -451,11 +426,8 @@ class AgentRolePlay():
         #PPO main actor loss
         loss_policy, loss_entropy = self._ppo_actor_loss(logits, logits_new, advantages_norm, actions, self.eps_clip, self.entropy_beta)
 
-
         #total loss
         loss = self.val_coeff*loss_critic + loss_policy + loss_entropy
-
-
 
         self.log_loss_ppo.add("loss_policy",  loss_policy.float().detach().cpu().numpy().item())
         self.log_loss_ppo.add("loss_critic",  loss_critic.float().detach().cpu().numpy().item())
@@ -517,6 +489,43 @@ class AgentRolePlay():
 
         return loss_policy, loss_entropy
 
+
+    def _loss_diversity(self, states):
+        z = self.model.forward_ppo_features(states)
+        z = z.detach()
+
+        logits_all = []
+        for n in range(self.num_modes):
+            modes = n*torch.ones((z.shape[0], ), dtype=int, device=self.device)
+
+            # logits_curr.shape = (batch_size, num_actions)
+            logits, _, _ = self.model.forward_ppo_actor_critic(z, modes)
+
+            # dont modify mode 0
+            if n == 0:
+                logits = logits.detach()
+
+            logits_all.append(logits)
+
+         # logits_other.shape = (num_modes-1, batch_size, num_actions)
+        logits_all = torch.stack(logits_all)
+        logits_all = torch.nn.functional.normalize(logits_all, p=2, dim=-1)
+
+        logits_all = logits_all.transpose(1, 0)
+
+        # tmp_a.shape = (batch_size, num_modes-1, num_actions)
+        # tmp_b.shape = (batch_size, num_actions, num_modes-1)
+        tmp_a = logits_all.transpose(1, 0)
+        tmp_b = tmp_a.transpose(1, 2)
+
+        # ensure modes diversity    
+        # loss_diversity = (batch_size, num_modes-1, num_modes-1)
+        loss_diversity = torch.bmm(tmp_a, tmp_b)
+        loss_diversity = loss_diversity.mean()
+
+
+        return loss_diversity
+        
 
 
     #update running stats when training enabled
