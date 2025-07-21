@@ -168,6 +168,9 @@ class AgentCuriousExplorers():
     def step(self, states, training_enabled):     
         states_t = torch.from_numpy(states).to(self.dtype).to(self.device)
 
+        batch_size = states_t.shape[1]  
+        batch_indices = torch.arange(batch_size)
+
         if self.state_normalise:
             self._update_normalisation(states_t, alpha = 0.99)
             states_t = self._state_normalise(states_t)
@@ -188,9 +191,7 @@ class AgentCuriousExplorers():
         # rewards_int.shape = (n_explorers, batch_size)
         rewards_int        = rewards_int.float().detach().cpu().numpy()
 
-        batch_size = self.explorer_id.shape[0]
-        batch_indices = torch.arange(batch_size)
-
+        
         # select corresponding novelty  
         rewards_int_tmp = rewards_int[self.explorer_id, batch_indices]  
 
