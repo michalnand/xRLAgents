@@ -125,6 +125,7 @@ class AgentCuriousExplorers():
         self.log_loss_ppo       = ValuesLogger("loss_ppo")
         self.log_loss_diffusion = ValuesLogger("loss_diffusion")
         self.log_loss_im_ssl    = ValuesLogger("loss_im_ssl")
+        self.log_modes          = ValuesLogger("modes")
 
 
         self.saving_enabled = False
@@ -249,6 +250,10 @@ class AgentCuriousExplorers():
         for n in range(self.num_explorers): 
             self.log_rewards_int.add("mean_" + str(n), rewards_int[n, :].mean())
             self.log_rewards_int.add("std_" + str(n),  rewards_int[n, :].std())
+
+
+        self.log_modes.add("mean", numpy.mean(self.explorer_id))
+        self.log_modes.add("std",  numpy.std(self.explorer_id))
         
         return states_new, rewards_ext, dones, infos
     
@@ -337,7 +342,7 @@ class AgentCuriousExplorers():
      
 
     def get_logs(self):
-        return [self.log_rewards_int, self.log_loss_ppo, self.log_loss_diffusion, self.log_loss_im_ssl]
+        return [self.log_rewards_int, self.log_loss_ppo, self.log_loss_diffusion, self.log_loss_im_ssl, self.log_modes]
 
     def train(self): 
         samples_count = self.steps*self.n_envs
