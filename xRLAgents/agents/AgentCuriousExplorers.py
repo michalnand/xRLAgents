@@ -13,6 +13,9 @@ class EpisodeScore:
 
         self.k = k
 
+    def __call__(self, rewards, dones):
+        return self.step(rewards, dones)
+
     def step(self, rewards, dones):
         self.episode_score_curr+= rewards
 
