@@ -373,9 +373,14 @@ class AgentCuriousExplorers():
             states_now, _, _, _, _, explorer_ids  = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
             _, loss_diffusion  = self._internal_motivation(states_now, self.alpha_min, self.alpha_max, self.denoising_steps)
 
+            loss_diffusion = loss_diffusion[explorer_ids, torch.arange(self.ss_batch_size)]
+
             print("training ", loss_diffusion.shape)
             print("explorer_ids ", explorer_ids.shape)
-            print(explorer_ids)
+            print(loss_diffusion)
+
+
+            loss_diffusion = loss_diffusion.mean()
 
             #self supervised target regularisation
             states_seq, labels = self.trajectory_buffer.sample_states_seq(self.ss_batch_size, self.time_distances, self.device)
