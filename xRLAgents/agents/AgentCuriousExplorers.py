@@ -404,9 +404,8 @@ class AgentCuriousExplorers():
     # state denoising ability novely detection
     def _internal_motivation(self, states, alpha_min, alpha_max, denoising_steps):      
         # obtain taget features from states and noised states
-        # z_target.shape = (batch_size, num_explorers, num_features)
+        # z_target.shape = (num_explorers, batch_size, num_features)
         z_target  = self.model.forward_im_features(states).detach()
-
 
         # add noise into features
         z_noised, noise, alpha = self.im_noise(z_target, alpha_min, alpha_max)
@@ -419,11 +418,11 @@ class AgentCuriousExplorers():
             z_denoised = z_denoised - noise_hat
 
         # denoising novelty
+        # novelty.shape = (num_explorers, batch_size)
         novelty    = ((z_target - z_denoised)**2).mean(dim=-1)
 
-      
-
         # MSE noise loss prediction
+        # loss.shape = (num_explorers, batch_size)
         noise_pred = z_noised - z_denoised
         loss = ((noise - noise_pred)**2).mean(dim=-1)
 
@@ -435,7 +434,7 @@ class AgentCuriousExplorers():
         print("z_denoised ", z_denoised.shape)
         print("novelty    ", novelty.shape)
         print("loss       ", loss.shape)
-        print("\n\n")
+        print("\n")
         
         return novelty.detach(), loss
 
