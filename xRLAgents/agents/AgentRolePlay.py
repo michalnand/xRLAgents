@@ -94,7 +94,7 @@ class AgentRolePlay():
         self.episode_score      = numpy.zeros((self.n_envs, ))
         self.episode_max_score  = 0.0
 
-        self.modes           = numpy.random.zeros((self.n_envs, ), dtype=int)
+        self.modes           = numpy.zeros((self.n_envs, ), dtype=int)
         
         # result loggers
         self.log_rewards_int    = ValuesLogger("rewards_int")
