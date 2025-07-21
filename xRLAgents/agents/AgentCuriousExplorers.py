@@ -421,6 +421,10 @@ class AgentCuriousExplorers():
 
         # denoising novelty
         novelty    = ((z_target - z_denoised)**2).mean(dim=-1)
+
+        print("z_noised   ", z_noised.shape)
+        print("z_denoised ", z_denoised.shape)
+        print("novelty    ", novelty.shape)
                 
         # MSE noise loss prediction
         noise_pred = z_noised - z_denoised
