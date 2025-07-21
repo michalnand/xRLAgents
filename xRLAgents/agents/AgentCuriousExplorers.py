@@ -405,6 +405,8 @@ class AgentCuriousExplorers():
         # z_target.shape = (batch_size, num_explorers, num_features)
         z_target  = self.model.forward_im_features(states).detach()
 
+        print("z_target ", z_target.shape)
+
         # add noise into features
         z_noised, noise, alpha = self.im_noise(z_target, alpha_min, alpha_max)
 
