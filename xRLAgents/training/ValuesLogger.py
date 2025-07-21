@@ -24,7 +24,12 @@ class ValuesLogger:
         result = "" 
 
         for index, (key, value) in enumerate(self.values.items()):
-            s = str(round(value, decimals)) + ", "
+            try:
+                s = str(round(value, decimals)) + ", "
+            except:
+                print("error conversion ", key, "\n", value)
+                raise TypeError("Only floats are allowed")
+
             result+= s
 
         result = result[:-2]
