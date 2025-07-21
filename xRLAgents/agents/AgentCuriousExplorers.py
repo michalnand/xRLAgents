@@ -113,7 +113,8 @@ class AgentCuriousExplorers():
         self.episode_steps      = torch.zeros((self.n_envs, ), dtype=int)
 
         self.episode_score  = EpisodeScore(self.n_envs)
-        self.explorer_id    = numpy.zeros((self.n_envs, ), dtype=int)
+        #self.explorer_id    = numpy.zeros((self.n_envs, ), dtype=int)
+        self.explorer_id    = numpy.random.randint(0, self.num_explorers, (self.n_envs, ), dtype=int)
        
 
         # result loggers
@@ -190,8 +191,8 @@ class AgentCuriousExplorers():
         batch_size = self.explorer_id.shape[0]
         batch_indices = torch.arange(batch_size)
 
-        # select corresponding novelty
-        rewards_int_tmp = rewards_int[batch_indices, self.explorer_id]  
+        # select corresponding novelty  
+        rewards_int_tmp = rewards_int[self.explorer_id, batch_indices]  
 
         print("rewards_int ", rewards_int.shape, rewards_int_tmp.shape)
 
@@ -243,7 +244,7 @@ class AgentCuriousExplorers():
         self.iterations+= 1
 
         # log internal reward
-        for n in range(self.num_explorers):
+        for n in range(self.num_explorers): 
             self.log_rewards_int.add("mean_" + str(n), rewards_int[n, :].mean())
             self.log_rewards_int.add("std_" + str(n),  rewards_int[n, :].std())
         
