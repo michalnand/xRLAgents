@@ -375,11 +375,6 @@ class AgentCuriousExplorers():
 
             loss_diffusion = loss_diffusion[explorer_ids, torch.arange(self.ss_batch_size)]
 
-            print("training ", loss_diffusion.shape)
-            print("explorer_ids ", explorer_ids.shape)
-            print(loss_diffusion)
-
-
             loss_diffusion = loss_diffusion.mean()
 
             #self supervised target regularisation
@@ -438,7 +433,7 @@ class AgentCuriousExplorers():
         noise_pred = z_noised - z_denoised
         loss = ((noise - noise_pred)**2).mean(dim=-1)
 
-
+        '''
         print("_internal_motivation")
         print("z_target   ", z_target.shape)
         print("noise      ", noise.shape)
@@ -447,6 +442,7 @@ class AgentCuriousExplorers():
         print("novelty    ", novelty.shape)
         print("loss       ", loss.shape)
         print("\n")
+        '''
         
         return novelty.detach(), loss
 
@@ -566,3 +562,4 @@ class AgentCuriousExplorers():
 
 
 
+    
