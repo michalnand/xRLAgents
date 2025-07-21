@@ -424,6 +424,7 @@ class AgentCuriousExplorers():
 
         print("z_noised   ", z_noised.shape)
         print("z_denoised ", z_denoised.shape)
+        print("noise      ", noise.shape)
         print("novelty    ", novelty.shape)
                 
         # MSE noise loss prediction
