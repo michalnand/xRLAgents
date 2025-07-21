@@ -24,7 +24,8 @@ from .AgentAetherMindBeta   import *
 from .AgentAetherMindGamma  import *
 
 
-from .AgentDiffExp          import *
-from .AgentRolePlay         import *
+from .AgentDiffExp              import *
+from .AgentCuriousExplorers     import *
+from .AgentRolePlay             import *
 
 from .loss_self_supervised  import *
