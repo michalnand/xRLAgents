@@ -116,8 +116,8 @@ class AgentCuriousExplorers():
         self.episode_steps      = torch.zeros((self.n_envs, ), dtype=int)
 
         self.episode_score  = EpisodeScore(self.n_envs)
-        #self.explorer_id    = numpy.zeros((self.n_envs, ), dtype=int)
-        self.explorer_id    = numpy.random.randint(0, self.num_explorers, (self.n_envs, ), dtype=int)
+        self.explorer_id    = numpy.zeros((self.n_envs, ), dtype=int)
+        #self.explorer_id    = numpy.random.randint(0, self.num_explorers, (self.n_envs, ), dtype=int)
        
 
         # result loggers
