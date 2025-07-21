@@ -191,7 +191,7 @@ class AgentCuriousExplorers():
         # rewards_int.shape = (n_explorers, batch_size)
         rewards_int        = rewards_int.float().detach().cpu().numpy()
 
-        
+        print(rewards_int.shape, self.explorer_id, batch_indices)
         # select corresponding novelty  
         rewards_int_tmp = rewards_int[self.explorer_id, batch_indices]  
 
