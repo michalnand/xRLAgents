@@ -168,7 +168,7 @@ class AgentCuriousExplorers():
     def step(self, states, training_enabled):     
         states_t = torch.from_numpy(states).to(self.dtype).to(self.device)
 
-        batch_size = states_t.shape[1]  
+        batch_size    = states_t.shape[0]  
         batch_indices = torch.arange(batch_size)
 
         if self.state_normalise:
