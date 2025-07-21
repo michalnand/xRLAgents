@@ -247,12 +247,11 @@ class AgentCuriousExplorers():
 
         self.iterations+= 1
 
-        '''
+        
         # log internal reward
         for n in range(self.num_explorers): 
             self.log_rewards_int.add("mean_" + str(n), rewards_int[n, :].mean())
             self.log_rewards_int.add("std_" + str(n),  rewards_int[n, :].std())
-        '''
         
         return states_new, rewards_ext, dones, infos
     
@@ -371,9 +370,12 @@ class AgentCuriousExplorers():
         #main IM training loop
         for batch_idx in range(batch_count):    
             #internal motivation loss, MSE diffusion    
-            states_now, _, _, _, _, _  = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
+            states_now, _, _, _, _, explorer_ids  = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
             _, loss_diffusion  = self._internal_motivation(states_now, self.alpha_min, self.alpha_max, self.denoising_steps)
 
+            print("training ", loss_diffusion.shape)
+            print("explorer_ids ", explorer_ids.shape)
+            print(explorer_ids)
 
             #self supervised target regularisation
             states_seq, labels = self.trajectory_buffer.sample_states_seq(self.ss_batch_size, self.time_distances, self.device)
