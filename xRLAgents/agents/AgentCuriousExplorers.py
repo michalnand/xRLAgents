@@ -407,7 +407,6 @@ class AgentCuriousExplorers():
         # z_target.shape = (batch_size, num_explorers, num_features)
         z_target  = self.model.forward_im_features(states).detach()
 
-        print("z_target ", z_target.shape)
 
         # add noise into features
         z_noised, noise, alpha = self.im_noise(z_target, alpha_min, alpha_max)
@@ -422,11 +421,14 @@ class AgentCuriousExplorers():
         # denoising novelty
         novelty    = ((z_target - z_denoised)**2).mean(dim=-1)
 
+        print("_internal_motivation")
+        print("z_target   ", z_target.shape)
+        print("noise      ", noise.shape)
         print("z_noised   ", z_noised.shape)
         print("z_denoised ", z_denoised.shape)
-        print("noise      ", noise.shape)
         print("novelty    ", novelty.shape)
-                
+        print("\n\n")
+
         # MSE noise loss prediction
         noise_pred = z_noised - z_denoised
         loss = ((noise - noise_pred)**2).mean(dim=-1)
