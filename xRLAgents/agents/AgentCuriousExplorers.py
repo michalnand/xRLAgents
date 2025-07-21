@@ -247,10 +247,12 @@ class AgentCuriousExplorers():
 
         self.iterations+= 1
 
+        '''
         # log internal reward
         for n in range(self.num_explorers): 
             self.log_rewards_int.add("mean_" + str(n), rewards_int[n, :].mean())
             self.log_rewards_int.add("std_" + str(n),  rewards_int[n, :].std())
+        '''
         
         return states_new, rewards_ext, dones, infos
     
