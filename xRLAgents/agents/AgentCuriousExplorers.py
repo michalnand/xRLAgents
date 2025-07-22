@@ -262,7 +262,7 @@ class AgentCuriousExplorers():
         explorer_id_stats = []
 
         for n in range(self.num_explorers):
-            v = numpy.sum((explorer_id_stats == n))
+            v = numpy.sum((self.explorer_id == n))
             explorer_id_stats.append(v)
         
         explorer_id_stats = numpy.array(explorer_id_stats)
