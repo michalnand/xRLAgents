@@ -116,7 +116,7 @@ class AgentCuriousExplorers():
         self.episode_steps      = torch.zeros((self.n_envs, ), dtype=int)
 
         self.episode_score  = EpisodeScore(self.n_envs)
-        self.explorer_id    = numpy.zeros((self.n_envs, ), dtype=int)
+        #self.explorer_id    = numpy.zeros((self.n_envs, ), dtype=int)
         #self.explorer_id    = numpy.random.randint(0, self.num_explorers, (self.n_envs, ), dtype=int)
        
 
@@ -195,6 +195,11 @@ class AgentCuriousExplorers():
         # rewards_int.shape = (n_explorers, batch_size)
         rewards_int        = rewards_int.float().detach().cpu().numpy()
 
+        k = 0.9
+        rewards_int_stats = k*rewards_int_stats + (1.0 - k)*rewards_int
+
+        self.explorer_id  = numpy.argmax(rewards_int_stats, axis=0)
+
         # select corresponding novelty  
         rewards_int_tmp = rewards_int[self.explorer_id, batch_indices]  
 
@@ -230,11 +235,12 @@ class AgentCuriousExplorers():
         done_idx = numpy.where(dones)[0]
         for i in done_idx:
             self.episode_steps[i]   = 0
-            self.explorer_id[i]     = 0
+            #self.explorer_id[i]     = 0
 
 
         episode_score, episode_score_max = self.episode_score(rewards_ext, dones)
 
+        '''
         # non zero reward reached
         # chose new random explorer head
         rewards_idx = numpy.where(rewards_ext)[0]
@@ -242,19 +248,29 @@ class AgentCuriousExplorers():
             p = episode_score[i]/(episode_score_max + 1e-6)
             if numpy.random.rand() < p:
                 self.explorer_id[i] = numpy.random.randint(0, self.num_explorers)
+        '''
+
 
         self.iterations+= 1
 
-        
         # log internal reward
         for n in range(self.num_explorers): 
             self.log_rewards_int.add("mean_" + str(n), rewards_int[n, :].mean())
             self.log_rewards_int.add("std_" + str(n),  rewards_int[n, :].std())
 
+        explorer_id_stats = []
 
-        self.log_modes.add("mean", numpy.mean(self.explorer_id))
-        self.log_modes.add("std",  numpy.std(self.explorer_id))
+        for n in range(self.num_explorers):
+            v = numpy.sum((explorer_id_stats == n))
+            explorer_id_stats.append(v)
         
+        explorer_id_stats = numpy.array(explorer_id_stats)
+        explorer_id_stats = explorer_id_stats/(explorer_id_stats.sum() + 1e-6)
+
+        for n in range(self.num_explorers):
+            self.log_modes.add("explorer_" + str(n), explorer_id_stats[n])
+        
+
         return states_new, rewards_ext, dones, infos
     
 
