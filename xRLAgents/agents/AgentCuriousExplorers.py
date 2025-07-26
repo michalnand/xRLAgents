@@ -116,7 +116,8 @@ class AgentCuriousExplorers():
         self.episode_steps      = torch.zeros((self.n_envs, ), dtype=int)
 
         self.episode_score  = EpisodeScore(self.n_envs)
-        #self.explorer_id    = numpy.zeros((self.n_envs, ), dtype=int)
+        
+        self.explorer_id    = numpy.zeros((self.n_envs, ), dtype=int)
         #self.explorer_id    = numpy.random.randint(0, self.num_explorers, (self.n_envs, ), dtype=int)
 
         self.rewards_int_stats = numpy.zeros((self.num_explorers, self.n_envs), dtype=numpy.float32)
@@ -199,8 +200,6 @@ class AgentCuriousExplorers():
         k = 0.9
         self.rewards_int_stats = k*self.rewards_int_stats + (1.0 - k)*rewards_int
 
-        self.explorer_id  = numpy.argmax(self.rewards_int_stats, axis=0)
-
         # select corresponding novelty  
         rewards_int_tmp = rewards_int[self.explorer_id, batch_indices]  
 
@@ -236,12 +235,11 @@ class AgentCuriousExplorers():
         done_idx = numpy.where(dones)[0]
         for i in done_idx:
             self.episode_steps[i]   = 0
-            #self.explorer_id[i]     = 0
-
-
-        episode_score, episode_score_max = self.episode_score(rewards_ext, dones)
+            self.explorer_id[i]     = 0
 
         '''
+        episode_score, episode_score_max = self.episode_score(rewards_ext, dones)
+
         # non zero reward reached
         # chose new random explorer head
         rewards_idx = numpy.where(rewards_ext)[0]
@@ -250,7 +248,6 @@ class AgentCuriousExplorers():
             if numpy.random.rand() < p:
                 self.explorer_id[i] = numpy.random.randint(0, self.num_explorers)
         '''
-
 
         self.iterations+= 1
 
