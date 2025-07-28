@@ -234,7 +234,7 @@ class AgentCuriousExplorers():
             self.episode_steps[i]   = 0
             self.explorer_id[i]     = 0
 
-        '''
+        
         episode_score, episode_score_max = self.episode_score(rewards_ext, dones)
 
         # non zero reward reached
@@ -244,7 +244,7 @@ class AgentCuriousExplorers():
             p = episode_score[i]/(episode_score_max + 1e-6)
             if numpy.random.rand() < p:
                 self.explorer_id[i] = numpy.random.randint(0, self.num_explorers)
-        '''
+        
 
         self.iterations+= 1
 
