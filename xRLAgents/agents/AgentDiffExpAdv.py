@@ -4,9 +4,10 @@ import numpy
 from .TrajectoryBufferIM  import *
 from ..training.ValuesLogger           import *
 
+from .isolation_forest import *
 
 
-class AgentAetherMindAlpha(): 
+class AgentDiffExpAdv(): 
     def __init__(self, envs, Config, Model):
         self.envs = envs
  
@@ -32,7 +33,8 @@ class AgentAetherMindAlpha():
         self.adv_int_coeff      = config.adv_int_coeff
         self.val_coeff          = config.val_coeff
         self.reward_ext_coeff   = config.reward_ext_coeff
-        self.reward_int_coeff   = config.reward_int_coeff
+        self.reward_int_a_coeff = config.reward_int_a_coeff
+        self.reward_int_b_coeff = config.reward_int_b_coeff
 
         self.steps              = config.steps
         self.batch_size         = config.batch_size
@@ -47,11 +49,21 @@ class AgentAetherMindAlpha():
         self.alpha_max            = config.alpha_max
         self.alpha_inf            = config.alpha_inf
         self.denoising_steps      = config.denoising_steps
+
+        self.forest_max_depth     = config.forest_max_depth
+        self.forest_trees_count   = config.forest_trees_count
+        
+
+        self.time_distances       = config.time_distances
         
         self.state_normalise    = config.state_normalise
 
+        if hasattr(config, "reset_steps"):
+            self.reset_steps = config.reset_steps
+        else:
+            self.reset_steps = 0
 
-
+       
         self.n_envs         = len(envs)
         self.state_shape    = self.envs.observation_space.shape
 
@@ -84,7 +96,7 @@ class AgentAetherMindAlpha():
                 state, _ = self.envs.reset(e)
         
         
-        self.episode_steps = torch.zeros((self.n_envs, ), dtype=int)
+        self.episode_steps   = torch.zeros((self.n_envs, ), dtype=int)
 
 
         # result loggers
@@ -92,6 +104,12 @@ class AgentAetherMindAlpha():
         self.log_loss_ppo       = ValuesLogger("loss_ppo")
         self.log_loss_diffusion = ValuesLogger("loss_diffusion")
         self.log_loss_im_ssl    = ValuesLogger("loss_im_ssl")
+
+
+        self.log_rewards_int.add("mean_a", 0.0)
+        self.log_rewards_int.add("std_a",  0.0)
+        self.log_rewards_int.add("mean_b", 0.0)
+        self.log_rewards_int.add("std_b",  0.0)
 
 
         self.saving_enabled = False
@@ -115,7 +133,8 @@ class AgentAetherMindAlpha():
         print("adv_int_coeff        ", self.adv_int_coeff)
         print("val_coeff            ", self.val_coeff)
         print("reward_ext_coeff     ", self.reward_ext_coeff)
-        print("reward_int_coeff     ", self.reward_int_coeff)
+        print("reward_int_a_coeff   ", self.reward_int_a_coeff)
+        print("reward_int_b_coeff   ", self.reward_int_b_coeff)
         print("steps                ", self.steps)
         print("batch_size           ", self.batch_size)
         print("ss_batch_size        ", self.ss_batch_size)
@@ -127,8 +146,13 @@ class AgentAetherMindAlpha():
         print("alpha_max            ", self.alpha_max)
         print("alpha_inf            ", self.alpha_inf)
         print("denoising_steps      ", self.denoising_steps)
+        print("time_distances       ", self.time_distances)
         print("state_normalise      ", self.state_normalise)
-        
+        print("reset_steps          ", self.reset_steps)
+
+        print("forest_max_depth     ", self.forest_max_depth)
+        print("forest_trees_count   ", self.forest_trees_count)
+
         print("\n\n")
         
      
@@ -148,13 +172,14 @@ class AgentAetherMindAlpha():
         # environment step  
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
-        # internal motivaiotn based on diffusion
-        rewards_int, _     = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
-        rewards_int        = rewards_int.float().detach().cpu().numpy()
+        # internal motivation based on diffusion
+        rewards_int_a, _, z  = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
+        rewards_int_a        = rewards_int_a.float().detach().cpu().numpy()
 
-        rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
+        rewards_int_a_scaled = numpy.clip(self.reward_int_a_coeff*rewards_int_a, 0.0, 1.0)
 
-
+        self.z_features.append(z.detach().cpu().numpy())
+        
         if "room_id" in infos[0]:
             resp = self._process_room_ids(infos)
             self.room_ids.append(resp)
@@ -163,7 +188,7 @@ class AgentAetherMindAlpha():
         # top PPO training part
         if training_enabled:     
             # put trajectory into policy buffer
-            self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext, rewards_int_scaled, dones, self.episode_steps)
+            self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext, rewards_int_a_scaled, dones, self.episode_steps)
 
             # if buffer is full, run training loop
             if self.trajectory_buffer.is_full():
@@ -171,11 +196,24 @@ class AgentAetherMindAlpha():
                     self.save_features()
                     self.saving_enabled = False
 
+                # compute episodic IM
+                rewards_int_b = self._episodic_internal_motivation(self.z_features)
+                rewards_int_b_scaled = numpy.clip(self.reward_int_b_coeff*rewards_int_b, 0.0, 1.0)
+
+                self.z_features = []
+
+                self.trajectory_buffer.rewards_int+= torch.from_numpy(rewards_int_b_scaled).float()
+
+                self.log_rewards_int.add("mean_b", rewards_int_b.mean())
+                self.log_rewards_int.add("std_b",  rewards_int_b.std())
+
                 self.trajectory_buffer.compute_returns(self.gamma_ext, self.gamma_int)
                 
                 self.train()
 
                 self.trajectory_buffer.clear()
+        else:
+            self.z_features = []
 
         
         self.episode_steps+= 1
@@ -184,11 +222,17 @@ class AgentAetherMindAlpha():
         done_idx = numpy.where(dones)[0]
         for i in done_idx:
             self.episode_steps[i]   = 0
-            
+
+        if self.reset_steps > 0:
+            if (self.iterations%self.reset_steps) == 0:
+                self.model.im_diffusion.init_weights()  
+                print("reseting model at ", self.iterations, "\n")
+
+
         self.iterations+= 1
      
-        self.log_rewards_int.add("mean", rewards_int.mean())
-        self.log_rewards_int.add("std",  rewards_int.std())
+        self.log_rewards_int.add("mean_a", rewards_int_a.mean())
+        self.log_rewards_int.add("std_a",  rewards_int_a.std())
         
         return states_new, rewards_ext, dones, infos
     
@@ -308,30 +352,27 @@ class AgentAetherMindAlpha():
         for batch_idx in range(batch_count):    
             #internal motivation loss, MSE diffusion    
             states_now, _, _, _, _, _  = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
-            _, loss_diffusion  = self._internal_motivation(states_now, self.alpha_min, self.alpha_max, self.denoising_steps)
+            _, loss_diffusion, _ = self._internal_motivation(states_now, self.alpha_min, self.alpha_max, self.denoising_steps)
 
 
             #self supervised target regularisation
-            states_now, states_next, states_random, actions, steps, labels = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
-            loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_now, states_next, states_random, actions, steps, labels)
-
+            states_seq, labels = self.trajectory_buffer.sample_states_seq(self.ss_batch_size, self.time_distances, self.device)
+            loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_seq, labels)
             
-            #final IM loss
-            loss_im = loss_diffusion.mean() + loss_ssl
+            loss = loss_diffusion + loss_ssl
 
-
-            self.optimizer.zero_grad()        
-            loss_im.mean().backward() 
-            self.optimizer.step() 
-
-            # log results
-            self.log_loss_diffusion.add("mean", loss_diffusion.float().mean().detach().cpu().numpy())
-            self.log_loss_diffusion.add("std", loss_diffusion.float().std().detach().cpu().numpy())
-                
             for key in info_ssl:
                 self.log_loss_im_ssl.add(str(key), info_ssl[key])
 
 
+            self.optimizer.zero_grad()        
+            loss.mean().backward() 
+            self.optimizer.step() 
+
+            # log results
+            self.log_loss_diffusion.add("loss_diffusion", loss_diffusion.float().detach().cpu().numpy())
+                
+           
 
 
     # sample action, probs computed from logits
@@ -366,11 +407,27 @@ class AgentAetherMindAlpha():
 
         # MSE noise loss prediction
         noise_pred = z_noised - z_denoised
-        loss = ((noise - noise_pred)**2).mean(dim=1)
+        loss = ((noise - noise_pred)**2).mean()
         
-        return novelty.detach(), loss
+        return novelty.detach(), loss, z_target
 
 
+    def _episodic_internal_motivation(self, z):
+        z = numpy.array(z)
+
+        n_steps = z.shape[0]
+        n_envs  = z.shape[1]
+        n_features = z.shape[2]
+
+        z = numpy.reshape(z, (n_steps*n_envs, n_features))
+
+        forest = IsolationForest()
+        _, scores = forest.fit(z, self.forest_max_depth, self.forest_trees_count)
+
+        scores = numpy.reshape(scores, (n_steps, n_envs))
+        scores = numpy.array(scores, dtype=numpy.float32)
+
+        return scores
 
 
 
