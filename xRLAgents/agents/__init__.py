@@ -14,6 +14,5 @@ from .AgentPPOSND           import *
 from .AgentDiffExp              import *
 from .AgentDiffExpAdv           import *
 from .AgentCuriousExplorers     import *
-from .AgentRolePlay             import *
 
 from .loss_self_supervised  import *
