@@ -116,6 +116,8 @@ class AgentDiffExpAdv():
         self.iterations = 0
         self.room_ids = []
 
+        self.z_features = []
+
         # print parameters summary
         print("\n\n\n\n")
 
