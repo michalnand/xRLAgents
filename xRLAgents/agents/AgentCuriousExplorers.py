@@ -391,7 +391,7 @@ class AgentCuriousExplorers():
             states_seq, labels = self.trajectory_buffer.sample_states_seq(self.ss_batch_size, self.time_distances, self.device)
             loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_seq, labels)
             
-            loss = loss_diffusion.mean + loss_modes + loss_ssl
+            loss = loss_diffusion.mean() + loss_modes.mean() + loss_ssl
 
             for key in info_ssl:
                 self.log_loss_im_ssl.add(str(key), info_ssl[key])
