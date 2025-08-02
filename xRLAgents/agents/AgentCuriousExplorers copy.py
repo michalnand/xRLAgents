@@ -54,12 +54,11 @@ class AgentCuriousExplorers():
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip
         
-        self.adv_ext_coeff          = config.adv_ext_coeff
-        self.adv_int_coeff          = config.adv_int_coeff
-        self.val_coeff              = config.val_coeff
-        self.reward_ext_coeff       = config.reward_ext_coeff
-        self.reward_int_a_coeff     = config.reward_int_a_coeff
-        self.reward_int_b_coeff     = config.reward_int_b_coeff
+        self.adv_ext_coeff      = config.adv_ext_coeff
+        self.adv_int_coeff      = config.adv_int_coeff
+        self.val_coeff          = config.val_coeff
+        self.reward_ext_coeff   = config.reward_ext_coeff
+        self.reward_int_coeff   = config.reward_int_coeff
 
         self.steps              = config.steps
         self.batch_size         = config.batch_size
@@ -76,7 +75,7 @@ class AgentCuriousExplorers():
         self.denoising_steps      = config.denoising_steps
 
         self.time_distances       = config.time_distances
-        self.num_modes            = config.num_modes
+        self.num_explorers        = config.num_explorers
         
         self.state_normalise    = config.state_normalise
 
@@ -88,7 +87,7 @@ class AgentCuriousExplorers():
         self.actions_count  = self.envs.action_space.n
 
         # create mdoel
-        self.model = Model(self.state_shape, self.actions_count, self.num_modes)
+        self.model = Model(self.state_shape, self.actions_count, self.num_explorers)
         self.model.to(self.device)
         
         self.model = self.model.to(dtype=self.dtype, device="cuda")
@@ -118,8 +117,8 @@ class AgentCuriousExplorers():
 
         self.episode_score  = EpisodeScore(self.n_envs)
         
-
-        self.modes_id    = numpy.zeros((self.n_envs, ), dtype=int)
+        self.explorer_id    = numpy.zeros((self.n_envs, ), dtype=int)
+        #self.explorer_id    = numpy.random.randint(0, self.num_explorers, (self.n_envs, ), dtype=int)
 
 
         # result loggers
@@ -151,8 +150,7 @@ class AgentCuriousExplorers():
         print("adv_int_coeff        ", self.adv_int_coeff)
         print("val_coeff            ", self.val_coeff)
         print("reward_ext_coeff     ", self.reward_ext_coeff)
-        print("reward_int_a_coeff   ", self.reward_int_a_coeff)
-        print("reward_int_b_coeff   ", self.reward_int_b_coeff)
+        print("reward_int_coeff     ", self.reward_int_coeff)
         print("steps                ", self.steps)
         print("batch_size           ", self.batch_size)
         print("ss_batch_size        ", self.ss_batch_size)
@@ -165,7 +163,7 @@ class AgentCuriousExplorers():
         print("alpha_inf            ", self.alpha_inf)
         print("denoising_steps      ", self.denoising_steps)
         print("time_distances       ", self.time_distances)
-        print("num_modes            ", self.num_modes)
+        print("num_explorers        ", self.num_explorers)
         print("state_normalise      ", self.state_normalise)
         
         print("\n\n")
@@ -173,8 +171,7 @@ class AgentCuriousExplorers():
      
   
     def step(self, states, training_enabled):     
-        states_t    = torch.from_numpy(states).to(self.dtype).to(self.device)
-        modes_id_t  = torch.from_numpy(self.modes_id).to(self.device)
+        states_t = torch.from_numpy(states).to(self.dtype).to(self.device)
 
         batch_size    = states_t.shape[0]  
         batch_indices = torch.arange(batch_size)
@@ -184,7 +181,7 @@ class AgentCuriousExplorers():
             states_t = self._state_normalise(states_t)
 
         # obtain model output, logits and values, use abstract state space z
-        logits_t, values_ext_t, values_int_t = self.model.forward(states_t, modes_id_t)
+        logits_t, values_ext_t, values_int_t = self.model.forward(states_t)
 
         actions = self._sample_actions(logits_t)
       
@@ -192,14 +189,18 @@ class AgentCuriousExplorers():
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
         # internal motivation based on diffusion
-        rewards_int_a, rewards_int_b, _ = self._internal_motivation(states_t, modes_id_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
+        rewards_int, _  = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
         
 
-        # compute final novelty
-        rewards_int_a  = rewards_int_a.float().detach().cpu().numpy()
-        rewards_int_b  = rewards_int_b.float().detach().cpu().numpy()
- 
-        rewards_int_scaled = numpy.clip(self.reward_int_a_coeff*rewards_int_a + self.reward_int_b_coeff*rewards_int_b, -1.0, 1.0)
+        # select corresponding novelty rewards on explorer head ID
+        # rewards_int.shape = (n_explorers, batch_size)
+        rewards_int        = rewards_int.float().detach().cpu().numpy()
+
+        
+        # select corresponding novelty  
+        rewards_int_tmp = rewards_int[self.explorer_id, batch_indices]  
+
+        rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int_tmp, 0.0, 1.0)
 
         
         if "room_id" in infos[0]:
@@ -210,7 +211,7 @@ class AgentCuriousExplorers():
         # top PPO training part
         if training_enabled:     
             # put trajectory into policy buffer
-            self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext, rewards_int_scaled, dones, self.episode_steps, torch.from_numpy(self.modes_id))
+            self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext, rewards_int_scaled, dones, self.episode_steps, torch.from_numpy(self.explorer_id))
 
             # if buffer is full, run training loop
             if self.trajectory_buffer.is_full():
@@ -231,7 +232,7 @@ class AgentCuriousExplorers():
         done_idx = numpy.where(dones)[0]
         for i in done_idx:
             self.episode_steps[i]   = 0
-            self.modes_id[i]        = 0
+            self.explorer_id[i]     = 0
 
         
         episode_score, episode_score_max = self.episode_score(rewards_ext, dones)
@@ -242,28 +243,27 @@ class AgentCuriousExplorers():
         for i in rewards_idx:
             p = episode_score[i]/(episode_score_max + 1e-6)
             if numpy.random.rand() < p:
-                self.modes_id[i] = numpy.random.randint(0, self.num_modes)
+                self.explorer_id[i] = numpy.random.randint(0, self.num_explorers)
         
 
         self.iterations+= 1
 
         # log internal reward
-        self.log_rewards_int.add("mean_a", rewards_int_a.mean())
-        self.log_rewards_int.add("std_a",  rewards_int_a.std()) 
-        self.log_rewards_int.add("mean_b", rewards_int_b.mean())
-        self.log_rewards_int.add("std_b",  rewards_int_b.std())
+        for n in range(self.num_explorers): 
+            self.log_rewards_int.add("mean_" + str(n), rewards_int[n, :].mean())
+            self.log_rewards_int.add("std_" + str(n),  rewards_int[n, :].std())
 
         explorer_id_stats = []
 
-        for n in range(self.num_modes):
-            v = numpy.sum((self.modes_id == n))
+        for n in range(self.num_explorers):
+            v = numpy.sum((self.explorer_id == n))
             explorer_id_stats.append(v)
         
         explorer_id_stats = numpy.array(explorer_id_stats)
         explorer_id_stats = explorer_id_stats/(explorer_id_stats.sum() + 1e-6)
 
-        for n in range(self.num_modes):
-            self.log_modes.add("mode_" + str(n), explorer_id_stats[n])
+        for n in range(self.num_explorers):
+            self.log_modes.add("explorer_" + str(n), explorer_id_stats[n])
         
 
         return states_new, rewards_ext, dones, infos
@@ -383,15 +383,18 @@ class AgentCuriousExplorers():
         #main IM training loop
         for batch_idx in range(batch_count):    
             #internal motivation loss, MSE diffusion    
-            states_now, _, _, _, _, modes_ids  = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
-            _, _, loss_diffusion, loss_modes  = self._internal_motivation(states_now, modes_ids, self.alpha_min, self.alpha_max, self.denoising_steps)
+            states_now, _, _, _, _, explorer_ids  = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
+            _, loss_diffusion  = self._internal_motivation(states_now, self.alpha_min, self.alpha_max, self.denoising_steps)
 
+            loss_diffusion = loss_diffusion[explorer_ids, torch.arange(self.ss_batch_size)]
+
+            loss_diffusion = loss_diffusion.mean()
 
             #self supervised target regularisation
             states_seq, labels = self.trajectory_buffer.sample_states_seq(self.ss_batch_size, self.time_distances, self.device)
             loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_seq, labels)
             
-            loss = loss_diffusion.mean + loss_modes + loss_ssl
+            loss = loss_diffusion + loss_ssl
 
             for key in info_ssl:
                 self.log_loss_im_ssl.add(str(key), info_ssl[key])
@@ -403,7 +406,6 @@ class AgentCuriousExplorers():
 
             # log results
             self.log_loss_diffusion.add("loss_diffusion", loss_diffusion.float().detach().cpu().numpy())
-            self.log_loss_diffusion.add("loss_modes", loss_modes.float().detach().cpu().numpy())
                 
            
 
@@ -419,14 +421,11 @@ class AgentCuriousExplorers():
         return actions
 
 
-   
-     # state denoising ability novely detection
-    def _internal_motivation(self, states, modes, alpha_min, alpha_max, denoising_steps):
-      
+    # state denoising ability novely detection
+    def _internal_motivation(self, states, alpha_min, alpha_max, denoising_steps):      
         # obtain taget features from states and noised states
+        # z_target.shape = (num_explorers, batch_size, num_features)
         z_target  = self.model.forward_im_features(states).detach()
-
-
 
         # add noise into features
         z_noised, noise, alpha = self.im_noise(z_target, alpha_min, alpha_max)
@@ -439,28 +438,28 @@ class AgentCuriousExplorers():
             z_denoised = z_denoised - noise_hat
 
         # denoising novelty
-        novelty_diffusion    = ((z_target - z_denoised)**2).mean(dim=1)
+        # novelty.shape = (num_explorers, batch_size)
+        novelty    = ((z_target - z_denoised)**2).mean(dim=-1)
 
         # MSE noise loss prediction
+        # loss.shape = (num_explorers, batch_size)
         noise_pred = z_noised - z_denoised
-        loss_diffusion = ((noise - noise_pred)**2).mean()
+        loss = ((noise - noise_pred)**2).mean(dim=-1)
 
-
-
-        # modes prediciton novelty, 
-        # z_target      : features from CNN, shape (batch_size, n_features)
-        # modes         : ground truth, current modes IDs, shape (batch_size, )
-        # modes_pred    : predicted logits, shape (batch_size, n_modes)
-        modes_pred = self.model.forward_im_modes(z_target)
-
-        loss_func   = torch.nn.CrossEntropyLoss()
-        loss_modes  = loss_func(modes_pred, modes)
-
-        modes_pred    = torch.nn.functional.softmax(modes_pred, dim=-1)
-        novelty_modes = modes_pred[torch.arange(z_target.shape[0]), modes]
-        novelty_modes = 2.0*novelty_modes - 1.0
+        '''
+        print("_internal_motivation")
+        print("z_target   ", z_target.shape)
+        print("noise      ", noise.shape)
+        print("z_noised   ", z_noised.shape)
+        print("z_denoised ", z_denoised.shape)
+        print("novelty    ", novelty.shape)
+        print("loss       ", loss.shape)
+        print("\n")
+        '''
         
-        return novelty_diffusion.detach(), novelty_modes.detach(), loss_diffusion, loss_modes
+        return novelty.detach(), loss
+
+
 
 
 
