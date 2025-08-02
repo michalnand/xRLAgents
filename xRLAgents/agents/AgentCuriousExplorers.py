@@ -192,8 +192,9 @@ class AgentCuriousExplorers():
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
         # internal motivation based on diffusion
-        rewards_int_a, rewards_int_b, _ = self._internal_motivation(states_t, modes_id_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
+        rewards_int_a, rewards_int_b, _, _ = self._internal_motivation(states_t, modes_id_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
         
+        print("IM ", rewards_int_a.shape, rewards_int_b.shape)
 
         # compute final novelty
         rewards_int_a  = rewards_int_a.float().detach().cpu().numpy()
