@@ -125,7 +125,7 @@ class AgentCuriousExplorers():
         # result loggers
         self.log_rewards_int    = ValuesLogger("rewards_int")
         self.log_loss_ppo       = ValuesLogger("loss_ppo")
-        self.log_loss_diffusion = ValuesLogger("loss_diffusion")
+        self.log_loss_im = ValuesLogger("loss_diffusion")
         self.log_loss_im_ssl    = ValuesLogger("loss_im_ssl")
         self.log_modes          = ValuesLogger("modes")
 
@@ -353,7 +353,7 @@ class AgentCuriousExplorers():
      
 
     def get_logs(self):
-        return [self.log_rewards_int, self.log_loss_ppo, self.log_loss_diffusion, self.log_loss_im_ssl, self.log_modes]
+        return [self.log_rewards_int, self.log_loss_ppo, self.log_loss_im, self.log_loss_im_ssl, self.log_modes]
 
     def train(self): 
         samples_count = self.steps*self.n_envs
@@ -402,8 +402,8 @@ class AgentCuriousExplorers():
             self.optimizer.step() 
 
             # log results
-            self.log_loss_diffusion.add("loss_diffusion", loss_diffusion.float().detach().cpu().numpy())
-            self.log_loss_diffusion.add("loss_modes", loss_modes.float().detach().cpu().numpy())
+            self.log_loss_im.add("loss_diffusion", loss_diffusion.float().detach().cpu().numpy())
+            self.log_loss_im.add("loss_modes", loss_modes.float().detach().cpu().numpy())
                 
            
 
