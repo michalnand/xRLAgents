@@ -209,7 +209,7 @@ class AgentCuriousExplorers():
         self.rewards_int_b_mean = k*self.rewards_int_b_mean + (1.0 - k)*rewards_int_b.mean()
 
         if self.remove_im_bias:
-            rewards_int_a_tmp   = rewards_int_a - self.rewards_int_a_mean
+            rewards_int_a_tmp   = rewards_int_a #- self.rewards_int_a_mean
             rewards_int_b_tmp   = rewards_int_b - self.rewards_int_b_mean
  
             rewards_int_scaled  = numpy.clip(self.reward_int_a_coeff*rewards_int_a_tmp + self.reward_int_b_coeff*rewards_int_b_tmp, -1.0, 1.0)
