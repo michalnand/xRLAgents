@@ -121,7 +121,11 @@ class AgentCuriousExplorers():
 
         self.modes_id    = numpy.zeros((self.n_envs, ), dtype=int)
 
-        
+        self.rewards_int_a_mean = 0.0
+        self.rewards_int_b_mean = 0.0
+        self.remove_im_bias     = config.remove_im_bias
+
+
         # result loggers
         self.log_rewards_int    = ValuesLogger("rewards_int")
         self.log_loss_ppo       = ValuesLogger("loss_ppo")
@@ -167,6 +171,7 @@ class AgentCuriousExplorers():
         print("time_distances       ", self.time_distances)
         print("num_modes            ", self.num_modes)
         print("state_normalise      ", self.state_normalise)
+        print("remove_im_bias       ", self.remove_im_bias)
         
         print("\n\n")
         
@@ -198,8 +203,22 @@ class AgentCuriousExplorers():
         # compute final novelty
         rewards_int_a  = rewards_int_a.float().detach().cpu().numpy()
         rewards_int_b  = rewards_int_b.float().detach().cpu().numpy()
+
+        k = 0.99    
+        self.rewards_int_a_mean = k*self.rewards_int_a_mean + (1.0 - k)*rewards_int_a.mean()
+        self.rewards_int_b_mean = k*self.rewards_int_b_mean + (1.0 - k)*rewards_int_b.mean()
+
+        self.rewards_int_a_mean = 0.0
+        self.rewards_int_b_mean = 0.0
+        self.remove_im_bias     = 0.0
+
+        if self.remove_im_bias:
+            rewards_int_a_tmp   = rewards_int_a - self.rewards_int_a_mean
+            rewards_int_b_tmp   = rewards_int_b - self.rewards_int_b_mean
  
-        rewards_int_scaled = numpy.clip(self.reward_int_a_coeff*rewards_int_a + self.reward_int_b_coeff*rewards_int_b, -1.0, 1.0)
+            rewards_int_scaled  = numpy.clip(self.reward_int_a_coeff*rewards_int_a_tmp + self.reward_int_b_coeff*rewards_int_b_tmp, -1.0, 1.0)
+        else:
+            rewards_int_scaled  = numpy.clip(self.reward_int_a_coeff*rewards_int_a + self.reward_int_b_coeff*rewards_int_b, -1.0, 1.0)
 
         
         if "room_id" in infos[0]:
@@ -252,6 +271,9 @@ class AgentCuriousExplorers():
         self.log_rewards_int.add("std_a",  rewards_int_a.std()) 
         self.log_rewards_int.add("mean_b", rewards_int_b.mean())
         self.log_rewards_int.add("std_b",  rewards_int_b.std())
+
+        self.log_rewards_int.add("mean",  rewards_int_scaled.mean())
+        self.log_rewards_int.add("std",  rewards_int_scaled.std())
 
         explorer_id_stats = []
 
