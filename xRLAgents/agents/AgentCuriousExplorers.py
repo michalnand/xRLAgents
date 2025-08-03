@@ -197,7 +197,7 @@ class AgentCuriousExplorers():
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
         # internal motivation based on diffusion
-        rewards_int_a, rewards_int_b, _, _ = self._internal_motivation(states_t, modes_id_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
+        rewards_int_a, rewards_int_b, _, _, modes_acc = self._internal_motivation(states_t, modes_id_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
         
 
         # compute final novelty
@@ -270,6 +270,8 @@ class AgentCuriousExplorers():
 
         self.log_rewards_int.add("mean",  rewards_int_scaled.mean())
         self.log_rewards_int.add("std",  rewards_int_scaled.std())
+        self.log_rewards_int.add("modes_acc",  modes_acc.detach().cpu().numpy())
+
 
         explorer_id_stats = []
 
@@ -402,7 +404,7 @@ class AgentCuriousExplorers():
         for batch_idx in range(batch_count):    
             #internal motivation loss, MSE diffusion    
             states_now, _, _, _, _, modes_ids  = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
-            _, _, loss_diffusion, loss_modes  = self._internal_motivation(states_now, modes_ids, self.alpha_min, self.alpha_max, self.denoising_steps)
+            _, _, loss_diffusion, loss_modes, _  = self._internal_motivation(states_now, modes_ids, self.alpha_min, self.alpha_max, self.denoising_steps)
 
 
             #self supervised target regularisation
@@ -477,8 +479,11 @@ class AgentCuriousExplorers():
         modes_pred    = torch.nn.functional.softmax(modes_pred, dim=-1)
         novelty_modes = modes_pred[torch.arange(z_target.shape[0]), modes]
         novelty_modes = 2.0*novelty_modes - 1.0
+
+        acc = (modes == torch.argmax(modes_pred, dim=-1)).float().mean().detach()
         
-        return novelty_diffusion.detach(), novelty_modes.detach(), loss_diffusion, loss_modes
+        
+        return novelty_diffusion.detach(), novelty_modes.detach(), loss_diffusion, loss_modes, acc
 
 
 
