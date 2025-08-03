@@ -480,9 +480,7 @@ class AgentCuriousExplorers():
         novelty_modes = modes_pred[torch.arange(z_target.shape[0]), modes]
         novelty_modes = 2.0*novelty_modes - 1.0
 
-        acc = (modes == torch.argmax(modes_pred, dim=-1)).float().mean().detach()
-        print(acc)
-        
+        acc = (modes == torch.argmax(modes_pred, dim=-1)).float().mean().detach()        
         
         return novelty_diffusion.detach(), novelty_modes.detach(), loss_diffusion, loss_modes, acc
 
