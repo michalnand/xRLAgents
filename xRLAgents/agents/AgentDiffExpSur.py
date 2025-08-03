@@ -159,7 +159,7 @@ class AgentDiffExpSur():
 
         # internal motivation based on diffusion
         actions_t = torch.from_numpy(actions).to(self.device)
-        rewards_int_a, rewards_int_b, _, _ = self._internal_motivation(states_t, states_next_t, actions, self.alpha_inf, self.alpha_inf, self.denoising_steps)
+        rewards_int_a, rewards_int_b, _, _ = self._internal_motivation(states_t, states_next_t, actions_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
 
 
         rewards_int_a = rewards_int_a.float().detach().cpu().numpy()
