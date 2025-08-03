@@ -204,13 +204,9 @@ class AgentCuriousExplorers():
         rewards_int_a  = rewards_int_a.float().detach().cpu().numpy()
         rewards_int_b  = rewards_int_b.float().detach().cpu().numpy()
 
-        k = 0.99    
+        k = 0.9
         self.rewards_int_a_mean = k*self.rewards_int_a_mean + (1.0 - k)*rewards_int_a.mean()
         self.rewards_int_b_mean = k*self.rewards_int_b_mean + (1.0 - k)*rewards_int_b.mean()
-
-        self.rewards_int_a_mean = 0.0
-        self.rewards_int_b_mean = 0.0
-        self.remove_im_bias     = 0.0
 
         if self.remove_im_bias:
             rewards_int_a_tmp   = rewards_int_a - self.rewards_int_a_mean
