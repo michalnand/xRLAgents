@@ -270,7 +270,7 @@ class AgentCuriousExplorers():
 
         self.log_rewards_int.add("mean",  rewards_int_scaled.mean())
         self.log_rewards_int.add("std",  rewards_int_scaled.std())
-        self.log_rewards_int.add("modes_acc",  modes_acc.detach().cpu().numpy())
+        self.log_rewards_int.add("modes_acc",  float(modes_acc.detach().cpu().numpy()))
 
 
         explorer_id_stats = []
