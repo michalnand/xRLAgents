@@ -8,7 +8,7 @@ class TrajectoryBufferIM:
         self.actions_size   = actions_size
         self.envs_count     = envs_count
 
-        self.dtype = dtype
+        self.dtype = dtype  
       
         self.clear()   
 

@@ -50,7 +50,7 @@ class AgentDiffExp():
 
         self.time_distances       = config.time_distances
         
-        self.state_normalise    = config.state_normalise
+        self.state_normalise        = config.state_normalise
 
        
         self.n_envs         = len(envs)
