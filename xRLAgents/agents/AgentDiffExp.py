@@ -52,11 +52,6 @@ class AgentDiffExp():
         
         self.state_normalise    = config.state_normalise
 
-        if hasattr(config, "reset_steps"):
-            self.reset_steps = config.reset_steps
-        else:
-            self.reset_steps = 0
-
        
         self.n_envs         = len(envs)
         self.state_shape    = self.envs.observation_space.shape
@@ -90,7 +85,7 @@ class AgentDiffExp():
                 state, _ = self.envs.reset(e)
         
         
-        self.episode_steps   = torch.zeros((self.n_envs, ), dtype=int)
+        self.episode_steps = torch.zeros((self.n_envs, ), dtype=int)
 
 
         # result loggers
@@ -135,7 +130,6 @@ class AgentDiffExp():
         print("denoising_steps      ", self.denoising_steps)
         print("time_distances       ", self.time_distances)
         print("state_normalise      ", self.state_normalise)
-        print("reset_steps          ", self.reset_steps)
         
         print("\n\n")
         
@@ -156,13 +150,13 @@ class AgentDiffExp():
         # environment step  
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
-        # internal motivation based on diffusion
+        # internal motivaiotn based on diffusion
         rewards_int, _     = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
         rewards_int        = rewards_int.float().detach().cpu().numpy()
 
         rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
 
-        
+
         if "room_id" in infos[0]:
             resp = self._process_room_ids(infos)
             self.room_ids.append(resp)
@@ -192,13 +186,7 @@ class AgentDiffExp():
         done_idx = numpy.where(dones)[0]
         for i in done_idx:
             self.episode_steps[i]   = 0
-
-        if self.reset_steps > 0:
-            if (self.iterations%self.reset_steps) == 0:
-                self.model.im_diffusion.init_weights()  
-                print("reseting model at ", self.iterations, "\n")
-
-
+            
         self.iterations+= 1
      
         self.log_rewards_int.add("mean", rewards_int.mean())
@@ -306,6 +294,7 @@ class AgentDiffExp():
                 
                 # compute main PPO loss
                 loss_ppo = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
+
 
                 self.optimizer.zero_grad()        
                 loss_ppo.backward()
@@ -493,7 +482,3 @@ class AgentDiffExp():
             result[n] = int(infos[n]["room_id"])
 
         return result
-
-
-
-
