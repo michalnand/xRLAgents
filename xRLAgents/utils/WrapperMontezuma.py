@@ -294,15 +294,15 @@ class ExploredRoomsEnv(gym.Wrapper):
 
 def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
 
-    #ale = env.unwrapped.ale
-    #ale.setFloat("repeat_action_probability", 0.0)
-    #ale.setInt("frame_skip", 1) 
+    ale = env.unwrapped.ale
+    ale.setFloat("repeat_action_probability", 0.0)
+    ale.setInt("frame_skip", 1) 
 
     #env = VideoRecorder(env)
     env = RemoveTrunc(env)
     env = NopOpsEnv(env)
-    #env = StickyActionEnv(env)
-    #env = RepeatActionEnv(env)
+    env = StickyActionEnv(env)
+    env = RepeatActionEnv(env)
     env = ResizeEnv(env, height, width, frame_stacking)
     
     env = MaxSteps(env, max_steps)
