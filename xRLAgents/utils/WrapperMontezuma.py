@@ -221,7 +221,7 @@ class RewardsLog(gym.Wrapper):
         return state, reward, done, truncated, info
 
 
-asdasd
+
 
 class ExploredRoomsEnv(gym.Wrapper):
     '''
