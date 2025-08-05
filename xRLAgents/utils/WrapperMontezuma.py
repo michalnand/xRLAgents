@@ -276,7 +276,7 @@ class ExploredRoomsEnv(gym.Wrapper):
         info["explored_rooms"]          = len(self.explored_rooms)
         info["explored_rooms_episode"]  = len(self.explored_rooms_episode)
 
-        print("room_id = ", room_id, len(self.explored_rooms))
+        #print("room_id = ", room_id, len(self.explored_rooms))
 
         return obs, reward, done, info
     
