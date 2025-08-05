@@ -92,7 +92,7 @@ class RepeatActionEnv(gym.Wrapper):
     def step(self, action):
         reward, done = 0, False
         for t in range(4):
-            state, r, done, info = self.env.step(action)
+            state, r, done, truncated, info = self.env.step(action)
             if t == 2:
                 self.successive_frame[0] = state
             elif t == 3:
@@ -102,32 +102,9 @@ class RepeatActionEnv(gym.Wrapper):
                 break
 
         state = self.successive_frame.max(axis=0)
-        return state, reward, done, info
-
-
-'''
-class RepeatActionEnv(gym.Wrapper):
-    def __init__(self, env, repeats = 4):
-        gym.Wrapper.__init__(self, env)
-        self.repeats = repeats
-        self.successive_frame = numpy.zeros((self.repeats,) + self.env.observation_space.shape, dtype=self.env.observation_space.dtype)
-
-    def reset(self, seed = None, options = None):
-        return self.env.reset()
-
-    def step(self, action):
-        reward, done = 0, False
-        for n in range(self.repeats):
-            state, r, done, truncated, info = self.env.step(action)
-            self.successive_frame[n] = state
-
-            reward += r 
-            if done or truncated:
-                break
-
-        state = self.successive_frame.max(axis=0)
         return state, reward, done, truncated, info
-'''
+
+
 
 class ResizeEnv(gym.ObservationWrapper):
     def __init__(self, env, height = 96, width = 96, frame_stacking = 4):
