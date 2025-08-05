@@ -264,7 +264,7 @@ def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps
     env = RemoveTrunc(env)
     env = NopOpsEnv(env)
     env = StickyActionEnv(env)
-    #env = RepeatActionEnv(env) 
+    env = RepeatActionEnv(env) 
     #env = ResizeEnv(env, height, width, frame_stacking)
     #env = MaxSteps(env, max_steps)
     #env = Rewards(env)
