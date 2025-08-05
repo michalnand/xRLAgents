@@ -7,16 +7,17 @@ name = "xRLAgents"
 version = "1.0.0"
 readme = "README.md"
 requires-python = ">=3.10"
-
 dependencies = [
   "numpy",
   "torch"
 ]
 
+[project.optional-dependencies]
+all = [
+  "numpy",
+  "torch"
+]
 
-
-xRLAgents
-[project.urls]  
 
 [tool.setuptools.packages.find]
 where = ["."]
