@@ -209,7 +209,7 @@ class RewardsLog(gym.Wrapper):
 
     def step(self, action):
        
-        state, reward, done, info = self.env.step(action)
+        state, reward, done, truncated, info = self.env.step(action)
 
         info["raw_reward"] = reward
 
@@ -237,7 +237,7 @@ class ExploredRoomsEnv(gym.Wrapper):
         self.explored_rooms_episode = {}
 
     def step(self, action):
-        obs, reward, done, info = self.env.step(action)
+        obs, reward, done, truncated, info = self.env.step(action)
 
         room_id = self._get_current_room_id()
 
@@ -257,7 +257,7 @@ class ExploredRoomsEnv(gym.Wrapper):
 
         print("room_id = ", room_id, len(self.explored_rooms))
 
-        return obs, reward, done, info
+        return obs, reward, done, truncated, info
     
     def reset(self, seed = None, options = None):
         self.explored_rooms_episode = {}

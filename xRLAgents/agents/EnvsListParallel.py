@@ -68,7 +68,7 @@ def _env_process_main(id, n_envs, env_name, Wrapper, render_mode, child_conn):
             for n in range(n_envs): 
                 envs[n].close()
             break
-
+            
 '''
     multiple environments wrapper
 '''
