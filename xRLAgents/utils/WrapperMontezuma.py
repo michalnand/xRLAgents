@@ -152,7 +152,9 @@ class MaxSteps(gym.Wrapper):
 
     def step(self, action):
        
-        state, reward, done, _, info = self.env.step(action)
+        print(">>>>>>")
+        print(self.env.step(action))
+        state, reward, done, info = self.env.step(action)
         
         self.steps+= 1
         if self.steps >= self.max_steps:
