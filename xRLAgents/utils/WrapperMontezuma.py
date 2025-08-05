@@ -309,9 +309,6 @@ def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps
     env = Rewards(env)
     env = ExploredRoomsEnv(env, room_address = 3)   
 
-    print(env.unwrapped.ale.getFloat("repeat_action_probability"))  # Should be 0.25
-    print(env.unwrapped.ale.getInt("frame_skip"))                   # Should be 5  
-
     return env
 
 
