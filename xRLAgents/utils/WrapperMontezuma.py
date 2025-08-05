@@ -300,5 +300,5 @@ if __name__ == "__main__":
     
     print(env.reset())
     print("\n\n")
-    print(env.ste
-    print("\n\n")p(0))
+    print(env.step(0))
+    print("\n\n")
