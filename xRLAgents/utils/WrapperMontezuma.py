@@ -158,7 +158,7 @@ class ResizeEnv(gym.Wrapper):
 
         return self._observation(state), info
     
-    def stpe(self, action):    
+    def step(self, action):    
         state, reward, done, info = self.env.step(action)
         return self._observation(state), reward, done, info
     
