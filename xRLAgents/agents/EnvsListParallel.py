@@ -42,18 +42,16 @@ def _env_process_main(id, n_envs, env_name, Wrapper, render_mode, child_conn):
             states      = [] 
             rewards     = [] 
             dones       = [] 
-            truncated   = [] 
             infos       = []
 
             for n in range(n_envs): 
-                state_, reward_, done_, truncated_, info_ = envs[n].step(actions[n])
+                state_, reward_, done_, info_ = envs[n].step(actions[n])
                 states.append(state_)
                 rewards.append(reward_)
                 dones.append(done_)
-                truncated.append(truncated_)
                 infos.append(info_)  
 
-            child_conn.send((states, rewards, dones, truncated, infos))
+            child_conn.send((states, rewards, dones, infos))
 
         elif command == "render":
             env_id  = val[1]
@@ -143,7 +141,7 @@ class EnvsListParallel:
         
         # obtain envs responses
         for i in range(self.n_threads):
-            state_, reward_, done_, _, info_ = self.parent_conn[i].recv()
+            state_, reward_, done_, info_ = self.parent_conn[i].recv()
 
             for j in range(self.envs_per_thread):
                 states.append(state_[j])

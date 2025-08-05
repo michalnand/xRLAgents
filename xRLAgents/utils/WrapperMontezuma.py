@@ -90,7 +90,7 @@ class RepeatActionEnv(gym.Wrapper):
     def step(self, action):
         reward, done = 0, False
         for t in range(4):
-            state, r, done, truncated, info = self.env.step(action)
+            state, r, done, info = self.env.step(action)
             if t == 2:
                 self.successive_frame[0] = state
             elif t == 3:
@@ -100,7 +100,7 @@ class RepeatActionEnv(gym.Wrapper):
                 break
 
         state = self.successive_frame.max(axis=0)
-        return state, reward, done, truncated, info
+        return state, reward, done, info
 
 
 '''
@@ -164,13 +164,13 @@ class MaxSteps(gym.Wrapper):
 
     def step(self, action):
        
-        state, reward, done, truncated, info = self.env.step(action)
+        state, reward, done, info = self.env.step(action)
         
         self.steps+= 1
         if self.steps >= self.max_steps:
             done = True
 
-        return state, reward, done, truncated, info
+        return state, reward, done, info
 
 
 
@@ -184,7 +184,7 @@ class Rewards(gym.Wrapper):
 
     def step(self, action):
        
-        state, reward, done, truncated, info = self.env.step(action)
+        state, reward, done, info = self.env.step(action)
 
         info["raw_reward"] = reward
 
@@ -193,7 +193,7 @@ class Rewards(gym.Wrapper):
         else:
             reward = 0.0
             
-        return state, reward, done, truncated, info
+        return state, reward, done, info
 
 
 
@@ -209,7 +209,7 @@ class RewardsLog(gym.Wrapper):
 
     def step(self, action):
        
-        state, reward, done, truncated, info = self.env.step(action)
+        state, reward, done, info = self.env.step(action)
 
         info["raw_reward"] = reward
 
@@ -218,7 +218,7 @@ class RewardsLog(gym.Wrapper):
 
         reward = numpy.log10(1.0 + reward/10.0)
             
-        return state, reward, done, truncated, info
+        return state, reward, done, info
 
 
 
@@ -237,7 +237,7 @@ class ExploredRoomsEnv(gym.Wrapper):
         self.explored_rooms_episode = {}
 
     def step(self, action):
-        obs, reward, done, truncated, info = self.env.step(action)
+        obs, reward, done, info = self.env.step(action)
 
         room_id = self._get_current_room_id()
 
@@ -257,7 +257,7 @@ class ExploredRoomsEnv(gym.Wrapper):
 
         print("room_id = ", room_id, len(self.explored_rooms))
 
-        return obs, reward, done, truncated, info
+        return obs, reward, done, info
     
     def reset(self, seed = None, options = None):
         self.explored_rooms_episode = {}
