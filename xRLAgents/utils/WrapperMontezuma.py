@@ -41,7 +41,7 @@ class VideoRecorder(gym.Wrapper):
 
 class RemoveTrunc(gym.Wrapper):
     def __init__(self, env=None):
-        super(NopOpsEnv, self).__init__(env)
+        super(RemoveTrunc, self).__init__(env)
 
     def reset(self, seed = None, options = None):
         return self.env.reset()
