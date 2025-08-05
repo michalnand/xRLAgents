@@ -14,10 +14,6 @@ dependencies = [
 ]
 
 
-all = [
-    "numpy",
-  "torch"
-]
 
 xRLAgents
 [project.urls]  
