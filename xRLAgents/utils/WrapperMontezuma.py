@@ -290,3 +290,15 @@ def WrapperPitfall(env, height = 96, width = 96, frame_stacking = 4, max_steps =
     env = ExploredRoomsEnv(env, room_address = 1)     
 
     return env
+
+
+
+if __name__ == "__main__":
+
+    env = gym.make("ALE/MontezumaRevenge-v5")
+    env = WrapperMontezuma(env)
+    
+    print(env.reset())
+    print("\n\n")
+    print(env.ste
+    print("\n\n")p(0))
