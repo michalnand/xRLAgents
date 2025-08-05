@@ -9,14 +9,14 @@ readme = "README.md"
 requires-python = ">=3.10"
 
 dependencies = [
-  numpy,
-  torch
+  "numpy",
+  "torch"
 ]
 
 
 all = [
-  numpy,
-  torch
+    "numpy",
+  "torch"
 ]
 
 xRLAgents
