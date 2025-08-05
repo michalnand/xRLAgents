@@ -115,6 +115,7 @@ class RepeatActionEnv(gym.Wrapper):
 
 
 
+'''
 class ResizeEnv(gym.ObservationWrapper):
     def __init__(self, env, height = 96, width = 96, frame_stacking = 4):
         super(ResizeEnv, self).__init__(env)
@@ -137,7 +138,40 @@ class ResizeEnv(gym.ObservationWrapper):
         self.state[0] = (numpy.array(img).astype(self.dtype)/255.0).copy()
         
         return self.state 
+'''
 
+class ResizeEnv(gym.Wrapper):
+    def __init__(self, env, height = 96, width = 96, frame_stacking = 4):
+        gym.Wrapper.__init__(self, env)
+        self.height = height
+        self.width  = width
+        self.frame_stacking = frame_stacking
+
+        state_shape = (self.frame_stacking, self.height, self.width)
+        self.dtype  = numpy.float32
+
+        self.observation_space = gym.spaces.Box(low=0.0, high=1.0, shape=state_shape, dtype=self.dtype)
+        self.state = numpy.zeros(state_shape, dtype=self.dtype)
+
+    def reset(self, seed = None, options = None):    
+        state, info = self.env.reset()
+
+        return self._observation(state), info
+    
+    def stpe(self, action):    
+        state, reward, done, info = self.env.step(action)
+        return self._observation(state), reward, done, info
+    
+
+    def _observation(self, state):
+        img = Image.fromarray(state)
+        img = img.convert('L')
+        img = img.resize((self.width, self.height))
+
+        self.state    = numpy.roll(self.state, 1, axis=0)
+        self.state[0] = (numpy.array(img).astype(self.dtype)/255.0).copy()
+        
+        return self.state 
 
 class MaxSteps(gym.Wrapper):
     def __init__(self, env, max_steps):
@@ -264,7 +298,7 @@ def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps
     env = NopOpsEnv(env)
     env = StickyActionEnv(env)
     env = RepeatActionEnv(env) 
-    #env = ResizeEnv(env, height, width, frame_stacking)
+    env = ResizeEnv(env, height, width, frame_stacking)
     #env = RemoveTrunc(env)
     #env = MaxSteps(env, max_steps)
     #env = Rewards(env)
