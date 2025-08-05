@@ -346,5 +346,7 @@ if __name__ == "__main__":
     
     print(env.reset())
     print("\n\n")
-    print(env.step(0))
+    state, reward, done, info = env.step(0)
+    print(state.shape)
+    print(reward, done, info)
     print("\n\n")
