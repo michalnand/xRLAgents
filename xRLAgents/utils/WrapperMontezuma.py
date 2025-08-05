@@ -1,5 +1,7 @@
+import ale_py
 import gymnasium as gym
 import numpy
+
 from PIL import Image
 
 import cv2
