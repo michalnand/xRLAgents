@@ -39,7 +39,16 @@ class VideoRecorder(gym.Wrapper):
     def reset(self, seed = None, options = None):
         return self.env.reset()
 
+class RemoveTrunc(gym.Wrapper):
+    def __init__(self, env=None):
+        super(NopOpsEnv, self).__init__(env)
 
+    def reset(self, seed = None, options = None):
+        return self.env.reset()
+    
+    def step(self, action):
+        state, reward, done, truncated, info = self.env.step(action)
+        return state, reward, done, info
 
 class NopOpsEnv(gym.Wrapper):
     def __init__(self, env=None, max_count=30):
@@ -52,7 +61,7 @@ class NopOpsEnv(gym.Wrapper):
         noops = numpy.random.randint(1, self.max_count + 1)
          
         for _ in range(noops):
-            obs, _, done, _, _ = self.env.step(0)
+            obs, _, done, _ = self.env.step(0)
 
             if done:
                 obs = self.env.reset()
@@ -92,7 +101,7 @@ class RepeatActionEnv(gym.Wrapper):
     def step(self, action):
         reward, done = 0, False
         for t in range(4):
-            state, r, done, truncated, info = self.env.step(action)
+            state, r, done, info = self.env.step(action)
             if t == 2:
                 self.successive_frame[0] = state
             elif t == 3:
@@ -281,6 +290,7 @@ def WrapperMontezumaB(env, height = 96, width = 96, frame_stacking = 4, max_step
 
 def WrapperPitfall(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
     #env = VideoRecorder(env)
+    env = RemoveTrunc(env)
     env = NopOpsEnv(env)
     env = StickyActionEnv(env)
     env = RepeatActionEnv(env) 
