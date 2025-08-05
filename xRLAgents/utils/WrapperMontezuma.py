@@ -302,7 +302,7 @@ def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps
     
     env = MaxSteps(env, max_steps)
     env = Rewards(env)
-    #env = ExploredRoomsEnv(env, room_address = 3)     
+    env = ExploredRoomsEnv(env, room_address = 3)     
 
     return env
 
