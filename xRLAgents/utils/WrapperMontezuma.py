@@ -136,7 +136,6 @@ class ResizeEnv(gym.ObservationWrapper):
         self.state    = numpy.roll(self.state, 1, axis=0)
         self.state[0] = (numpy.array(img).astype(self.dtype)/255.0).copy()
         
-
         return self.state 
 
 
@@ -266,8 +265,9 @@ def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps
     env = StickyActionEnv(env)
     env = RepeatActionEnv(env) 
     env = ResizeEnv(env, height, width, frame_stacking)
-    #env = MaxSteps(env, max_steps)
-    #env = Rewards(env)
+    env = RemoveTrunc(env)
+    env = MaxSteps(env, max_steps)
+    env = Rewards(env)
     #env = ExploredRoomsEnv(env, room_address = 3)     
 
     return env
