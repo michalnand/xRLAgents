@@ -255,7 +255,7 @@ class ExploredRoomsEnv(gym.Wrapper):
         info["explored_rooms"]          = len(self.explored_rooms)
         info["explored_rooms_episode"]  = len(self.explored_rooms_episode)
 
-        #print("room_id = ", room_id, len(self.explored_rooms))
+        print("room_id = ", room_id, len(self.explored_rooms))
 
         return obs, reward, done, truncated, info
     
@@ -272,7 +272,6 @@ class ExploredRoomsEnv(gym.Wrapper):
      
 
 def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
-    print("WrapperMontezuma")
     #env = VideoRecorder(env)
     env = NopOpsEnv(env)
     env = StickyActionEnv(env)
