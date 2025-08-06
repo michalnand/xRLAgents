@@ -205,7 +205,7 @@ class Rewards(gym.Wrapper):
 
 
 
-
+    
 
 class ExploredRoomsEnv(gym.Wrapper):
     '''
