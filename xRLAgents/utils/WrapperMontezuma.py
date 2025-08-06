@@ -90,55 +90,42 @@ class StickyActionEnv(gym.Wrapper):
  
 
 
-class RepeatActionEnv(gym.Wrapper):
-    def __init__(self, env):
+class MaxAndSkipEnv(gym.Wrapper):
+    def __init__(self, env, n_skip = 4):
         gym.Wrapper.__init__(self, env)
         self.successive_frame = numpy.zeros((2,) + self.env.observation_space.shape, dtype=numpy.uint8)
+        self.n_skip = n_skip
 
-    def reset(self, seed = None, options = None):
-        return self.env.reset()
+    
+    def reset(self, seed=None, options=None):
+        obs, info = self.env.reset(seed=seed, options=options)
+        self.successive_frame[:] = 0
+        
+        return obs, info
 
     def step(self, action):
-        reward, done = 0, False
-        for t in range(4):
-            state, r, done, info = self.env.step(action)
-            if t == 2:
+        total_reward    = 0
+        done            = False
+        info            = {}
+
+        for t in range(self.n_skip):
+            state, reward, done, info = self.env.step(action)
+
+            if t == self.n_skip-2:
                 self.successive_frame[0] = state
-            elif t == 3:
+            elif t == self.n_skip-1:    
                 self.successive_frame[1] = state
-            reward += r
+            
+            total_reward += reward
+
             if done:
                 break
 
         state = self.successive_frame.max(axis=0)
-        return state, reward, done, info
-
-
-
-'''
-class ResizeEnv(gym.ObservationWrapper):
-    def __init__(self, env, height = 96, width = 96, frame_stacking = 4):
-        super(ResizeEnv, self).__init__(env)
-        self.height = height
-        self.width  = width
-        self.frame_stacking = frame_stacking
-
-        state_shape = (self.frame_stacking, self.height, self.width)
-        self.dtype  = numpy.float32
-
-        self.observation_space = gym.spaces.Box(low=0.0, high=1.0, shape=state_shape, dtype=self.dtype)
-        self.state = numpy.zeros(state_shape, dtype=self.dtype)
-
-    def observation(self, state):
-        img = Image.fromarray(state)
-        img = img.convert('L')
-        img = img.resize((self.width, self.height))
-
-        self.state    = numpy.roll(self.state, 1, axis=0)
-        self.state[0] = (numpy.array(img).astype(self.dtype)/255.0).copy()
         
-        return self.state 
-'''
+        return state, total_reward, done, info
+
+
 
 class ResizeEnv(gym.Wrapper):
     def __init__(self, env, height = 96, width = 96, frame_stacking = 4):
@@ -220,30 +207,6 @@ class Rewards(gym.Wrapper):
 
 
 
-class RewardsLog(gym.Wrapper):
-    def __init__(self, env):
-        gym.Wrapper.__init__(self, env)
-       
-
-    def reset(self, seed = None, options = None):
-        return self.env.reset()
-
-    def step(self, action):
-       
-        state, reward, done, info = self.env.step(action)
-
-        info["raw_reward"] = reward
-
-        if reward < 0.0:
-            reward = 0.0        
-
-        reward = numpy.log10(1.0 + reward/10.0)
-            
-        return state, reward, done, info
-
-
-
-
 class ExploredRoomsEnv(gym.Wrapper):
     '''
     room_address for games : 
@@ -301,44 +264,15 @@ def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps
     #env = VideoRecorder(env)
     env = RemoveTrunc(env)
     env = NopOpsEnv(env)
-    env = StickyActionEnv(env)
-    env = RepeatActionEnv(env)
+    #env = StickyActionEnv(env)
+    env = MaxAndSkipEnv(env)
     env = ResizeEnv(env, height, width, frame_stacking)
     
     env = MaxSteps(env, max_steps)
     env = Rewards(env)
+
+    # room_address 3 for montezuma, 1 for pitfall
     env = ExploredRoomsEnv(env, room_address = 3)   
-
-    return env
-
-
-
-
-def WrapperMontezumaB(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
-    #env = VideoRecorder(env)
-    env = RemoveTrunc(env)
-    env = NopOpsEnv(env)
-    env = StickyActionEnv(env)
-    env = RepeatActionEnv(env) 
-    env = ResizeEnv(env, height, width, frame_stacking)
-    env = MaxSteps(env, max_steps)
-    env = RewardsLog(env)
-    env = ExploredRoomsEnv(env, room_address = 3)     
-
-    return env
-
-
-
-def WrapperPitfall(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
-    #env = VideoRecorder(env)
-    env = RemoveTrunc(env)
-    env = NopOpsEnv(env)
-    env = StickyActionEnv(env)
-    env = RepeatActionEnv(env) 
-    env = ResizeEnv(env, height, width, frame_stacking)
-    env = MaxSteps(env, max_steps)
-    env = Rewards(env)
-    env = ExploredRoomsEnv(env, room_address = 1)     
 
     return env
 
