@@ -122,7 +122,7 @@ class MaxAndSkipEnv(gym.Wrapper):
                 break
 
         state = self.successive_frame.max(axis=0)
-        
+
         return state, total_reward, done, info
 
 
@@ -263,8 +263,8 @@ def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps
 
     #env = VideoRecorder(env)
     env = RemoveTrunc(env)
-    env = NopOpsEnv(env)
-    #env = StickyActionEnv(env)
+    env = NopOpsEnv(env)    
+    env = StickyActionEnv(env)
     env = MaxAndSkipEnv(env)
     env = ResizeEnv(env, height, width, frame_stacking)
     
