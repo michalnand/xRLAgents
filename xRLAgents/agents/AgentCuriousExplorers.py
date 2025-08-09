@@ -181,9 +181,7 @@ class AgentCuriousExplorers():
         states_t    = torch.from_numpy(states).to(self.dtype).to(self.device)
         modes_id_t  = torch.from_numpy(self.modes_id).to(self.device)
 
-        batch_size    = states_t.shape[0]  
-        batch_indices = torch.arange(batch_size)
-
+      
         if self.state_normalise:
             self._update_normalisation(states_t, alpha = 0.99)
             states_t = self._state_normalise(states_t)
