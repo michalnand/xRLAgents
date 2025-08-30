@@ -9,6 +9,7 @@ class TrajectoryBufferIM:
         self.envs_count     = envs_count
 
         self.dtype = dtype  
+
       
         self.clear()   
 
@@ -17,7 +18,7 @@ class TrajectoryBufferIM:
         print("logits : ", self.logits.shape)
         print("\n")
     
-    def add(self, state, logits, values_ext, values_int, actions, rewards_ext, rewards_int, dones, steps, label = None):  
+    def add(self, state, logits, values_ext, values_int, actions, rewards_ext, rewards_int, dones, steps, label = None, hidden_states = None):  
         self.states[self.ptr]       = state.detach().to(dtype=self.dtype, device="cpu").clone() 
         self.logits[self.ptr]       = logits.detach().float().to(device="cpu").clone() 
         
@@ -36,6 +37,14 @@ class TrajectoryBufferIM:
 
         if label is not None:
             self.labels[self.ptr]   = label.detach().to(device="cpu").clone()
+
+
+        if hidden_states is not None:
+            if self.hidden_states is None:
+                self.rnn_shape = hidden_states.shape[1:]
+                self.hidden_states = torch.zeros((self.buffer_size, self.envs_count, ) + self.rnn_shape, dtype=self.dtype)   
+
+            self.hidden_states[self.ptr] = hidden_states.detach().to(device="cpu").clone() 
         
         self.ptr = self.ptr + 1 
 
@@ -63,6 +72,7 @@ class TrajectoryBufferIM:
         
         self.labels     = torch.zeros((self.buffer_size, self.envs_count, ), dtype=int)
 
+        self.hidden_states = None
 
         self.ptr = 0  
  
@@ -73,6 +83,10 @@ class TrajectoryBufferIM:
       
         #reshape buffer for faster batch sampling
         self.states     = self.states.reshape((self.buffer_size*self.envs_count, ) + self.state_shape)
+
+        if self.hidden_states is not None:
+            self.hidden_states = self.hidden_states.reshape((self.buffer_size*self.envs_count, ) + self.rnn_shape)
+
         self.logits     = self.logits.reshape((self.buffer_size*self.envs_count, self.actions_size))
 
         self.values_ext = self.values_ext.reshape((self.buffer_size*self.envs_count, ))
@@ -118,6 +132,29 @@ class TrajectoryBufferIM:
 
         return states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int
     
+
+    def sample_batch_rnn(self, batch_size, device, dtype = None):
+        if dtype is None:
+            dtype = self.dtype  
+        
+        indices         = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size, ))
+
+        states          = (self.states[indices]).to(dtype=dtype, device=device)
+        hidden_states   = (self.hidden_states[indices]).to(dtype=dtype, device=device)
+        logits          = (self.logits[indices]).to(dtype=dtype, device=device)
+        
+        actions         = (self.actions[indices]).to(device=device)
+         
+        returns_ext     = (self.returns_ext[indices]).to(dtype=dtype, device=device)
+        returns_int     = (self.returns_int[indices]).to(dtype=dtype, device=device)
+
+        advantages_ext  = (self.advantages_ext[indices]).to(dtype=dtype, device=device)
+        advantages_int  = (self.advantages_int[indices]).to(dtype=dtype, device=device)
+
+
+        return states, hidden_states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int
+    
+
 
     def sample_batch_with_labels(self, batch_size, device, dtype = None):
         if dtype is None:
