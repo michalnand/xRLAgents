@@ -188,7 +188,6 @@ class AgentDiffExp():
             
         # top PPO training part
         if training_enabled:   
-            print(self.hidden_state_t.shape)  
             # put trajectory into policy buffer
             self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext, rewards_int_scaled, dones, self.episode_steps, hidden_states=self.hidden_state_t)
 
@@ -426,7 +425,7 @@ class AgentDiffExp():
     def _loss_ppo(self, states, hidden_states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
         
         if hidden_states is not None:
-            logits_new, values_ext_new, values_int_new  = self.model.forward(states, hidden_states)
+            logits_new, values_ext_new, values_int_new, _ = self.model.forward(states, hidden_states)
         else:
             logits_new, values_ext_new, values_int_new  = self.model.forward(states)
 
