@@ -215,12 +215,19 @@ class AgentDiffExp():
 
         if self.rnn_policy:
             if self.rnn_hierachical:
+                # always update low level RNN
                 self.hidden_state_t[:, 0] = hidden_state_new[:, 0].detach().clone()
 
-                for i in range(self.n_envs):    
-                    if self.episode_steps[i]%self.rnn_steps == 0:
-                        self.hidden_state_t[i, 1] = hidden_state_new[i, 1].detach().clone()
+                mask = ((self.episode_steps % self.rnn_steps) == 0)
 
+                # expand mask to match hidden dimension
+                mask = mask.to(self.device).unsqueeze(-1)  # (n_envs, 1)
+
+                # update high RNN states only where mask==1
+                self.hidden_state_t[:, 1] = torch.where(mask, hidden_state_new[:, 1].detach(), self.hidden_state_t[:, 1])
+
+                print(mask)
+                
             else:
                 self.hidden_state_t = hidden_state_new.detach().clone()
 
