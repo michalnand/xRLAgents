@@ -219,10 +219,10 @@ class AgentDiffExp():
                 self.hidden_state_t[i]  = 0.0
 
         if self.rnn_policy:
-            self.log_rnn.add("mean", self.hidden_state_t.mean())
-            self.log_rnn.add("std", self.hidden_state_t.std())
-            self.log_rnn.add("mean_mag", (self.hidden_state_t**2).mean())
-            self.log_rnn.add("std_mag", (self.hidden_state_t**2).std())
+            self.log_rnn.add("mean", self.hidden_state_t.mean().detach().cpu().float().numpy())
+            self.log_rnn.add("std", self.hidden_state_t.std().detach().cpu().float().numpy())
+            self.log_rnn.add("mean_mag", (self.hidden_state_t**2).mean().detach().cpu().float().numpy())
+            self.log_rnn.add("std_mag", (self.hidden_state_t**2).std().detach().cpu().float().numpy())
             
         self.iterations+= 1
      
