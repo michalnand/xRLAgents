@@ -213,7 +213,6 @@ class AgentDiffExp():
         
         self.episode_steps+= 1
 
-        print(self.hidden_state_t.shape, hidden_state_new.shape)
 
         if self.rnn_policy:
             if self.rnn_hierachical:
@@ -227,8 +226,6 @@ class AgentDiffExp():
 
                 # update high RNN states only where mask==1
                 self.hidden_state_t[:, 1] = torch.where(mask, hidden_state_new[:, 1].detach(), self.hidden_state_t[:, 1])
-
-                print(mask.float().squeeze(-1))
 
             else:
                 self.hidden_state_t = hidden_state_new.detach().clone()
