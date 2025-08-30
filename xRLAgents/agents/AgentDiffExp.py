@@ -53,11 +53,15 @@ class AgentDiffExp():
         self.state_normalise        = config.state_normalise
 
         if hasattr(config, "rnn_policy"):
-            self.rnn_policy = config.rnn_policy
-            self.rnn_shape  = config.rnn_shape
+            self.rnn_policy         = config.rnn_policy
+            self.rnn_shape          = config.rnn_shape
+            self.rnn_hierachical    = config.rnn_hierachical
+            self.rnn_steps          = config.rnn_steps
         else:
-            self.rnn_policy = False
-            self.rnn_shape  = None
+            self.rnn_policy         = False
+            self.rnn_shape          = None
+            self.rnn_hierachical    = False
+            self.rnn_steps          = 0
 
 
        
@@ -150,6 +154,9 @@ class AgentDiffExp():
 
         print("rnn_policy           ", self.rnn_policy)
         print("rnn_shape            ", self.rnn_shape)  
+        print("rnn_hierachical      ", self.rnn_hierachical)
+        print("rnn_steps            ", self.rnn_steps)  
+        
         
         print("\n\n")
         
@@ -207,7 +214,15 @@ class AgentDiffExp():
         self.episode_steps+= 1
 
         if self.rnn_policy:
-            self.hidden_state_t = hidden_state_new.detach().clone()
+            if self.rnn_hierachical:
+                self.hidden_state_t[:, 0] = hidden_state_new[:, 0].detach().clone()
+
+                for i in range(self.n_envs):    
+                    if self.episode_steps[i]%self.rnn_steps == 0:
+                        self.hidden_state_t[i, 1] = hidden_state_new[i, 1].detach().clone()
+
+            else:
+                self.hidden_state_t = hidden_state_new.detach().clone()
 
         # reset episode steps counter and hidden state
         done_idx = numpy.where(dones)[0]
