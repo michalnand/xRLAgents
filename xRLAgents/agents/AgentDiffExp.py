@@ -68,9 +68,9 @@ class AgentDiffExp():
 
         # create mdoel
         if self.rnn_policy:
-            self.model = Model(self.state_shape, self.actions_count)
-        else:
             self.model = Model(self.state_shape, self.actions_count, self.rnn_shape)
+        else:
+            self.model = Model(self.state_shape, self.actions_count)
 
         self.model.to(self.device)
         
