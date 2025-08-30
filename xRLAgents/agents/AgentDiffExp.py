@@ -187,9 +187,10 @@ class AgentDiffExp():
 
             
         # top PPO training part
-        if training_enabled:     
+        if training_enabled:   
+            print(self.hidden_state_t.shape)  
             # put trajectory into policy buffer
-            self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext, rewards_int_scaled, dones, self.episode_steps, hidden_state=self.hidden_state_t)
+            self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext, rewards_int_scaled, dones, self.episode_steps, hidden_states=self.hidden_state_t)
 
             # if buffer is full, run training loop
             if self.trajectory_buffer.is_full():
