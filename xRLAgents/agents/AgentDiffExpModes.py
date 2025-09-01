@@ -308,8 +308,8 @@ class AgentDiffExpModes():
         self.log_rewards_int.add("std_b",  rewards_int_b.std())
 
         
-        self.log_modes.add("accuracy_mean", modes_stats["mean"])
-        self.log_modes.add("accuracy_std", modes_stats["std"])
+        self.log_modes.add("accuracy_mean", modes_stats["mean"].detach().cpu().float().numpy().item())
+        self.log_modes.add("accuracy_std", modes_stats["std"].detach().cpu().float().numpy().item())
         
         return states_new, rewards_ext, dones, infos
     
