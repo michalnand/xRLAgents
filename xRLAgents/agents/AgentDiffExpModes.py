@@ -517,6 +517,11 @@ class AgentDiffExpModes():
 
         modes_acc["mean"] = matching.float().mean()
         modes_acc["std"]  = matching.float().std()
+
+        print(probs.shape, diversity.shape, modes.shape)
+        print(diversity[0:10])
+        print(modes[0:10])
+        print("\n")
         
         return novelty.detach(), diversity.detach(), loss_novelty, loss_diversity, modes_acc
 
