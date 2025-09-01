@@ -144,8 +144,8 @@ class AgentDiffExpModes():
         # result loggers
         self.log_rewards_int    = ValuesLogger("rewards_int")
         self.log_modes          = ValuesLogger("modes")
-        self.log_loss_ppo       = ValuesLogger("loss_ppo")
-        self.log_loss_im = ValuesLogger("loss_diffusion")
+        self.log_loss_ppo       = ValuesLogger("loss_ppo")  
+        self.log_loss_im        = ValuesLogger("loss_im")
         self.log_loss_im_ssl    = ValuesLogger("loss_im_ssl")
         
 
