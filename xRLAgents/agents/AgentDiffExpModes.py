@@ -211,9 +211,9 @@ class AgentDiffExpModes():
 
         # obtain model output, logits and values, use abstract state space z
         if self.rnn_policy:
-            logits_t, values_ext_t, values_int_t, hidden_state_new = self.model.forward(states_t, self.hidden_state_t)
+            logits_t, values_ext_t, values_int_t, hidden_state_new = self.model.forward(states_t, modes_t, self.hidden_state_t)
         else:
-            logits_t, values_ext_t, values_int_t = self.model.forward(states_t)
+            logits_t, values_ext_t, values_int_t = self.model.forward(states_t, modes_t)
 
         actions = self._sample_actions(logits_t)
       
