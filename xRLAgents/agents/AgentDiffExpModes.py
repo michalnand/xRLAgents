@@ -35,7 +35,7 @@ class EpisodeScore:
 
 
 
-class AgentDiffExpEns(): 
+class AgentDiffExpModes(): 
     def __init__(self, envs, Config, Model):
         self.envs = envs
  
@@ -61,7 +61,8 @@ class AgentDiffExpEns():
         self.adv_int_coeff      = config.adv_int_coeff
         self.val_coeff          = config.val_coeff
         self.reward_ext_coeff   = config.reward_ext_coeff
-        self.reward_int_coeff   = config.reward_int_coeff
+        self.reward_int_a_coeff = config.reward_int_a_coeff
+        self.reward_int_b_coeff = config.reward_int_b_coeff
 
         self.steps              = config.steps
         self.batch_size         = config.batch_size
@@ -80,7 +81,7 @@ class AgentDiffExpEns():
         self.time_distances       = config.time_distances
         
         self.state_normalise        = config.state_normalise
-        self.n_modes                = config.n_modes
+        self.num_modes              = config.num_modes
 
         if hasattr(config, "rnn_policy"):
             self.rnn_policy         = config.rnn_policy
@@ -102,9 +103,9 @@ class AgentDiffExpEns():
 
         # create mdoel
         if self.rnn_policy:
-            self.model = Model(self.state_shape, self.actions_count, self.n_modes, self.rnn_shape)
+            self.model = Model(self.state_shape, self.actions_count, self.num_modes, self.rnn_shape)
         else:
-            self.model = Model(self.state_shape, self.actions_count, self.n_modes)
+            self.model = Model(self.state_shape, self.actions_count, self.num_modes)
 
         self.model.to(self.device)
         
@@ -136,16 +137,17 @@ class AgentDiffExpEns():
 
         self.episode_steps = torch.zeros((self.n_envs, ), dtype=int)
 
-        self.episode_score  = EpisodeScore(self.n_envs)
-        self.modes_id = numpy.zeros((self.n_envs, ), dtype=int)
+        self.episode_score = EpisodeScore(self.n_envs)
+        self.modes = numpy.zeros((self.n_envs, ), dtype=int)
+
 
         # result loggers
         self.log_rewards_int    = ValuesLogger("rewards_int")
-        self.log_loss_ppo       = ValuesLogger("loss_ppo")
-        self.log_loss_diffusion = ValuesLogger("loss_diffusion")
-        self.log_loss_im_ssl    = ValuesLogger("loss_im_ssl")
-
         self.log_modes          = ValuesLogger("modes")
+        self.log_loss_ppo       = ValuesLogger("loss_ppo")
+        self.log_loss_im = ValuesLogger("loss_diffusion")
+        self.log_loss_im_ssl    = ValuesLogger("loss_im_ssl")
+        
 
         if self.rnn_policy:
             self.log_rnn        = ValuesLogger("rnn")
@@ -171,7 +173,8 @@ class AgentDiffExpEns():
         print("adv_int_coeff        ", self.adv_int_coeff)
         print("val_coeff            ", self.val_coeff)
         print("reward_ext_coeff     ", self.reward_ext_coeff)
-        print("reward_int_coeff     ", self.reward_int_coeff)
+        print("reward_int_a_coeff   ", self.reward_int_a_coeff)
+        print("reward_int_b_coeff   ", self.reward_int_b_coeff)
         print("steps                ", self.steps)
         print("batch_size           ", self.batch_size)
         print("ss_batch_size        ", self.ss_batch_size)
@@ -185,7 +188,7 @@ class AgentDiffExpEns():
         print("denoising_steps      ", self.denoising_steps)
         print("time_distances       ", self.time_distances)
         print("state_normalise      ", self.state_normalise)
-        print("n_modes              ", self.n_modes)
+        print("num_modes            ", self.num_modes)
 
         print("rnn_policy           ", self.rnn_policy)
         print("rnn_shape            ", self.rnn_shape)  
@@ -199,7 +202,7 @@ class AgentDiffExpEns():
   
     def step(self, states, training_enabled):     
         states_t = torch.from_numpy(states).to(self.dtype).to(self.device)
-        modes_t  = torch.from_numpy(self.modes_id).to(self.device)
+        modes_t  = torch.from_numpy(self.modes).to(self.device)
 
 
         if self.state_normalise:
@@ -208,9 +211,9 @@ class AgentDiffExpEns():
 
         # obtain model output, logits and values, use abstract state space z
         if self.rnn_policy:
-            logits_t, values_ext_t, values_int_t, hidden_state_new = self.model.forward(states_t, modes_t, self.hidden_state_t)
+            logits_t, values_ext_t, values_int_t, hidden_state_new = self.model.forward(states_t, self.hidden_state_t)
         else:
-            logits_t, values_ext_t, values_int_t = self.model.forward(states_t, modes_t)
+            logits_t, values_ext_t, values_int_t = self.model.forward(states_t)
 
         actions = self._sample_actions(logits_t)
       
@@ -218,10 +221,12 @@ class AgentDiffExpEns():
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
         # internal motivaiotn based on diffusion
-        rewards_int, _     = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf, self.denoising_steps, modes_t)
-        rewards_int        = rewards_int.float().detach().cpu().numpy()
+        rewards_int_a, rewards_int_b, _, _, modes_stats = self._internal_motivation(states_t, modes_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
 
-        rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
+        rewards_int_a = rewards_int_a.float().detach().cpu().numpy()
+        rewards_int_b = rewards_int_b.float().detach().cpu().numpy()
+
+        rewards_int_scaled = numpy.clip(self.reward_int_a_coeff*rewards_int_a, self.reward_int_b_coeff*rewards_int_b, 0.0, 1.0)
 
 
         if "room_id" in infos[0]:
@@ -232,7 +237,7 @@ class AgentDiffExpEns():
         # top PPO training part
         if training_enabled:   
             # put trajectory into policy buffer
-            self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext, rewards_int_scaled, dones, self.episode_steps, label=self.modes_id, hidden_states=self.hidden_state_t)
+            self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext, rewards_int_scaled, dones, self.episode_steps, label=self.modes, hidden_states=self.hidden_state_t)
 
             # if buffer is full, run training loop
             if self.trajectory_buffer.is_full():
@@ -266,29 +271,25 @@ class AgentDiffExpEns():
             else:
                 self.hidden_state_t = hidden_state_new.detach().clone()
 
-        # reset episode steps counter and hidden state
-        done_idx = numpy.where(dones)[0]
-        for i in done_idx:
-            self.episode_steps[i]   = 0
-            self.modes_id[i]        = 0
 
-            if self.rnn_policy:
-                self.hidden_state_t[i]  = 0.0
-
-        
         episode_score, episode_score_max = self.episode_score(rewards_ext, dones)
 
         # non zero reward reached
-        # chose new random explorer head
+        # chose new random mode
         rewards_idx = numpy.where(rewards_ext)[0]
         for i in rewards_idx:
             p = episode_score[i]/(episode_score_max + 1e-6)
             if numpy.random.rand() < p:
-                self.modes_id[i] = numpy.random.randint(0, self.n_modes)
-            
-        self.log_modes.add("episode_score", episode_score.mean())
-        self.log_modes.add("episode_score_max", episode_score_max.mean())
-        self.log_modes.add("modes_id", (1.0*(self.modes_id > 0)).mean())
+                self.modes[i] = numpy.random.randint(0, self.num_modes)
+        
+
+        # reset episode steps counter and hidden state
+        done_idx = numpy.where(dones)[0]
+        for i in done_idx:
+            self.episode_steps[i]   = 0
+
+            if self.rnn_policy:
+                self.hidden_state_t[i]  = 0.0
 
         if self.rnn_policy:
             self.log_rnn.add("mean", self.hidden_state_t.mean().detach().cpu().float().numpy().item())
@@ -298,8 +299,14 @@ class AgentDiffExpEns():
             
         self.iterations+= 1
      
-        self.log_rewards_int.add("mean", rewards_int.mean())
-        self.log_rewards_int.add("std",  rewards_int.std())
+        self.log_rewards_int.add("mean_a", rewards_int_a.mean())
+        self.log_rewards_int.add("std_a",  rewards_int_a.std())
+        self.log_rewards_int.add("mean_b", rewards_int_b.mean())
+        self.log_rewards_int.add("std_b",  rewards_int_b.std())
+
+        
+        self.log_modes.add("accuracy_mean", modes_stats["mean"])
+        self.log_modes.add("accuracy_std", modes_stats["std"])
         
         return states_new, rewards_ext, dones, infos
     
@@ -389,7 +396,7 @@ class AgentDiffExpEns():
 
     def get_logs(self):
 
-        logs = [self.log_rewards_int, self.log_loss_ppo, self.log_loss_diffusion, self.log_loss_im_ssl, self.log_modes]
+        logs = [self.log_rewards_int, self.log_loss_ppo, self.log_loss_im, self.log_loss_im_ssl, self.log_modes]
 
         if self.rnn_policy:
             logs.append(self.log_rnn)
@@ -406,16 +413,16 @@ class AgentDiffExpEns():
                 
                 if self.rnn_policy:
                     # sample batch
-                    states, hidden_states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.trajectory_buffer.sample_batch_rnn(self.batch_size, self.device)
+                    states, modes, hidden_states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.trajectory_buffer.sample_batch_rnn_with_labels(self.batch_size, self.device)
 
                     # compute main PPO loss
-                    loss_ppo = self._loss_ppo(states, hidden_states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
+                    loss_ppo = self._loss_ppo(states, modes, hidden_states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
                 else:
                     # sample batch
-                    states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.trajectory_buffer.sample_batch(self.batch_size, self.device)
+                    states, modes, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.trajectory_buffer.sample_batch_with_labels(self.batch_size, self.device)
                     
                     # compute main PPO loss
-                    loss_ppo = self._loss_ppo(states, None, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
+                    loss_ppo = self._loss_ppo(states, modes, None, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
 
 
                 self.optimizer.zero_grad()        
@@ -432,15 +439,15 @@ class AgentDiffExpEns():
         #main IM training loop
         for batch_idx in range(batch_count):    
             #internal motivation loss, MSE diffusion    
-            states_now, _, _, _, _, _  = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
-            _, loss_diffusion  = self._internal_motivation(states_now, self.alpha_min, self.alpha_max, self.denoising_steps)
+            states_now, _, _, _, _, modes_t  = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
+            _, _, loss_diffusion, loss_modes, _  = self._internal_motivation(states_now, modes_t, self.alpha_min, self.alpha_max, self.denoising_steps)
 
 
             #self supervised target regularisation
             states_seq, labels = self.trajectory_buffer.sample_states_seq(self.ss_batch_size, self.time_distances, self.device)
             loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_seq, labels)
             
-            loss = loss_diffusion + loss_ssl
+            loss = loss_diffusion + loss_modes + loss_ssl
 
             for key in info_ssl:
                 self.log_loss_im_ssl.add(str(key), info_ssl[key])
@@ -451,7 +458,8 @@ class AgentDiffExpEns():
             self.optimizer.step() 
 
             # log results
-            self.log_loss_diffusion.add("loss_diffusion", loss_diffusion.float().detach().cpu().numpy())
+            self.log_loss_im.add("loss_diffusion", loss_diffusion.float().detach().cpu().numpy())
+            self.log_loss_im.add("loss_modes", loss_modes.float().detach().cpu().numpy())
                 
            
 
@@ -468,11 +476,10 @@ class AgentDiffExpEns():
 
 
     # state denoising ability novely detection
-    def _internal_motivation(self, states, alpha_min, alpha_max, denoising_steps, modes_ids):
+    def _internal_motivation(self, states, modes, alpha_min, alpha_max, denoising_steps):
       
         # obtain taget features from states and noised states
-        z_target  = self.model.forward_im_features(states)
-        z_target  = z_target[torch.arange(z_target.shape[0]), modes_ids].detach()
+        z_target  = self.model.forward_im_features(states).detach()
 
         # add noise into features
         z_noised, noise, alpha = self.im_noise(z_target, alpha_min, alpha_max)
@@ -489,19 +496,36 @@ class AgentDiffExpEns():
 
         # MSE noise loss prediction
         noise_pred = z_noised - z_denoised
-        loss = ((noise - noise_pred)**2).mean()
+        loss_novelty = ((noise - noise_pred)**2).mean()
+
+        # diversity novelty
+        logits = self.model.forward_im_modes(z_target)
+        loss_func = torch.nn.CrossEntropyLoss()
+        loss_diversity = loss_func(logits, modes)
+
+        probs = torch.softmax(logits, dim=-1)
+        diversity = probs[range(modes.shape[0]), modes]
+
+        # accuracy stats
+        modes_pred = torch.argmax(probs, dim=-1)
+        matching   = modes == modes_pred
+
+        modes_acc = {}
+
+        modes_acc["mean"] = matching.float().mean()
+        modes_acc["std"]  = matching.float().std()
         
-        return novelty.detach(), loss
+        return novelty.detach(), diversity.detach(), loss_novelty, loss_diversity, modes_acc
 
 
 
     # main PPO loss
-    def _loss_ppo(self, states, hidden_states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
+    def _loss_ppo(self, states, modes, hidden_states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
         
         if hidden_states is not None:
-            logits_new, values_ext_new, values_int_new, _ = self.model.forward(states, hidden_states)
+            logits_new, values_ext_new, values_int_new, _ = self.model.forward(states, modes, hidden_states)
         else:
-            logits_new, values_ext_new, values_int_new  = self.model.forward(states)
+            logits_new, values_ext_new, values_int_new  = self.model.forward(states, modes)
 
 
         #critic loss
