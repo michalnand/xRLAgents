@@ -13,8 +13,7 @@ from .AgentPPOSND           import *
 
 from .AgentDiffExp              import *
 from .AgentDiffExpModes         import *
-from .AgentDiffExpSur           import *
-from .AgentDiffExpAdv           import *
-from .AgentCuriousExplorers     import *
+from .AgentDiffExpEns           import *
+
 
 from .loss_self_supervised  import *
