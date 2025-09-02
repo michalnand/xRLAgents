@@ -291,7 +291,7 @@ class AgentDiffExpEns():
                 self.modes_id[i] = numpy.random.randint(0, self.num_modes)
             
         self.log_modes.add("episode_score", episode_score.mean())
-        self.log_modes.add("episode_score_max", episode_score_max.mean())
+        self.log_modes.add("episode_score_max", episode_score_max)  
         self.log_modes.add("modes_id", (1.0*(self.modes_id > 0)).mean())
 
         if self.rnn_policy:
