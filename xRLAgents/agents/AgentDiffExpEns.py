@@ -476,7 +476,9 @@ class AgentDiffExpEns():
       
         # obtain taget features from states and noised states
         z_target  = self.model.forward_im_features(states)
+        print("z_target orig ", z_target.shape)
         z_target  = z_target[torch.arange(z_target.shape[0]), modes_ids].detach()
+        print("z_target ", z_target.shape)  
 
         # add noise into features
         z_noised, noise, alpha = self.im_noise(z_target, alpha_min, alpha_max)
