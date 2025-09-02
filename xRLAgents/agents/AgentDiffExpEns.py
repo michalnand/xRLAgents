@@ -410,16 +410,16 @@ class AgentDiffExpEns():
                 
                 if self.rnn_policy:
                     # sample batch
-                    states, hidden_states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.trajectory_buffer.sample_batch_rnn(self.batch_size, self.device)
+                    states, modes, hidden_states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.trajectory_buffer.sample_batch_rnn_with_labels(self.batch_size, self.device)
 
-                    # compute main PPO loss
-                    loss_ppo = self._loss_ppo(states, hidden_states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
+                    # compute main PPO loss 
+                    loss_ppo = self._loss_ppo(states, modes, hidden_states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
                 else:
                     # sample batch
-                    states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.trajectory_buffer.sample_batch(self.batch_size, self.device)
+                    states, modes, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.trajectory_buffer.sample_batch_with_labels(self.batch_size, self.device)
                     
                     # compute main PPO loss
-                    loss_ppo = self._loss_ppo(states, None, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
+                    loss_ppo = self._loss_ppo(states, modes, None, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
 
 
                 self.optimizer.zero_grad()        
@@ -502,12 +502,12 @@ class AgentDiffExpEns():
 
 
     # main PPO loss
-    def _loss_ppo(self, states, hidden_states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
+    def _loss_ppo(self, states, modes, hidden_states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
         
         if hidden_states is not None:
-            logits_new, values_ext_new, values_int_new, _ = self.model.forward(states, hidden_states)
+            logits_new, values_ext_new, values_int_new, _ = self.model.forward(states, modes, hidden_states)
         else:
-            logits_new, values_ext_new, values_int_new  = self.model.forward(states)
+            logits_new, values_ext_new, values_int_new  = self.model.forward(states, modes)
 
 
         #critic loss
