@@ -51,9 +51,20 @@ class AgentDiffExpSur():
 
         self.time_distances       = config.time_distances
         
-        self.state_normalise    = config.state_normalise
+        self.state_normalise        = config.state_normalise
 
-       
+        if hasattr(config, "rnn_policy"):
+            self.rnn_policy         = config.rnn_policy
+            self.rnn_shape          = config.rnn_shape
+            self.rnn_hierachical    = config.rnn_hierachical
+            self.rnn_steps          = config.rnn_steps
+        else:
+            self.rnn_policy         = False
+            self.rnn_shape          = None
+            self.rnn_hierachical    = False
+            self.rnn_steps          = 0
+
+
        
         self.n_envs         = len(envs)
         self.state_shape    = self.envs.observation_space.shape
@@ -61,7 +72,11 @@ class AgentDiffExpSur():
         self.actions_count  = self.envs.action_space.n
 
         # create mdoel
-        self.model = Model(self.state_shape, self.actions_count)
+        if self.rnn_policy:
+            self.model = Model(self.state_shape, self.actions_count, self.rnn_shape)
+        else:
+            self.model = Model(self.state_shape, self.actions_count)
+
         self.model.to(self.device)
         
         self.model = self.model.to(dtype=self.dtype, device="cuda")
@@ -86,8 +101,11 @@ class AgentDiffExpSur():
             for e in range(self.n_envs):
                 state, _ = self.envs.reset(e)
         
-        
-        self.episode_steps   = torch.zeros((self.n_envs, ), dtype=int)
+        if self.rnn_policy:
+            self.hidden_state_t = torch.zeros((self.n_envs, ) + self.rnn_shape).to(self.dtype).to(self.device)
+
+
+        self.episode_steps = torch.zeros((self.n_envs, ), dtype=int)
 
 
         # result loggers
@@ -96,6 +114,8 @@ class AgentDiffExpSur():
         self.log_loss_im        = ValuesLogger("loss_im")
         self.log_loss_im_ssl    = ValuesLogger("loss_im_ssl")
 
+        if self.rnn_policy:
+            self.log_rnn        = ValuesLogger("rnn")
 
         self.saving_enabled = False
         self.iterations = 0
@@ -118,7 +138,7 @@ class AgentDiffExpSur():
         print("adv_int_coeff        ", self.adv_int_coeff)
         print("val_coeff            ", self.val_coeff)
         print("reward_ext_coeff     ", self.reward_ext_coeff)
-        print("reward_int_a_coeff   ", self.reward_int_a_coeff)
+        print("reward_int_a_coeff   ", self.reward_int_a_coeff) 
         print("reward_int_b_coeff   ", self.reward_int_b_coeff)
         print("steps                ", self.steps)
         print("batch_size           ", self.batch_size)
@@ -133,6 +153,12 @@ class AgentDiffExpSur():
         print("denoising_steps      ", self.denoising_steps)
         print("time_distances       ", self.time_distances)
         print("state_normalise      ", self.state_normalise)
+
+        print("rnn_policy           ", self.rnn_policy)
+        print("rnn_shape            ", self.rnn_shape)  
+        print("rnn_hierachical      ", self.rnn_hierachical)
+        print("rnn_steps            ", self.rnn_steps)  
+        
         
         print("\n\n")
         
@@ -141,42 +167,47 @@ class AgentDiffExpSur():
     def step(self, states, training_enabled):     
         states_t = torch.from_numpy(states).to(self.dtype).to(self.device)
 
+
         if self.state_normalise:
             self._update_normalisation(states_t, alpha = 0.99)
             states_t = self._state_normalise(states_t)
 
         # obtain model output, logits and values, use abstract state space z
-        logits_t, values_ext_t, values_int_t = self.model.forward(states_t)
+        if self.rnn_policy:
+            logits_t, values_ext_t, values_int_t, hidden_state_new = self.model.forward(states_t, self.hidden_state_t)
+        else:
+            logits_t, values_ext_t, values_int_t = self.model.forward(states_t)
 
         actions = self._sample_actions(logits_t)
       
         # environment step  
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
+
+
+        # internal motivation based on diffusion and state prediction
+
         states_next_t = torch.from_numpy(states_new).to(self.dtype).to(self.device)
-        if self.state_normalise:
-            states_next_t = self._state_normalise(states_next_t)
+        states_next_t = self._state_normalise(states_next_t)
+        actions_t     = torch.from_numpy(actions).to(self.device)
 
-        # internal motivation based on diffusion
-        actions_t = torch.from_numpy(actions).to(self.device)
         rewards_int_a, rewards_int_b, _, _ = self._internal_motivation(states_t, states_next_t, actions_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
-
-
-        rewards_int_a = rewards_int_a.float().detach().cpu().numpy()
-        rewards_int_b = rewards_int_b.float().detach().cpu().numpy()
-
-        rewards_int_scaled = numpy.clip(self.reward_int_a_coeff*rewards_int_a + self.reward_int_b_coeff*rewards_int_b, -1.0, 1.0)
-
         
+        rewards_int_a  = rewards_int_a.float().detach().cpu().numpy()
+        rewards_int_b  = rewards_int_b.float().detach().cpu().numpy()
+
+        rewards_int_scaled = numpy.clip(self.reward_int_a_coeff*rewards_int_a + self.reward_int_b_coeff*rewards_int_b, 0.0, 1.0)
+
+
         if "room_id" in infos[0]:
             resp = self._process_room_ids(infos)
             self.room_ids.append(resp)
 
             
         # top PPO training part
-        if training_enabled:     
+        if training_enabled:   
             # put trajectory into policy buffer
-            self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext, rewards_int_scaled, dones, self.episode_steps)
+            self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext, rewards_int_scaled, dones, self.episode_steps, hidden_states=self.hidden_state_t)
 
             # if buffer is full, run training loop
             if self.trajectory_buffer.is_full():
@@ -193,13 +224,37 @@ class AgentDiffExpSur():
         
         self.episode_steps+= 1
 
-        # reset episode steps counter
+
+        if self.rnn_policy:
+            if self.rnn_hierachical:
+                # always update low level RNN
+                self.hidden_state_t[:, 0] = hidden_state_new[:, 0].detach().clone()
+
+                mask = ((self.episode_steps % self.rnn_steps) == 0)
+
+                # expand mask to match hidden dimension
+                mask = mask.to(self.device).unsqueeze(-1)  # (n_envs, 1)
+
+                # update high RNN states only where mask==1
+                self.hidden_state_t[:, 1] = torch.where(mask, hidden_state_new[:, 1].detach(), self.hidden_state_t[:, 1])
+
+            else:
+                self.hidden_state_t = hidden_state_new.detach().clone()
+
+        # reset episode steps counter and hidden state
         done_idx = numpy.where(dones)[0]
         for i in done_idx:
             self.episode_steps[i]   = 0
 
+            if self.rnn_policy:
+                self.hidden_state_t[i]  = 0.0
 
-
+        if self.rnn_policy:
+            self.log_rnn.add("mean", self.hidden_state_t.mean().detach().cpu().float().numpy().item())
+            self.log_rnn.add("std", self.hidden_state_t.std().detach().cpu().float().numpy().item())
+            self.log_rnn.add("mean_mag", (self.hidden_state_t**2).mean().detach().cpu().float().numpy().item())
+            self.log_rnn.add("std_mag", (self.hidden_state_t**2).std().detach().cpu().float().numpy().item())
+            
         self.iterations+= 1
      
         self.log_rewards_int.add("mean_a", rewards_int_a.mean())
@@ -294,7 +349,13 @@ class AgentDiffExpSur():
      
 
     def get_logs(self):
-        return [self.log_rewards_int, self.log_loss_ppo, self.log_loss_im, self.log_loss_im_ssl]
+
+        logs = [self.log_rewards_int, self.log_loss_ppo, self.log_loss_im, self.log_loss_im_ssl]
+
+        if self.rnn_policy:
+            logs.append(self.log_rnn)
+
+        return logs
 
     def train(self): 
         samples_count = self.steps*self.n_envs
@@ -304,11 +365,19 @@ class AgentDiffExpSur():
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
                 
-                # sample batch
-                states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.trajectory_buffer.sample_batch(self.batch_size, self.device)
-                
-                # compute main PPO loss
-                loss_ppo = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
+                if self.rnn_policy:
+                    # sample batch
+                    states, hidden_states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.trajectory_buffer.sample_batch_rnn(self.batch_size, self.device)
+
+                    # compute main PPO loss
+                    loss_ppo = self._loss_ppo(states, hidden_states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
+                else:
+                    # sample batch
+                    states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.trajectory_buffer.sample_batch(self.batch_size, self.device)
+                    
+                    # compute main PPO loss
+                    loss_ppo = self._loss_ppo(states, None, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
+
 
                 self.optimizer.zero_grad()        
                 loss_ppo.backward()
@@ -325,14 +394,14 @@ class AgentDiffExpSur():
         for batch_idx in range(batch_count):    
             #internal motivation loss, MSE diffusion    
             states_now, states_next, _, actions, _, _  = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
-            _, _, loss_diffusion, loss_prediciton  = self._internal_motivation(states_now, states_next, actions, self.alpha_min, self.alpha_max, self.denoising_steps)
+            _, _, loss_diffusion, loss_pred  = self._internal_motivation(states_now, states_next, actions, self.alpha_min, self.alpha_max, self.denoising_steps)
 
 
             #self supervised target regularisation
             states_seq, labels = self.trajectory_buffer.sample_states_seq(self.ss_batch_size, self.time_distances, self.device)
             loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_seq, labels)
             
-            loss = loss_diffusion + loss_prediciton + loss_ssl
+            loss = loss_diffusion + loss_pred + loss_ssl
 
             for key in info_ssl:
                 self.log_loss_im_ssl.add(str(key), info_ssl[key])
@@ -344,7 +413,7 @@ class AgentDiffExpSur():
 
             # log results
             self.log_loss_im.add("loss_diffusion", loss_diffusion.float().detach().cpu().numpy())
-            self.log_loss_im.add("loss_prediciton", loss_prediciton.float().detach().cpu().numpy())
+            self.log_loss_im.add("loss_pred", loss_pred.float().detach().cpu().numpy())
                 
            
 
@@ -361,14 +430,14 @@ class AgentDiffExpSur():
 
 
     # state denoising ability novely detection
-    def _internal_motivation(self, states, states_next, action, alpha_min, alpha_max, denoising_steps):
+    def _internal_motivation(self, states, states_next, actions, alpha_min, alpha_max, denoising_steps):
       
         # obtain taget features from states and noised states
-        z_now     = self.model.forward_im_features(states).detach()
-        z_next    = self.model.forward_im_features(states_next).detach()
-        
+        z_target       = self.model.forward_im_features(states).detach()
+        z_target_next  = self.model.forward_im_features(states_next).detach()
+
         # add noise into features
-        z_noised, noise, alpha = self.im_noise(z_now, alpha_min, alpha_max)
+        z_noised, noise, alpha = self.im_noise(z_target, alpha_min, alpha_max)
 
         z_denoised = z_noised.to(self.dtype).detach().clone()
     
@@ -378,32 +447,28 @@ class AgentDiffExpSur():
             z_denoised = z_denoised - noise_hat
 
         # denoising novelty
-        novelty    = ((z_now - z_denoised)**2).mean(dim=1)
+        novelty_diff    = ((z_target - z_denoised)**2).mean(dim=1)
 
         # MSE noise loss prediction
         noise_pred = z_noised - z_denoised
-        loss_diffusion = ((noise - noise_pred)**2).mean()
+        loss_diff = ((noise - noise_pred)**2).mean()
 
-
-
-        # next state prediction
-        z_next_hat = self.model.forward_im_predictor(z_now, action)
-
-        prediction = ((z_next - z_next_hat)**2).mean(dim=1)
-
-        loss_prediction = prediction.mean()
-
+        # state prediction novelty
+        z_pred       =  self.model.forward_im_fm(z_target, actions)
+        novelty_pred = ((z_target_next - z_pred)**2).mean(dim=1)
+        loss_pred    = ((z_target_next - z_pred)**2).mean()
         
-        return novelty.detach(), prediction.detach(), loss_diffusion, loss_prediction
-
-
+        return novelty_diff.detach(), novelty_pred.detach(), loss_diff, loss_pred
 
 
 
     # main PPO loss
-    def _loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
-
-        logits_new, values_ext_new, values_int_new  = self.model.forward(states)
+    def _loss_ppo(self, states, hidden_states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
+        
+        if hidden_states is not None:
+            logits_new, values_ext_new, values_int_new, _ = self.model.forward(states, hidden_states)
+        else:
+            logits_new, values_ext_new, values_int_new  = self.model.forward(states)
 
 
         #critic loss
@@ -508,7 +573,3 @@ class AgentDiffExpSur():
             result[n] = int(infos[n]["room_id"])
 
         return result
-
-
-
-

@@ -190,7 +190,7 @@ class TrajectoryBufferIM:
 
         indices_random  = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size, ))
 
-
+        
         states_now      = (self.states[indices_now]).to(dtype=dtype, device=device)
         states_next     = (self.states[indices_next]).to(dtype=dtype, device=device)
         states_random   = (self.states[indices_random]).to(dtype=dtype, device=device)
