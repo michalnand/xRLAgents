@@ -285,7 +285,7 @@ class AgentDiffExp():
         # save episode steps count
         steps = []
         for n in range(self.steps): 
-            s = self.trajectory_buffer["steps"][n]
+            s = self.trajectory_buffer.buffer["steps"][n]
             s = s.detach().cpu().int().numpy()
             steps.append(s) 
 
