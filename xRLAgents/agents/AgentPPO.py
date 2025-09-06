@@ -31,16 +31,7 @@ class AgentPPO():
         self.state_shape        = self.envs.observation_space.shape
         self.actions_count      = self.envs.action_space.n
 
-        # create mdoel
-        self.model = Model(self.state_shape, self.actions_count)
-        self.model.to(self.device)
-        print(self.model)
-
-        # initialise optimizer and trajectory buffer
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
-
-        self.trajectory_buffer = TrajectoryBuffer(self.steps, self.n_envs)
-
+       
         self.log_loss_ppo = ValuesLogger("loss_ppo")
 
         if hasattr(config, "ssl_loss"):
@@ -64,6 +55,21 @@ class AgentPPO():
 
             self.log_rnn = None
 
+
+
+        # create mdoel
+        if self.rnn_policy:
+            self.model = Model(self.state_shape, self.actions_count, self.rnn_shape)
+        else:
+            self.model = Model(self.state_shape, self.actions_count)
+
+        self.model.to(self.device)
+        print(self.model)
+
+        # initialise optimizer and trajectory buffer
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
+
+        self.trajectory_buffer = TrajectoryBuffer(self.steps, self.n_envs)
 
         
   
