@@ -29,6 +29,8 @@ class TrajectoryBuffer:
                 self.buffer[key] = torch.zeros(shape, device=self.device, dtype=value.dtype)
 
                 print("new item ", str(key), self.buffer[key].shape)
+            
+            print()
 
         # add values into buffer
         for key, value in kwargs.items():
@@ -40,6 +42,7 @@ class TrajectoryBuffer:
             print("add ", str(key), self.buffer[key][self.ptr].shape, value.shape)
             self.buffer[key][self.ptr].copy_(value)
 
+        print()
 
         self.ptr = self.ptr + 1
 
