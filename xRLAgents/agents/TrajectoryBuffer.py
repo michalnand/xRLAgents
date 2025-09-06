@@ -7,8 +7,6 @@ class TrajectoryBuffer:
         self.n_envs         = n_envs
         self.device         = device
 
-        
-
         self.clear()   
 
     def clear(self):
@@ -28,7 +26,7 @@ class TrajectoryBuffer:
 
                 self.buffer[key] = torch.zeros(shape, device=self.device, dtype=value.dtype)
 
-                print("new item ", str(key), self.buffer[key].shape, self.buffer[key].dtype)
+                # print("new item ", str(key), self.buffer[key].shape, self.buffer[key].dtype)
 
 
         # add values into buffer
