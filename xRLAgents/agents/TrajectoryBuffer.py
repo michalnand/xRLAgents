@@ -50,7 +50,7 @@ class TrajectoryBuffer:
     def compute_returns(self, gamma, lam = 0.95):
         rewards = self.buffer["rewards"]
         values  = self.buffer["values"]
-        dones   = self.buffer["dones"]
+        dones   = self.buffer["dones"].float()
 
         # compute returns and advantages using gae
         returns, advantages = self._gae(rewards, values, dones, gamma, lam)
