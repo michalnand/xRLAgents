@@ -8,7 +8,7 @@ class TrajectoryBuffer:
         self.device         = device
 
         self.buffer = {}
-        
+
         self.clear()   
 
     def clear(self):
@@ -34,6 +34,8 @@ class TrajectoryBuffer:
                 value = torch.as_tensor(value, device=self.device).detach()
             else:
                 value = value.to(self.device).detach()
+
+            print(self.buffer[key][self.ptr].shape, value.shape)
             
             self.buffer[key][self.ptr].copy_(value)
 
