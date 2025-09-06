@@ -52,6 +52,8 @@ class TrajectoryBuffer:
         values  = self.buffer["values"]
         dones   = self.buffer["dones"].float()
 
+        print(rewards.shape, values.shape, dones.shape)
+
         # compute returns and advantages using gae
         returns, advantages = self._gae(rewards, values, dones, gamma, lam)
 
