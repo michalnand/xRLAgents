@@ -224,7 +224,6 @@ class AgentPPO():
         p1          = ratio*advantages
         p2          = torch.clamp(ratio, 1.0 - self.eps_clip, 1.0 + self.eps_clip)*advantages
 
-        print(ratio.shape, advantages.shape, p1.shape, p2.shape)
         loss_policy = -torch.min(p1, p2)  
         loss_policy = loss_policy.mean()  
     
