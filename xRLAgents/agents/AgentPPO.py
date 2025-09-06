@@ -27,7 +27,7 @@ class AgentPPO():
         self.learning_rate      = config.learning_rate
 
 
-        self.envs_count         = len(envs)
+        self.n_envs             = len(envs)
         self.state_shape        = self.envs.observation_space.shape
         self.actions_count      = self.envs.action_space.n
 
@@ -39,7 +39,7 @@ class AgentPPO():
         # initialise optimizer and trajectory buffer
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
 
-        self.trajectory_buffer = TrajectoryBuffer(self.steps, self.envs_count)
+        self.trajectory_buffer = TrajectoryBuffer(self.steps, self.n_envs)
 
         self.log_loss_ppo = ValuesLogger("loss_ppo")
 
@@ -51,7 +51,18 @@ class AgentPPO():
             self.log_loss_ssl   = None
 
 
-        self.log_rnn = None
+        if hasattr(config, "rnn_policy"):
+            self.rnn_policy     = config.rnn_policy
+            self.rnn_shape      = config.rnn_shape
+            self.hidden_state_t = torch.zeros((self.n_envs, ) + self.rnn_shape).to(self.device)
+            
+            self.log_rnn = ValuesLogger("rnn")
+        else:
+            self.rnn_policy     = False
+            self.rnn_shape      = None
+            self.hidden_state_t = None
+
+            self.log_rnn = None
 
 
         
@@ -60,7 +71,10 @@ class AgentPPO():
         states_t = torch.tensor(states, dtype=torch.float).to(self.device)
 
         # obtain model output, logits and values
-        logits_t, values_t  = self.model.forward(states_t)
+        if self.rnn_policy: 
+            logits_t, values_t, hidden_state_new  = self.model.forward(states_t, self.hidden_state_t)
+        else:
+            logits_t, values_t  = self.model.forward(states_t)
 
         actions = self._sample_actions(logits_t)
        
@@ -71,7 +85,10 @@ class AgentPPO():
         if training_enabled:
             
             # put trajectory into policy buffer
-            self.trajectory_buffer.add(states=states_t, logits=logits_t, values=values_t, actions=actions, rewards=rewards, dones=dones)
+            if self.rnn_policy:
+                self.trajectory_buffer.add(states=states_t, logits=logits_t, values=values_t, actions=actions, rewards=rewards, dones=dones, hidden_state=self.hidden_state_t)
+            else:
+                self.trajectory_buffer.add(states=states_t, logits=logits_t, values=values_t, actions=actions, rewards=rewards, dones=dones)
 
             # if buffer is full, run training loop
             if self.trajectory_buffer.is_full():
@@ -80,11 +97,21 @@ class AgentPPO():
                 self.trajectory_buffer.clear()
 
 
+        # update hidden state
         if self.rnn_policy:
+            self.hidden_state_t = hidden_state_new.detach().clone()
+
             # episode end, clear hidden state
             dones_idx = numpy.where(dones)[0]
             for e in dones_idx:
                 self.hidden_state_t[e, :] = 0.0
+
+
+            self.log_rnn.add("mean", self.hidden_state_t.mean().detach().cpu().float().numpy().item())
+            self.log_rnn.add("std", self.hidden_state_t.std().detach().cpu().float().numpy().item())
+            self.log_rnn.add("mean_mag", (self.hidden_state_t**2).mean().detach().cpu().float().numpy().item())
+            self.log_rnn.add("std_mag", (self.hidden_state_t**2).std().detach().cpu().float().numpy().item())
+          
         
         return states_new, rewards, dones, infos
     
@@ -118,7 +145,7 @@ class AgentPPO():
         return actions
     
     def train(self): 
-        samples_count = self.steps*self.envs_count
+        samples_count = self.steps*self.n_envs
         batch_count = samples_count//self.batch_size
 
         # epoch training
@@ -133,9 +160,16 @@ class AgentPPO():
                     actions     = batch["actions"]
                     returns     = batch["returns"]
                     advantages  = batch["advantages"]
-                    
-                    # compute main PPO loss
-                    loss_ppo = self.loss_ppo(states, logits, actions, returns, advantages)
+
+
+                    if self.rnn_policy:
+                        hidden_state  = batch["hidden_state"]
+                        # compute main PPO loss
+                        loss_ppo = self.loss_ppo_rnn(states, hidden_state, logits, actions, returns, advantages)
+
+                    else:
+                        # compute main PPO loss
+                        loss_ppo = self.loss_ppo(states, logits, actions, returns, advantages)
 
                 self.optimizer.zero_grad()        
                 loss_ppo.backward()
@@ -151,7 +185,12 @@ class AgentPPO():
         logits_new, values_new  = self.model.forward(states)
         return self._loss_ppo(logits, actions, returns, advantages, logits_new, values_new)
 
- 
+    
+    # PPO loss call 
+    def loss_ppo_rnn(self, states, hidden_state, logits, actions, returns, advantages):
+        logits_new, values_new, _ = self.model.forward(states, hidden_state)
+        return self._loss_ppo(logits, actions, returns, advantages, logits_new, values_new)
+
     
     # main PPO loss
     def _loss_ppo(self, logits, actions, returns, advantages, logits_new, values_new):
