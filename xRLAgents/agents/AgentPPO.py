@@ -88,6 +88,7 @@ class AgentPPO():
             if self.rnn_policy:
                 self.trajectory_buffer.add(states=states_t, logits=logits_t, values=values_t, actions=actions, rewards=rewards, dones=dones, hidden_state=self.hidden_state_t)
             else:
+                print("states_t = ", states_t.shape)
                 self.trajectory_buffer.add(states=states_t, logits=logits_t, values=values_t, actions=actions, rewards=rewards, dones=dones)
 
             # if buffer is full, run training loop
