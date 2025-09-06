@@ -151,25 +151,24 @@ class AgentPPO():
         # epoch training
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
-               
-                    # sample batch
-                    batch = self.trajectory_buffer.sample_batch(self.batch_size, self.device)
+                # sample batch
+                batch = self.trajectory_buffer.sample_batch(self.batch_size, self.device)
 
-                    states      = batch["states"]
-                    logits      = batch["logits"]
-                    actions     = batch["actions"]
-                    returns     = batch["returns"]
-                    advantages  = batch["advantages"]
+                states      = batch["states"]
+                logits      = batch["logits"]
+                actions     = batch["actions"]
+                returns     = batch["returns"]
+                advantages  = batch["advantages"]
 
 
-                    if self.rnn_policy:
-                        hidden_state  = batch["hidden_state"]
-                        # compute main PPO loss
-                        loss_ppo = self.loss_ppo_rnn(states, hidden_state, logits, actions, returns, advantages)
+                if self.rnn_policy:
+                    hidden_state  = batch["hidden_state"]
+                    # compute main PPO loss
+                    loss_ppo = self.loss_ppo_rnn(states, hidden_state, logits, actions, returns, advantages)
 
-                    else:
-                        # compute main PPO loss
-                        loss_ppo = self.loss_ppo(states, logits, actions, returns, advantages)
+                else:
+                    # compute main PPO loss
+                    loss_ppo = self.loss_ppo(states, logits, actions, returns, advantages)
 
                 self.optimizer.zero_grad()        
                 loss_ppo.backward()
