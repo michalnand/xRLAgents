@@ -34,7 +34,7 @@ class TrajectoryBuffer:
             return True
         return False 
  
-    def clear(self):
+    def clear(self):    
         self.states     = torch.zeros((self.buffer_size, self.envs_count, ) + self.state_shape, dtype=torch.float32)
         self.logits     = torch.zeros((self.buffer_size, self.envs_count, self.actions_size), dtype=torch.float32)
         self.values     = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)        
