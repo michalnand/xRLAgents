@@ -1,5 +1,7 @@
+import ale_py
 import gymnasium as gym
 import numpy
+
 from PIL import Image
 
 import cv2
@@ -37,7 +39,16 @@ class VideoRecorder(gym.Wrapper):
     def reset(self, seed = None, options = None):
         return self.env.reset()
 
+class RemoveTrunc(gym.Wrapper):
+    def __init__(self, env=None):
+        super(RemoveTrunc, self).__init__(env)
 
+    def reset(self, seed = None, options = None):
+        return self.env.reset()
+    
+    def step(self, action):
+        state, reward, done, truncated, info = self.env.step(action)
+        return state, reward, done, info
 
 class NopOpsEnv(gym.Wrapper):
     def __init__(self, env=None, max_count=30):
@@ -50,7 +61,7 @@ class NopOpsEnv(gym.Wrapper):
         noops = numpy.random.randint(1, self.max_count + 1)
          
         for _ in range(noops):
-            obs, _, done, _, _ = self.env.step(0)
+            obs, _, done, _ = self.env.step(0)
 
             if done:
                 obs = self.env.reset()
@@ -78,33 +89,47 @@ class StickyActionEnv(gym.Wrapper):
         return self.env.reset()
  
 
-class RepeatActionEnv(gym.Wrapper):
-    def __init__(self, env):
+
+class MaxAndSkipEnv(gym.Wrapper):
+    def __init__(self, env, n_skip = 4):
         gym.Wrapper.__init__(self, env)
         self.successive_frame = numpy.zeros((2,) + self.env.observation_space.shape, dtype=numpy.uint8)
+        self.n_skip = n_skip
 
-    def reset(self, seed = None, options = None):
-        return self.env.reset()
+    
+    def reset(self, seed=None, options=None):
+        obs, info = self.env.reset(seed=seed, options=options)
+        self.successive_frame[:] = 0
+        
+        return obs, info
 
     def step(self, action):
-        reward, done = 0, False
-        for t in range(4):
-            state, r, done, truncated, info = self.env.step(action)
-            if t == 2:
+        total_reward    = 0
+        done            = False
+        info            = {}
+
+        for t in range(self.n_skip):
+            state, reward, done, info = self.env.step(action)
+
+            if t == self.n_skip-2:
                 self.successive_frame[0] = state
-            elif t == 3:
+            elif t == self.n_skip-1:    
                 self.successive_frame[1] = state
-            reward += r
+            
+            total_reward += reward
+
             if done:
                 break
 
         state = self.successive_frame.max(axis=0)
-        return state, reward, done, truncated, info
+
+        return state, total_reward, done, info
 
 
-class ResizeEnv(gym.ObservationWrapper):
+
+class ResizeEnv(gym.Wrapper):
     def __init__(self, env, height = 96, width = 96, frame_stacking = 4):
-        super(ResizeEnv, self).__init__(env)
+        gym.Wrapper.__init__(self, env)
         self.height = height
         self.width  = width
         self.frame_stacking = frame_stacking
@@ -115,7 +140,17 @@ class ResizeEnv(gym.ObservationWrapper):
         self.observation_space = gym.spaces.Box(low=0.0, high=1.0, shape=state_shape, dtype=self.dtype)
         self.state = numpy.zeros(state_shape, dtype=self.dtype)
 
-    def observation(self, state):
+    def reset(self, seed = None, options = None):    
+        state, info = self.env.reset()
+
+        return self._observation(state), info
+    
+    def step(self, action):    
+        state, reward, done, info = self.env.step(action)
+        return self._observation(state), reward, done, info
+    
+
+    def _observation(self, state):
         img = Image.fromarray(state)
         img = img.convert('L')
         img = img.resize((self.width, self.height))
@@ -123,9 +158,7 @@ class ResizeEnv(gym.ObservationWrapper):
         self.state    = numpy.roll(self.state, 1, axis=0)
         self.state[0] = (numpy.array(img).astype(self.dtype)/255.0).copy()
         
-
         return self.state 
-
 
 class MaxSteps(gym.Wrapper):
     def __init__(self, env, max_steps):
@@ -139,13 +172,13 @@ class MaxSteps(gym.Wrapper):
 
     def step(self, action):
        
-        state, reward, done, truncated, info = self.env.step(action)
+        state, reward, done, info = self.env.step(action)
         
         self.steps+= 1
         if self.steps >= self.max_steps:
             done = True
 
-        return state, reward, done, truncated, info
+        return state, reward, done, info
 
 
 
@@ -159,7 +192,7 @@ class Rewards(gym.Wrapper):
 
     def step(self, action):
        
-        state, reward, done, truncated, info = self.env.step(action)
+        state, reward, done, info = self.env.step(action)
 
         info["raw_reward"] = reward
 
@@ -168,45 +201,41 @@ class Rewards(gym.Wrapper):
         else:
             reward = 0.0
             
-        return state, reward, done, truncated, info
+        return state, reward, done, info
 
-
-
-class StatesRecord(gym.Wrapper):
-    def __init__(self, env, path = "records/states/"):
-        gym.Wrapper.__init__(self, env)
-
-        self.path = path
-        self.cnt  = 0
-       
-
-    def reset(self, seed = None, options = None):
-        return self.env.reset()
-
-    def step(self, action):
-       
-        state, reward, done, truncated, info = self.env.step(action)
-
-        file_name = self.path + str(self.cnt) + ".png"
-        img = numpy.array(state[0]*255, dtype=numpy.uint8)
-        cv2.imwrite(file_name, img)
-        self.cnt+= 1
-
-     
-        return state, reward, done, truncated, info
 
 
 
      
 
-def WrapperAtari(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
+def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
+
+    ale = env.unwrapped.ale
+    ale.setFloat("repeat_action_probability", 0.0)
+    ale.setInt("frame_skip", 1) 
+
     #env = VideoRecorder(env)
-    env = NopOpsEnv(env)
+    env = RemoveTrunc(env)
+    env = NopOpsEnv(env)    
     env = StickyActionEnv(env)
-    env = RepeatActionEnv(env) 
+    env = MaxAndSkipEnv(env)
     env = ResizeEnv(env, height, width, frame_stacking)
+    
     env = MaxSteps(env, max_steps)
     env = Rewards(env)
-    #env = StatesRecord(env)
-     
+
     return env
+
+
+
+if __name__ == "__main__":
+
+    env = gym.make("ALE/MontezumaRevenge-v5")
+    env = WrapperMontezuma(env)
+    
+    print(env.reset())
+    print("\n\n")
+    state, reward, done, info = env.step(0)
+    print(state.shape)
+    print(reward, done, info)
+    print("\n\n")
