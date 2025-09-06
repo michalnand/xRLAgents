@@ -37,7 +37,7 @@ class TrajectoryBuffer:
             else:
                 value = value.to(self.device).detach()
 
-            
+            print("add ", str(key), self.buffer[key][self.ptr].shape, value.shape)
             self.buffer[key][self.ptr].copy_(value)
 
 
