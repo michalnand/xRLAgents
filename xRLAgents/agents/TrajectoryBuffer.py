@@ -6,11 +6,13 @@ class TrajectoryBuffer:
         self.buffer_size    = buffer_size
         self.n_envs         = n_envs
         self.device         = device
-      
+
+        self.buffer = {}
+        
         self.clear()   
 
     def clear(self):
-        self.buffer = {}
+        
         self.ptr    = 0
     
     def add(self, **kwargs):
@@ -52,16 +54,12 @@ class TrajectoryBuffer:
         values  = self.buffer["values"]
         dones   = self.buffer["dones"].float()
 
-        print(rewards.shape, values.shape, dones.shape)
-
         # compute returns and advantages using gae
         returns, advantages = self._gae(rewards, values, dones, gamma, lam)
 
         self.buffer["returns"]    = returns.to(values.dtype)
         self.buffer["advantages"] = advantages.to(values.dtype)
         
-
-        print(returns.shape, advantages.shape)
 
         #reshape buffer for faster batch sampling
         total_size = self.buffer_size*self.n_envs
