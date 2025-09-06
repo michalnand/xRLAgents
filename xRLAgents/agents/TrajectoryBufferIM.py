@@ -103,7 +103,7 @@ class TrajectoryBufferIM:
         total_size = self.buffer_size*self.n_envs
 
         states_result = []
-        labels_result = []      
+        steps_result = []      
 
         indices_now = torch.randint(0, self.n_envs*self.buffer_size, size=(batch_size, ))
 
@@ -112,14 +112,14 @@ class TrajectoryBufferIM:
             indices = indices_now + self.n_envs*torch.randint(0, d_max + 1, size=(batch_size, ))
             indices = torch.clip(indices, 0, total_size-1)
 
-            states = (self.states[indices]).to(dtype=dtype, device=device)
-            labels = (self.labels[indices]).to(device=device) 
+            states = (self.buffer["states"][indices]).to(dtype=dtype, device=device)
+            steps  = (self.buffer["steps"][indices]).to(device=device) 
 
-            states_result.append(states)
-            labels_result.append(labels)
+            states_result.append(states)        
+            steps_result.append(steps)
 
        
-        return states_result, labels_result
+        return states_result, steps_result
       
     def _gae(self, rewards, values, dones, gamma, lam):
         buffer_size = rewards.shape[0]
