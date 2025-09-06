@@ -208,7 +208,7 @@ class Rewards(gym.Wrapper):
 
      
 
-def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
+def WrapperAtari(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
 
     ale = env.unwrapped.ale
     ale.setFloat("repeat_action_probability", 0.0)
@@ -227,15 +227,3 @@ def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps
     return env
 
 
-
-if __name__ == "__main__":
-
-    env = gym.make("ALE/MontezumaRevenge-v5")
-    env = WrapperMontezuma(env)
-    
-    print(env.reset())
-    print("\n\n")
-    state, reward, done, info = env.step(0)
-    print(state.shape)
-    print(reward, done, info)
-    print("\n\n")
