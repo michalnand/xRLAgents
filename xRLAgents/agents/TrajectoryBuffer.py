@@ -59,12 +59,15 @@ class TrajectoryBuffer:
 
         self.buffer["returns"]    = returns.to(values.dtype)
         self.buffer["advantages"] = advantages.to(values.dtype)
+        
+
+        print(returns.shape, advantages.shape)
 
         #reshape buffer for faster batch sampling
         total_size = self.buffer_size*self.n_envs
         for key, arr in self.buffer.items():
             flatten = arr.reshape(total_size, *arr.shape[2:])
-            self.buffer[key] = flatten[idx]
+            self.buffer[key] = flatten
 
 
     def sample_batch(self, batch_size, device):
