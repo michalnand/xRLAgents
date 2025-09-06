@@ -202,7 +202,6 @@ class AgentPPO():
             compute critic loss, as MSE
             L = (T - V(s))^2
         '''
-        values_new = values_new.squeeze(1)
         loss_value = (returns.detach() - values_new)**2
         loss_value = loss_value.mean()
 
