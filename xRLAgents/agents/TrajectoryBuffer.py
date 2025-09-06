@@ -28,6 +28,8 @@ class TrajectoryBuffer:
 
                 self.buffer[key] = torch.zeros(shape, device=self.device, dtype=value.dtype)
 
+                print("new item ", str(key), self.buffer[key].shape)
+
         # add values into buffer
         for key, value in kwargs.items():
             if not isinstance(value, torch.Tensor):
@@ -35,7 +37,6 @@ class TrajectoryBuffer:
             else:
                 value = value.to(self.device).detach()
 
-            print(self.buffer[key][self.ptr].shape, value.shape)
             
             self.buffer[key][self.ptr].copy_(value)
 
