@@ -474,11 +474,11 @@ class AgentDiffExp():
 
     #MSE critic loss
     def _ppo_critic_loss(self, values_ext_new, returns_ext, values_int_new, returns_int):
+        print("critic loss", values_ext_new.shep, returns_ext.shape, values_int_new.shape, returns_int.shape)
         ''' 
         compute external critic loss, as MSE
         L = (T - V(s))^2 
         '''
-        values_ext_new  = values_ext_new.squeeze(1)
         loss_ext_value  = (returns_ext.detach() - values_ext_new)**2
         loss_ext_value  = loss_ext_value.mean()
 
@@ -486,7 +486,6 @@ class AgentDiffExp():
         compute internal critic loss, as MSE
         L = (T - V(s))^2
         '''
-        values_int_new  = values_int_new.squeeze(1)
         loss_int_value  = (returns_int.detach() - values_int_new)**2
         loss_int_value  = loss_int_value.mean()
         
