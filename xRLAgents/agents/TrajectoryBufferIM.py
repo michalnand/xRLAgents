@@ -26,7 +26,7 @@ class TrajectoryBufferIM:
 
                 self.buffer[key] = torch.zeros(shape, device=self.device, dtype=value.dtype)
 
-                print("new item ", str(key), self.buffer[key].shape, self.buffer[key].dtype)
+                #print("new item ", str(key), self.buffer[key].shape, self.buffer[key].dtype)
 
 
         # add values into buffer
@@ -62,11 +62,11 @@ class TrajectoryBufferIM:
         returns_ext, advantages_ext = self._gae(rewards_ext, values_ext, dones, gamma, lam)
         returns_int, advantages_int = self._gae(rewards_int, values_int, dones, gamma, lam)
 
-        self.buffer["returns_ext"]    = returns_ext.to(values.dtype)
-        self.buffer["advantages_ext"] = advantages_ext.to(values.dtype)
+        self.buffer["returns_ext"]    = returns_ext.to(values_ext.dtype)
+        self.buffer["advantages_ext"] = advantages_ext.to(values_ext.dtype)
 
-        self.buffer["returns_int"]    = returns_int.to(values.dtype)
-        self.buffer["advantages_int"] = advantages_int.to(values.dtype)
+        self.buffer["returns_int"]    = returns_int.to(values_int.dtype)
+        self.buffer["advantages_int"] = advantages_int.to(values_int.dtype)
         
 
         #reshape buffer for faster batch sampling
@@ -101,7 +101,7 @@ class TrajectoryBufferIM:
             dtype = torch.float32
 
         total_size = self.buffer_size*self.n_envs
-        
+
         states_result = []
         labels_result = []      
 
