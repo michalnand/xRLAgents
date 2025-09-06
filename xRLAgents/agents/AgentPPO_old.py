@@ -39,7 +39,7 @@ class AgentPPO():
         # initialise optimizer and trajectory buffer
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
 
-        self.trajectory_buffer = TrajectoryBuffer(self.steps, self.envs_count)
+        self.trajectory_buffer = TrajectoryBuffer(self.steps, self.state_shape, self.actions_count, self.envs_count)
 
         self.log_loss_ppo = ValuesLogger("loss_ppo")
 
@@ -51,8 +51,16 @@ class AgentPPO():
             self.log_loss_ssl   = None
 
 
-        self.log_rnn = None
-
+        if hasattr(config, "rnn_policy"):
+            self.rnn_policy     = config.rnn_policy
+            self.rnn_steps      = config.rnn_steps
+            self.hidden_state_t = torch.zeros((self.envs_count, ) + self.model.hidden_shape, device=self.device)
+            self.log_rnn        = ValuesLogger("rnn")
+        else:
+            self.rnn_policy     = False
+            self.rnn_steps      = 0
+            self.hidden_state_t = None
+            self.log_rnn        = None
 
         
   
@@ -60,7 +68,10 @@ class AgentPPO():
         states_t = torch.tensor(states, dtype=torch.float).to(self.device)
 
         # obtain model output, logits and values
-        logits_t, values_t  = self.model.forward(states_t)
+        if self.rnn_policy:
+            logits_t, values_t, hidden_state_new_t  = self.model.forward(states_t, self.hidden_state_t)
+        else:
+            logits_t, values_t  = self.model.forward(states_t)
 
         actions = self._sample_actions(logits_t)
        
@@ -71,7 +82,7 @@ class AgentPPO():
         if training_enabled:
             
             # put trajectory into policy buffer
-            self.trajectory_buffer.add(states=states_t, logits=logits_t, values=values_t, actions=actions, rewards=rewards, dones=dones)
+            self.trajectory_buffer.add(states_t, logits_t, values_t, actions, rewards, dones, self.hidden_state_t)
 
             # if buffer is full, run training loop
             if self.trajectory_buffer.is_full():
@@ -81,6 +92,9 @@ class AgentPPO():
 
 
         if self.rnn_policy:
+            # update with new hidden state
+            self.hidden_state_t = hidden_state_new_t.detach().clone()
+
             # episode end, clear hidden state
             dones_idx = numpy.where(dones)[0]
             for e in dones_idx:
@@ -124,15 +138,16 @@ class AgentPPO():
         # epoch training
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
-               
+                
+                if self.rnn_policy:
                     # sample batch
-                    batch = self.trajectory_buffer.sample_batch(self.batch_size, self.device)
-
-                    states      = batch["states"]
-                    logits      = batch["logits"]
-                    actions     = batch["actions"]
-                    returns     = batch["returns"]
-                    advantages  = batch["advantages"]
+                    states, logits, actions, returns, advantages, hidden_states = self.trajectory_buffer.sample_rnn_batch(self.batch_size, self.rnn_steps, self.device)
+                    
+                    # compute main PPO loss
+                    loss_ppo = self.loss_ppo_rnn(states, logits, actions, returns, advantages, hidden_states)
+                else:
+                    # sample batch
+                    states, logits, actions, returns, advantages = self.trajectory_buffer.sample_batch(self.batch_size, self.device)
                     
                     # compute main PPO loss
                     loss_ppo = self.loss_ppo(states, logits, actions, returns, advantages)
@@ -144,16 +159,50 @@ class AgentPPO():
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
                 self.optimizer.step() 
 
-      
+        # self supervised regularisation loss, optional
+        if self.ssl_loss is not None:
+            for batch_idx in range(batch_count):
+                    
+                states, states_next, actions = self.trajectory_buffer.sample_state_pairs(self.batch_size, self.device)
+
+                loss_ssl, info_ssl = self.ssl_loss(self.model, states, states_next, actions)
+
+                self.optimizer.zero_grad()        
+                loss_ssl.backward()
+                self.optimizer.step() 
+
+                # add to log
+                for key in info_ssl:
+                    self.log_loss_ssl.add(str(key), info_ssl[key])
+
+
 
     # PPO loss call
     def loss_ppo(self, states, logits, actions, returns, advantages):
         logits_new, values_new  = self.model.forward(states)
         return self._loss_ppo(logits, actions, returns, advantages, logits_new, values_new)
 
- 
-    
-    # main PPO loss
+                
+    # PPO loss call for recurrent policy
+    def loss_ppo_rnn(self, states, logits, actions, returns, advantages, hidden_states):
+        seq_len      = hidden_states.shape[0]
+        hidden_state = hidden_states[0].detach()
+
+        for n in range(seq_len):
+            logits_new, values_new, hidden_state = self.model.forward(states[n], hidden_state)
+
+        self.log_rnn.add("hidden_mean",  hidden_states.mean().detach().cpu().numpy().item())
+        self.log_rnn.add("hidden_std",   hidden_states.std().detach().cpu().numpy().item())
+        self.log_rnn.add("hidden_mag_mean", (hidden_states**2).mean().detach().cpu().numpy().item())
+        self.log_rnn.add("hidden_mag_std",  (hidden_states**2).std().detach().cpu().numpy().item())
+
+      
+        return self._loss_ppo(logits[-1], actions[-1], returns[-1], advantages[-1], logits_new, values_new)
+
+
+    '''
+        PPO loss
+    '''
     def _loss_ppo(self, logits, actions, returns, advantages, logits_new, values_new):
         log_probs_old = torch.nn.functional.log_softmax(logits, dim = 1).detach()
 
