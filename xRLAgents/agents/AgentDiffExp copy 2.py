@@ -55,10 +55,14 @@ class AgentDiffExp():
         if hasattr(config, "rnn_policy"):
             self.rnn_policy         = config.rnn_policy
             self.rnn_shape          = config.rnn_shape
+            self.rnn_hierachical    = config.rnn_hierachical
+            self.rnn_steps          = config.rnn_steps
         else:
             self.rnn_policy         = False
             self.rnn_shape          = None
-            
+            self.rnn_hierachical    = False
+            self.rnn_steps          = 0
+
 
        
         self.n_envs         = len(envs)
@@ -80,7 +84,7 @@ class AgentDiffExp():
         # initialise optimizer and trajectory buffer
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
 
-        self.trajectory_buffer = TrajectoryBufferIM(self.steps, self.n_envs)
+        self.trajectory_buffer = TrajectoryBufferIM(self.steps, self.state_shape, self.actions_count, self.n_envs, self.dtype)
 
         # optional, for state mean and variance normalisation
         if self.state_normalise:
@@ -150,10 +154,14 @@ class AgentDiffExp():
 
         print("rnn_policy           ", self.rnn_policy)
         print("rnn_shape            ", self.rnn_shape)  
+        print("rnn_hierachical      ", self.rnn_hierachical)
+        print("rnn_steps            ", self.rnn_steps)  
+        
         
         print("\n\n")
         
      
+  
     def step(self, states, training_enabled):     
         states_t = torch.from_numpy(states).to(self.dtype).to(self.device)
 
@@ -188,10 +196,7 @@ class AgentDiffExp():
         # top PPO training part
         if training_enabled:   
             # put trajectory into policy buffer
-            if self.rnn_policy:
-                self.trajectory_buffer.add(states=states_t, logits=logits_t, values_ext=values_ext_t, values_int=values_int_t, actions=actions, rewards_ext=rewards_ext, rewards_int=rewards_int_scaled, dones=dones, steps=self.episode_steps, hidden_state=self.hidden_state_t)
-            else:
-                self.trajectory_buffer.add(states=states_t, logits=logits_t, values_ext=values_ext_t, values_int=values_int_t, actions=actions, rewards_ext=rewards_ext, rewards_int=rewards_int_scaled, dones=dones, steps=self.episode_steps)
+            self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext, rewards_int_scaled, dones, self.episode_steps, hidden_states=self.hidden_state_t)
 
             # if buffer is full, run training loop
             if self.trajectory_buffer.is_full():
@@ -210,12 +215,25 @@ class AgentDiffExp():
 
 
         if self.rnn_policy:
-            self.hidden_state_t = hidden_state_new.detach().clone()
+            if self.rnn_hierachical:
+                # always update low level RNN
+                self.hidden_state_t[:, 0] = hidden_state_new[:, 0].detach().clone()
+
+                mask = ((self.episode_steps % self.rnn_steps) == 0)
+
+                # expand mask to match hidden dimension
+                mask = mask.to(self.device).unsqueeze(-1)  # (n_envs, 1)
+
+                # update high RNN states only where mask==1
+                self.hidden_state_t[:, 1] = torch.where(mask, hidden_state_new[:, 1].detach(), self.hidden_state_t[:, 1])
+
+            else:
+                self.hidden_state_t = hidden_state_new.detach().clone()
 
         # reset episode steps counter and hidden state
         done_idx = numpy.where(dones)[0]
         for i in done_idx:
-            self.episode_steps[i] = 0
+            self.episode_steps[i]   = 0
 
             if self.rnn_policy:
                 self.hidden_state_t[i]  = 0.0
@@ -251,7 +269,7 @@ class AgentDiffExp():
         z_im  = []
         z_denoised = []
         for n in range(self.steps):
-            x = self.trajectory_buffer.buffer["states"][n]  
+            x = self.trajectory_buffer.states[n]
             x = x.to(device=self.device, dtype=self.dtype)
 
             # ppo features
@@ -334,28 +352,18 @@ class AgentDiffExp():
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
                 
-                # sample batch
-                batch = self.trajectory_buffer.sample_batch(self.batch_size, self.device)
-
-                states          = batch["states"]
-                logits          = batch["logits"]
-                actions         = batch["actions"]
-                returns_ext     = batch["returns_ext"]
-                returns_int     = batch["returns_int"]
-                advantages_ext  = batch["advantages_ext"]
-                advantages_int  = batch["advantages_int"]
-
-
                 if self.rnn_policy:
-                    hidden_state  = batch["hidden_state"]
+                    # sample batch
+                    states, hidden_states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.trajectory_buffer.sample_batch_rnn(self.batch_size, self.device)
 
                     # compute main PPO loss
-                    loss_ppo = self._loss_ppo(states, hidden_state, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
-
+                    loss_ppo = self._loss_ppo(states, hidden_states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
                 else:
+                    # sample batch
+                    states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.trajectory_buffer.sample_batch(self.batch_size, self.device)
+                    
                     # compute main PPO loss
                     loss_ppo = self._loss_ppo(states, None, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
-
 
 
                 self.optimizer.zero_grad()        
@@ -370,10 +378,10 @@ class AgentDiffExp():
         batch_count = samples_count//self.ss_batch_size
         
         #main IM training loop
-        for batch_idx in range(batch_count):        
+        for batch_idx in range(batch_count):    
             #internal motivation loss, MSE diffusion    
-            states  = self.trajectory_buffer.sample_states(self.ss_batch_size, self.device)
-            _, loss_diffusion  = self._internal_motivation(states, self.alpha_min, self.alpha_max, self.denoising_steps)
+            states_now, _, _, _, _, _  = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
+            _, loss_diffusion  = self._internal_motivation(states_now, self.alpha_min, self.alpha_max, self.denoising_steps)
 
 
             #self supervised target regularisation
