@@ -49,9 +49,9 @@ class TrajectoryBufferIM:
         return False 
 
     
-    def compute_returns(self, gamma, lam = 0.95):
+    def compute_returns(self, gamma_ext, gamma_int, lam = 0.95):
         rewards_ext = self.buffer["rewards_ext"]
-        values_ext  = self.buffer["values_ext"]
+        values_ext  = self.buffer["values_ext"] 
 
         rewards_int = self.buffer["rewards_int"]
         values_int  = self.buffer["values_int"]
@@ -59,8 +59,8 @@ class TrajectoryBufferIM:
         dones   = self.buffer["dones"].float()
 
         # compute returns and advantages using gae
-        returns_ext, advantages_ext = self._gae(rewards_ext, values_ext, dones, gamma, lam)
-        returns_int, advantages_int = self._gae(rewards_int, values_int, dones, gamma, lam)
+        returns_ext, advantages_ext = self._gae(rewards_ext, values_ext, dones, gamma_ext, lam)
+        returns_int, advantages_int = self._gae(rewards_int, values_int, dones, gamma_int, lam)
 
         self.buffer["returns_ext"]    = returns_ext.to(values_ext.dtype)
         self.buffer["advantages_ext"] = advantages_ext.to(values_ext.dtype)
