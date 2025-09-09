@@ -231,6 +231,13 @@ class AgentDiffExpFrontier():
         print("rnn_shape            ", self.rnn_shape)  
         
         print("\n\n")
+
+        for n in range(self.n_envs):
+            state = self.envs[n].save_state()
+            print(n)
+            print(state)
+            print("\n\n")
+            self.envs[n].load_state()
         
      
     def step(self, states, training_enabled):
