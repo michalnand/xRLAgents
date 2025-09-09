@@ -37,14 +37,16 @@ class FrontierStatesBuffer:
         
         state = None
 
-        while state:    
+        while state is None:    
             p = self.episode_score/self.episode_score.sum()
             idx = numpy.random.choice(range(self.episode_score.shape[0]), p=p)
             state = self.env_states[idx]
 
+        print("loading ", idx, self.episode_score[0], state)
+
         env.load_state(state)
 
-        print("loading ", idx)
+        
 
     def _used_count(self):
         result = 0
@@ -239,7 +241,7 @@ class AgentDiffExpFrontier():
     def step(self, states, training_enabled):
         for i in self.done_idx:
             if numpy.random.rand() < self.frontier_ratio:
-                self.frontier_states_buffer.load(self.envs[i])
+                self.frontier_states_buffer.load(self.envs[i])  
                 state, _, _, _ = self.envs[i].step(0)
                 states[i] = numpy.array(state)  
 
