@@ -42,7 +42,7 @@ class FrontierStatesBuffer:
             idx = numpy.random.choice(range(self.episode_score.shape[0]), p=p)
             state = self.env_states[idx]
 
-        print("loading ", idx, self.episode_score[0], state)
+        print("loading ", idx, self.episode_score[idx], state)
 
         env.load_state(state)
 
