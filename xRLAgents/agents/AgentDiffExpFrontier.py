@@ -232,14 +232,7 @@ class AgentDiffExpFrontier():
         
         print("\n\n")
 
-        for n in range(self.n_envs):
-            state = self.envs[n].save_state()
-            print(n)
-            print(state)
-            print("\n\n")
-            self.envs[n].load_state(state)
         
-     
     def step(self, states, training_enabled):
         for i in self.done_idx:
             if numpy.random.rand() < self.frontier_ratio:
