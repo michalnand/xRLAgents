@@ -16,5 +16,7 @@ from .AgentDiffExpModes         import *
 from .AgentDiffExpEns           import *
 from .AgentDiffExpSur           import *
 
+from .AgentDiffExpFrontier  import *
+
 
 from .loss_self_supervised  import *

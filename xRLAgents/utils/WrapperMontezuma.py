@@ -253,6 +253,29 @@ class ExploredRoomsEnv(gym.Wrapper):
 
 
 
+
+
+class StateManager(gym.Wrapper):
+    """
+    Adds save_state() and load_state() to the Atari environment.
+    Uses ALE clone_state / restore_state under the hood.
+    """
+    def __init__(self, env):
+        super().__init__(env)
+
+    def save_state(self):
+        """
+        Returns a copy of the current ALE state (can be pickled or stored).
+        """
+        state = self.env.unwrapped.clone_state()
+        return state
+
+    def load_state(self, state):
+        """
+        Restores a given ALE state (or the last saved one if state=None).
+        """
+        self.env.unwrapped.restore_state(state)
+
      
 
 def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
@@ -272,7 +295,9 @@ def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps
     env = Rewards(env)
 
     # room_address 3 for montezuma, 1 for pitfall
-    env = ExploredRoomsEnv(env, room_address = 3)   
+    env = ExploredRoomsEnv(env, room_address = 3) 
+
+    env = StateManager(env)  
 
     return env
 

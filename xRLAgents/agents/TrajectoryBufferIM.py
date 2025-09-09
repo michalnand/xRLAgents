@@ -138,3 +138,23 @@ class TrajectoryBufferIM:
             advantages[n]   = last_gae
  
         return returns, advantages
+
+    '''
+    def _gae(self, rewards, values, dones, gamma, lam):
+        buffer_size = rewards.shape[0]
+        envs_count  = rewards.shape[1]
+        
+        returns    = torch.zeros((buffer_size, envs_count), dtype=torch.float32)
+        advantages = torch.zeros((buffer_size, envs_count), dtype=torch.float32)
+
+        last_gae = torch.zeros(envs_count, dtype=torch.float32)
+
+        # assumes values.shape = (buffer_size + 1, envs_count)
+        for n in reversed(range(buffer_size)):
+            delta     = rewards[n] + gamma * values[n+1] * (1.0 - dones[n]) - values[n]
+            last_gae  = delta + gamma * lam * last_gae * (1.0 - dones[n])
+            advantages[n] = last_gae
+            returns[n]    = advantages[n] + values[n]
+
+        return returns, advantages
+    '''
