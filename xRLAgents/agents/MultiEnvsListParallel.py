@@ -63,6 +63,10 @@ def _env_process_main(id, n_envs, env_names, Wrapper, render_mode, child_conn):
                 envs[n].close()
             break
 
+        elif command == "get":
+            env_id  = val[1]
+            child_conn.send(envs[env_id])
+
         else:
             print("command error : ", command)
             for n in range(n_envs): 
@@ -131,6 +135,12 @@ class MultiEnvsListParallel:
 
     def __len__(self):
         return self.n_envs
+    
+    def __getitem__(self, env_id):
+        thread_id, thread_env = self._get_ids(env_id)   
+    
+        self.parent_conn[thread_id].send(["get", thread_env])
+        return self.parent_conn[thread_id].recv() 
 
     def step(self, actions):
         # send actions to all threads and its environments
