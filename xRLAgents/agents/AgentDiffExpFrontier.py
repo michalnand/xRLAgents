@@ -232,11 +232,14 @@ class AgentDiffExpFrontier():
         
         print("\n\n")
 
+        print("state = ", self.envs[10].state.shape)
+
         
     def step(self, states, training_enabled):
         for i in self.done_idx:
             if numpy.random.rand() < self.frontier_ratio:
                 self.frontier_states_buffer.load(self.envs[i])
+                states[i] = numpy.array(self.envs[i].state)
 
 
         states_t = torch.from_numpy(states).to(self.dtype).to(self.device)
