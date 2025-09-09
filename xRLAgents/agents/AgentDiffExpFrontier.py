@@ -232,7 +232,9 @@ class AgentDiffExpFrontier():
         
         print("\n\n")
 
-        print("state = ", self.envs[10].state.shape)
+        state, _, _, _ = self.envs[10].step(0)
+        print("state = ", state.shape)
+        print(state)
 
         
     def step(self, states, training_enabled):
