@@ -34,7 +34,7 @@ class FrontierStatesBuffer:
         
         state = None
 
-        while state is None:
+        while state is None and self.episode_score.sum() > 0:
             p = self.episode_score/self.episode_score.sum()
             idx = numpy.random.choice(range(self.episode_score.shape[0]), p=p)
             state = self.env_states[idx]
