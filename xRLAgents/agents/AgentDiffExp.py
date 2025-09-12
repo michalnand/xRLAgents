@@ -173,6 +173,9 @@ class AgentDiffExp():
         # environment step  
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
+
+        rewards_ext_scaled = self.reward_ext_coeff*rewards_ext
+
         # internal motivaiotn based on diffusion
         rewards_int, _     = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
         rewards_int        = rewards_int.float().detach().cpu().numpy()
@@ -189,9 +192,9 @@ class AgentDiffExp():
         if training_enabled:   
             # put trajectory into policy buffer
             if self.rnn_policy:
-                self.trajectory_buffer.add(states=states_t, logits=logits_t, values_ext=values_ext_t, values_int=values_int_t, actions=actions, rewards_ext=rewards_ext, rewards_int=rewards_int_scaled, dones=dones, steps=self.episode_steps, hidden_state=self.hidden_state_t)
+                self.trajectory_buffer.add(states=states_t, logits=logits_t, values_ext=values_ext_t, values_int=values_int_t, actions=actions, rewards_ext=rewards_ext_scaled, rewards_int=rewards_int_scaled, dones=dones, steps=self.episode_steps, hidden_state=self.hidden_state_t)
             else:
-                self.trajectory_buffer.add(states=states_t, logits=logits_t, values_ext=values_ext_t, values_int=values_int_t, actions=actions, rewards_ext=rewards_ext, rewards_int=rewards_int_scaled, dones=dones, steps=self.episode_steps)
+                self.trajectory_buffer.add(states=states_t, logits=logits_t, values_ext=values_ext_t, values_int=values_int_t, actions=actions, rewards_ext=rewards_ext_scaled, rewards_int=rewards_int_scaled, dones=dones, steps=self.episode_steps)
 
             # if buffer is full, run training loop
             if self.trajectory_buffer.is_full():
