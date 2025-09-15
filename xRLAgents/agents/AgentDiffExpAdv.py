@@ -214,7 +214,7 @@ class AgentDiffExpAdv():
                     self.saving_enabled = False
 
                 # episodic novelty reward
-                rewards_int_b   = self._episodic_internal_motivation(self.z_features)
+                rewards_int_b   = self._episodic_internal_motivation(self.z_features, False)
 
                 rewards_int_scaled = self.reward_int_a_coeff*self.trajectory_buffer.buffer["rewards_int"]*(1.0 + self.reward_int_b_coeff*torch.from_numpy(rewards_int_b))
                 rewards_int_scaled = numpy.clip(rewards_int_scaled, -1.0, 1.0)
@@ -576,7 +576,7 @@ class AgentDiffExpAdv():
         return result
     
     
-    def _episodic_internal_motivation(self, z):
+    def _episodic_internal_motivation(self, z, normalise):
         z = numpy.array(z)
 
         n_steps = z.shape[0]
@@ -588,7 +588,8 @@ class AgentDiffExpAdv():
         forest = IsolationForest()
         _, scores = forest.fit(z, self.forest_depth, self.forest_count)
 
-        scores = (scores - scores.mean())/(scores.std() + 1e-6) 
+        if normalise:
+            scores = (scores - scores.mean())/(scores.std() + 1e-8) 
 
         scores = numpy.reshape(scores, (n_steps, n_envs))
         scores = numpy.array(scores, dtype=numpy.float32)
