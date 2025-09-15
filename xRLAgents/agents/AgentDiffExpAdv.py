@@ -214,9 +214,9 @@ class AgentDiffExpAdv():
                     self.saving_enabled = False
 
                 # episodic novelty reward
-                rewards_int_b   = self._episodic_internal_motivation(self.z_features, False)
+                rewards_int_b   = self._episodic_internal_motivation(self.z_features, True)
 
-                rewards_int_scaled = self.reward_int_a_coeff*self.trajectory_buffer.buffer["rewards_int"]*(1.0 + 10000*self.reward_int_b_coeff*torch.from_numpy(rewards_int_b))
+                rewards_int_scaled = self.reward_int_a_coeff*self.trajectory_buffer.buffer["rewards_int"]*(1.0 + self.reward_int_b_coeff*torch.from_numpy(rewards_int_b))
                 rewards_int_scaled = numpy.clip(rewards_int_scaled, -1.0, 1.0)
 
                 # update in buffer
