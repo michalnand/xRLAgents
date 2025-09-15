@@ -595,7 +595,7 @@ class AgentDiffExpAdv():
             q = 1.0 - k*max_v
             scores = k*scores + q
 
-            print("scores = ", scores.mean(), scores.min(), scores.max())
+            #print("scores = ", scores.mean(), scores.min(), scores.max())
             #scores = (scores - scores.mean())/(scores.std() + 1e-8) 
 
         scores = numpy.reshape(scores, (n_steps, n_envs))
