@@ -230,8 +230,8 @@ class AgentDiffExpAdv():
                 self.log_rewards_int.add("std_a",  rewards_int_a.std())
                 self.log_rewards_int.add("mean_b", rewards_int_b.mean())
                 self.log_rewards_int.add("std_b",  rewards_int_b.std())
-                self.log_rewards_int.add("mean", rewards_int_scaled.mean().detach().cpu().numpy())
-                self.log_rewards_int.add("std",  rewards_int_scaled.std().detach().cpu().numpy())
+                self.log_rewards_int.add("mean", rewards_int_scaled.mean().detach().cpu().numpy().item())
+                self.log_rewards_int.add("std",  rewards_int_scaled.std().detach().cpu().numpy().item())
         
                 
                 self.train()
