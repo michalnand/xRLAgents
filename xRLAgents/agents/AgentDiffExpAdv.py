@@ -215,8 +215,15 @@ class AgentDiffExpAdv():
 
                 # episodic novelty reward
                 rewards_int_b   = self._episodic_internal_motivation(self.z_features)
-                
+
+                print("rewards_int_a = ", self.trajectory_buffer.buffer["rewards_int"].shape, self.trajectory_buffer.buffer["rewards_int"].min(), self.trajectory_buffer.buffer["rewards_int"].max(), self.trajectory_buffer.buffer["rewards_int"].mean(), self.trajectory_buffer.buffer["rewards_int"].std())
+                print("rewards_int_b = ", rewards_int_b.shape, rewards_int_b.min(), rewards_int_b.max(), rewards_int_b.mean(), rewards_int_b.std())
+                                
                 rewards_int_scaled = self.reward_int_a_coeff*self.trajectory_buffer.buffer["rewards_int"]*(1.0 + self.reward_int_b_coeff*torch.from_numpy(rewards_int_b))
+
+                print("rewards_int_scaled = ", rewards_int_scaled.shape, rewards_int_scaled.min(), rewards_int_scaled.max(), rewards_int_scaled.mean(), rewards_int_scaled.std())
+                print("\n\n")
+                
                 rewards_int_scaled = numpy.clip(rewards_int_scaled, 0.0, 1.0)
 
                 # update in buffer
@@ -459,7 +466,7 @@ class AgentDiffExpAdv():
         noise_pred = z_noised - z_denoised
         loss = ((noise - noise_pred)**2).mean()
         
-        return novelty.detach(), loss
+        return novelty.detach(), loss, z_target
 
 
 
