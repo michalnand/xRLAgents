@@ -589,7 +589,14 @@ class AgentDiffExpAdv():
         _, scores = forest.fit(z, self.forest_depth, self.forest_count)
 
         if normalise:
-            scores = (scores - scores.mean())/(scores.std() + 1e-8) 
+            min_v = scores.min()
+            max_v = scores.max()
+            k = 1.0/(max_v - min_v + 1e-8)
+            q = 1.0 - k*max_v
+            scores = k*scores + q
+
+            print("scores = ", scores.mean(), scores.min(), scores.max())
+            #scores = (scores - scores.mean())/(scores.std() + 1e-8) 
 
         scores = numpy.reshape(scores, (n_steps, n_envs))
         scores = numpy.array(scores, dtype=numpy.float32)
