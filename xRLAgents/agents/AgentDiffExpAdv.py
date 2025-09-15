@@ -216,15 +216,8 @@ class AgentDiffExpAdv():
                 # episodic novelty reward
                 rewards_int_b   = self._episodic_internal_motivation(self.z_features)
 
-                print("rewards_int_a = ", self.trajectory_buffer.buffer["rewards_int"].shape, self.trajectory_buffer.buffer["rewards_int"].min(), self.trajectory_buffer.buffer["rewards_int"].max(), self.trajectory_buffer.buffer["rewards_int"].mean(), self.trajectory_buffer.buffer["rewards_int"].std())
-                print("rewards_int_b = ", rewards_int_b.shape, rewards_int_b.min(), rewards_int_b.max(), rewards_int_b.mean(), rewards_int_b.std())
-                                
                 rewards_int_scaled = self.reward_int_a_coeff*self.trajectory_buffer.buffer["rewards_int"]*(1.0 + self.reward_int_b_coeff*torch.from_numpy(rewards_int_b))
-
-                print("rewards_int_scaled = ", rewards_int_scaled.shape, rewards_int_scaled.min(), rewards_int_scaled.max(), rewards_int_scaled.mean(), rewards_int_scaled.std())
-                print("\n\n")
-
-                rewards_int_scaled = numpy.clip(rewards_int_scaled, 0.0, 1.0)
+                rewards_int_scaled = numpy.clip(rewards_int_scaled, -1.0, 1.0)
 
                 # update in buffer
                 self.trajectory_buffer.buffer["rewards_int"] = rewards_int_scaled
@@ -233,10 +226,12 @@ class AgentDiffExpAdv():
                 
                 self.trajectory_buffer.compute_returns(self.gamma_ext, self.gamma_int)
 
-                self.log_rewards_int.add("mean_a", rewards_int_a.mean())
+                self.log_rewards_int.add("mean_a", rewards_int_a.mean())    
                 self.log_rewards_int.add("std_a",  rewards_int_a.std())
                 self.log_rewards_int.add("mean_b", rewards_int_b.mean())
                 self.log_rewards_int.add("std_b",  rewards_int_b.std())
+                self.log_rewards_int.add("mean", rewards_int_scaled.mean().detach().cpu().numpy())
+                self.log_rewards_int.add("std",  rewards_int_scaled.std().detach().cpu().numpy())
         
                 
                 self.train()
@@ -593,7 +588,11 @@ class AgentDiffExpAdv():
         forest = IsolationForest()
         _, scores = forest.fit(z, self.forest_depth, self.forest_count)
 
+        scores = (scores - scores.mean())/(scores.std() + 1e-6) 
+
         scores = numpy.reshape(scores, (n_steps, n_envs))
         scores = numpy.array(scores, dtype=numpy.float32)
+
+        
 
         return scores
