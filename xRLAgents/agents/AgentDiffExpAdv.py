@@ -223,7 +223,7 @@ class AgentDiffExpAdv():
 
                 print("rewards_int_scaled = ", rewards_int_scaled.shape, rewards_int_scaled.min(), rewards_int_scaled.max(), rewards_int_scaled.mean(), rewards_int_scaled.std())
                 print("\n\n")
-                
+
                 rewards_int_scaled = numpy.clip(rewards_int_scaled, 0.0, 1.0)
 
                 # update in buffer
@@ -409,7 +409,7 @@ class AgentDiffExpAdv():
         for batch_idx in range(batch_count):        
             #internal motivation loss, MSE diffusion    
             states  = self.trajectory_buffer.sample_states(self.ss_batch_size, self.device)
-            _, loss_diffusion  = self._internal_motivation(states, self.alpha_min, self.alpha_max, self.denoising_steps)
+            _, loss_diffusion, _  = self._internal_motivation(states, self.alpha_min, self.alpha_max, self.denoising_steps)
 
 
             #self supervised target regularisation
