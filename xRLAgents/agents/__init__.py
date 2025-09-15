@@ -12,11 +12,7 @@ from .EnvsListParallel      import *
 from .AgentPPOSND           import *
 
 from .AgentDiffExp              import *
-from .AgentDiffExpModes         import *
-from .AgentDiffExpEns           import *
-from .AgentDiffExpSur           import *
-
-from .AgentDiffExpFrontier  import *
+from .AgentDiffExpAdv           import *
 
 
 from .loss_self_supervised  import *

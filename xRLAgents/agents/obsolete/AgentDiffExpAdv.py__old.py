@@ -50,21 +50,18 @@ class AgentDiffExpAdv():
         self.alpha_inf            = config.alpha_inf
         self.denoising_steps      = config.denoising_steps
 
+        self.forest_max_depth     = config.forest_max_depth
+        self.forest_trees_count   = config.forest_trees_count
+        
+
         self.time_distances       = config.time_distances
         
-        self.state_normalise        = config.state_normalise
+        self.state_normalise    = config.state_normalise
 
-        self.forest_depth       = config.forest_depth
-        self.forest_count       = config.forest_count
-
-
-        if hasattr(config, "rnn_policy"):
-            self.rnn_policy         = config.rnn_policy
-            self.rnn_shape          = config.rnn_shape
+        if hasattr(config, "reset_steps"):
+            self.reset_steps = config.reset_steps
         else:
-            self.rnn_policy         = False
-            self.rnn_shape          = None
-            
+            self.reset_steps = 0
 
        
         self.n_envs         = len(envs)
@@ -73,11 +70,7 @@ class AgentDiffExpAdv():
         self.actions_count  = self.envs.action_space.n
 
         # create mdoel
-        if self.rnn_policy:
-            self.model = Model(self.state_shape, self.actions_count, self.rnn_shape)
-        else:
-            self.model = Model(self.state_shape, self.actions_count)
-
+        self.model = Model(self.state_shape, self.actions_count)
         self.model.to(self.device)
         
         self.model = self.model.to(dtype=self.dtype, device="cuda")
@@ -86,7 +79,7 @@ class AgentDiffExpAdv():
         # initialise optimizer and trajectory buffer
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
 
-        self.trajectory_buffer = TrajectoryBufferIM(self.steps, self.n_envs)
+        self.trajectory_buffer = TrajectoryBufferIM(self.steps, self.state_shape, self.actions_count, self.n_envs, self.dtype)
 
         # optional, for state mean and variance normalisation
         if self.state_normalise:
@@ -102,11 +95,8 @@ class AgentDiffExpAdv():
             for e in range(self.n_envs):
                 state, _ = self.envs.reset(e)
         
-        if self.rnn_policy:
-            self.hidden_state_t = torch.zeros((self.n_envs, ) + self.rnn_shape).to(self.dtype).to(self.device)
-
-
-        self.episode_steps = torch.zeros((self.n_envs, ), dtype=int)
+        
+        self.episode_steps   = torch.zeros((self.n_envs, ), dtype=int)
 
 
         # result loggers
@@ -115,8 +105,12 @@ class AgentDiffExpAdv():
         self.log_loss_diffusion = ValuesLogger("loss_diffusion")
         self.log_loss_im_ssl    = ValuesLogger("loss_im_ssl")
 
-        if self.rnn_policy:
-            self.log_rnn        = ValuesLogger("rnn")
+
+        self.log_rewards_int.add("mean_a", 0.0)
+        self.log_rewards_int.add("std_a",  0.0)
+        self.log_rewards_int.add("mean_b", 0.0)
+        self.log_rewards_int.add("std_b",  0.0)
+
 
         self.saving_enabled = False
         self.iterations = 0
@@ -156,56 +150,46 @@ class AgentDiffExpAdv():
         print("denoising_steps      ", self.denoising_steps)
         print("time_distances       ", self.time_distances)
         print("state_normalise      ", self.state_normalise)
-        print("forest_depth         ", self.forest_depth)
-        print("forest_count         ", self.forest_count)
+        print("reset_steps          ", self.reset_steps)
 
-        print("rnn_policy           ", self.rnn_policy)
-        print("rnn_shape            ", self.rnn_shape)  
-        
+        print("forest_max_depth     ", self.forest_max_depth)
+        print("forest_trees_count   ", self.forest_trees_count)
+
         print("\n\n")
         
      
+  
     def step(self, states, training_enabled):     
         states_t = torch.from_numpy(states).to(self.dtype).to(self.device)
-
 
         if self.state_normalise:
             self._update_normalisation(states_t, alpha = 0.99)
             states_t = self._state_normalise(states_t)
 
         # obtain model output, logits and values, use abstract state space z
-        if self.rnn_policy:
-            logits_t, values_ext_t, values_int_t, hidden_state_new = self.model.forward(states_t, self.hidden_state_t)
-        else:
-            logits_t, values_ext_t, values_int_t = self.model.forward(states_t)
+        logits_t, values_ext_t, values_int_t = self.model.forward(states_t)
 
         actions = self._sample_actions(logits_t)
       
         # environment step  
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
-
-        rewards_ext_scaled = self.reward_ext_coeff*rewards_ext
-
-        # internal motivaiotn based on diffusion
+        # internal motivation based on diffusion
         rewards_int_a, _, z  = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
         rewards_int_a        = rewards_int_a.float().detach().cpu().numpy()
 
 
         self.z_features.append(z.detach().cpu().numpy())
-
+        
         if "room_id" in infos[0]:
             resp = self._process_room_ids(infos)
             self.room_ids.append(resp)
 
             
         # top PPO training part
-        if training_enabled:   
+        if training_enabled:     
             # put trajectory into policy buffer
-            if self.rnn_policy:
-                self.trajectory_buffer.add(states=states_t, logits=logits_t, values_ext=values_ext_t, values_int=values_int_t, actions=actions, rewards_ext=rewards_ext_scaled, rewards_int=rewards_int_a, dones=dones, steps=self.episode_steps, hidden_state=self.hidden_state_t)
-            else:
-                self.trajectory_buffer.add(states=states_t, logits=logits_t, values_ext=values_ext_t, values_int=values_int_t, actions=actions, rewards_ext=rewards_ext_scaled, rewards_int=rewards_int_a, dones=dones, steps=self.episode_steps)
+            self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext, rewards_int_a_scaled, dones, self.episode_steps)
 
             # if buffer is full, run training loop
             if self.trajectory_buffer.is_full():
@@ -213,52 +197,46 @@ class AgentDiffExpAdv():
                     self.save_features()
                     self.saving_enabled = False
 
-                # episodic novelty reward
-                rewards_int_b   = self._episodic_internal_motivation(self.z_features)
+                # compute episodic IM
+                rewards_int_b = self._episodic_internal_motivation(self.z_features)
                 
-                rewards_int_scaled = self.reward_int_a_coeff*self.trajectory_buffer.buffer["rewards_int"]*(1.0 + self.reward_int_b_coeff*torch.from_numpy(rewards_int_b))
+                rewards_int_scaled = self.reward_int_a_coeff*self.trajectory_buffer.buffer["rewards_int"]*(1.0 + self.reward_int_b_coeff*rewards_int_b)
                 rewards_int_scaled = numpy.clip(rewards_int_scaled, 0.0, 1.0)
 
-                # update in buffer
-                self.trajectory_buffer.buffer["rewards_int"] = rewards_int_scaled
 
-                self.z_features = []    
-                
-                self.trajectory_buffer.compute_returns(self.gamma_ext, self.gamma_int)
+                self.z_features = []
 
-                self.log_rewards_int.add("mean_a", rewards_int_a.mean())
-                self.log_rewards_int.add("std_a",  rewards_int_a.std())
+                self.trajectory_buffer.rewards_int+= torch.from_numpy(rewards_int_b_scaled).float()
+
                 self.log_rewards_int.add("mean_b", rewards_int_b.mean())
                 self.log_rewards_int.add("std_b",  rewards_int_b.std())
-        
+
+                self.trajectory_buffer.compute_returns(self.gamma_ext, self.gamma_int)
                 
                 self.train()
 
                 self.trajectory_buffer.clear()
+        else:
+            self.z_features = []
 
         
         self.episode_steps+= 1
 
-
-        if self.rnn_policy:
-            self.hidden_state_t = hidden_state_new.detach().clone()
-
-        # reset episode steps counter and hidden state
+        # reset episode steps counter
         done_idx = numpy.where(dones)[0]
         for i in done_idx:
-            self.episode_steps[i] = 0
+            self.episode_steps[i]   = 0
 
-            if self.rnn_policy:
-                self.hidden_state_t[i]  = 0.0
+        if self.reset_steps > 0:
+            if (self.iterations%self.reset_steps) == 0:
+                self.model.im_diffusion.init_weights()  
+                print("reseting model at ", self.iterations, "\n")
 
-        if self.rnn_policy:
-            self.log_rnn.add("mean", self.hidden_state_t.mean().detach().cpu().float().numpy().item())
-            self.log_rnn.add("std", self.hidden_state_t.std().detach().cpu().float().numpy().item())
-            self.log_rnn.add("mean_mag", (self.hidden_state_t**2).mean().detach().cpu().float().numpy().item())
-            self.log_rnn.add("std_mag", (self.hidden_state_t**2).std().detach().cpu().float().numpy().item())
-            
+
         self.iterations+= 1
      
+        self.log_rewards_int.add("mean_a", rewards_int_a.mean())
+        self.log_rewards_int.add("std_a",  rewards_int_a.std())
         
         return states_new, rewards_ext, dones, infos
     
@@ -280,7 +258,7 @@ class AgentDiffExpAdv():
         z_im  = []
         z_denoised = []
         for n in range(self.steps):
-            x = self.trajectory_buffer.buffer["states"][n]  
+            x = self.trajectory_buffer.states[n]
             x = x.to(device=self.device, dtype=self.dtype)
 
             # ppo features
@@ -313,8 +291,8 @@ class AgentDiffExpAdv():
 
         # save episode steps count
         steps = []
-        for n in range(self.steps): 
-            s = self.trajectory_buffer.buffer["steps"][n]
+        for n in range(self.steps):
+            s = self.trajectory_buffer.steps[n]
             s = s.detach().cpu().int().numpy()
             steps.append(s) 
 
@@ -347,13 +325,7 @@ class AgentDiffExpAdv():
      
 
     def get_logs(self):
-
-        logs = [self.log_rewards_int, self.log_loss_ppo, self.log_loss_diffusion, self.log_loss_im_ssl]
-
-        if self.rnn_policy:
-            logs.append(self.log_rnn)
-
-        return logs
+        return [self.log_rewards_int, self.log_loss_ppo, self.log_loss_diffusion, self.log_loss_im_ssl]
 
     def train(self): 
         samples_count = self.steps*self.n_envs
@@ -364,28 +336,10 @@ class AgentDiffExpAdv():
             for batch_idx in range(batch_count):
                 
                 # sample batch
-                batch = self.trajectory_buffer.sample_batch(self.batch_size, self.device)
-
-                states          = batch["states"]
-                logits          = batch["logits"]
-                actions         = batch["actions"]
-                returns_ext     = batch["returns_ext"]
-                returns_int     = batch["returns_int"]
-                advantages_ext  = batch["advantages_ext"]
-                advantages_int  = batch["advantages_int"]
-
-
-                if self.rnn_policy:
-                    hidden_state  = batch["hidden_state"]
-
-                    # compute main PPO loss
-                    loss_ppo = self._loss_ppo(states, hidden_state, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
-
-                else:
-                    # compute main PPO loss
-                    loss_ppo = self._loss_ppo(states, None, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
-
-
+                states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.trajectory_buffer.sample_batch(self.batch_size, self.device)
+                
+                # compute main PPO loss
+                loss_ppo = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
 
                 self.optimizer.zero_grad()        
                 loss_ppo.backward()
@@ -399,10 +353,10 @@ class AgentDiffExpAdv():
         batch_count = samples_count//self.ss_batch_size
         
         #main IM training loop
-        for batch_idx in range(batch_count):        
+        for batch_idx in range(batch_count):    
             #internal motivation loss, MSE diffusion    
-            states  = self.trajectory_buffer.sample_states(self.ss_batch_size, self.device)
-            _, loss_diffusion  = self._internal_motivation(states, self.alpha_min, self.alpha_max, self.denoising_steps)
+            states_now, _, _, _, _, _  = self.trajectory_buffer.sample_state_pairs(self.ss_batch_size, self.device)
+            _, loss_diffusion, _ = self._internal_motivation(states_now, self.alpha_min, self.alpha_max, self.denoising_steps)
 
 
             #self supervised target regularisation
@@ -459,17 +413,32 @@ class AgentDiffExpAdv():
         noise_pred = z_noised - z_denoised
         loss = ((noise - noise_pred)**2).mean()
         
-        return novelty.detach(), loss
+        return novelty.detach(), loss, z_target
+
+
+    def _episodic_internal_motivation(self, z):
+        z = numpy.array(z)
+
+        n_steps = z.shape[0]
+        n_envs  = z.shape[1]
+        n_features = z.shape[2]
+
+        z = numpy.reshape(z, (n_steps*n_envs, n_features))
+
+        forest = IsolationForest()
+        _, scores = forest.fit(z, self.forest_max_depth, self.forest_trees_count)
+
+        scores = numpy.reshape(scores, (n_steps, n_envs))
+        scores = numpy.array(scores, dtype=numpy.float32)
+
+        return scores
 
 
 
     # main PPO loss
-    def _loss_ppo(self, states, hidden_states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
-        
-        if hidden_states is not None:
-            logits_new, values_ext_new, values_int_new, _ = self.model.forward(states, hidden_states)
-        else:
-            logits_new, values_ext_new, values_int_new  = self.model.forward(states)
+    def _loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
+
+        logits_new, values_ext_new, values_int_new  = self.model.forward(states)
 
 
         #critic loss
@@ -507,6 +476,7 @@ class AgentDiffExpAdv():
         compute external critic loss, as MSE
         L = (T - V(s))^2 
         '''
+        values_ext_new  = values_ext_new.squeeze(1)
         loss_ext_value  = (returns_ext.detach() - values_ext_new)**2
         loss_ext_value  = loss_ext_value.mean()
 
@@ -514,6 +484,7 @@ class AgentDiffExpAdv():
         compute internal critic loss, as MSE
         L = (T - V(s))^2
         '''
+        values_int_new  = values_int_new.squeeze(1)
         loss_int_value  = (returns_int.detach() - values_int_new)**2
         loss_int_value  = loss_int_value.mean()
         
@@ -572,21 +543,7 @@ class AgentDiffExpAdv():
             result[n] = int(infos[n]["room_id"])
 
         return result
-    
-    
-    def _episodic_internal_motivation(self, z):
-        z = numpy.array(z)
 
-        n_steps = z.shape[0]
-        n_envs  = z.shape[1]
-        n_features = z.shape[2]
 
-        z = numpy.reshape(z, (n_steps*n_envs, n_features))
 
-        forest = IsolationForest()
-        _, scores = forest.fit(z, self.forest_depth, self.forest_count)
 
-        scores = numpy.reshape(scores, (n_steps, n_envs))
-        scores = numpy.array(scores, dtype=numpy.float32)
-
-        return scores
