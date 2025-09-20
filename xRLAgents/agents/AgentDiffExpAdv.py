@@ -192,7 +192,7 @@ class AgentDiffExpAdv():
         rewards_int_a        = rewards_int_a.float().detach().cpu().numpy()
 
         rewards_int_b = self.episodic_buffer.compare(z, self.closest_count)
-        rewards_int_b = rewards_int_b.detach().cpu.numpy()
+        rewards_int_b = rewards_int_b.detach().cpu().numpy()
         self.episodic_buffer.add(z)
 
 
