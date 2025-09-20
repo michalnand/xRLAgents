@@ -1,9 +1,10 @@
 import torch 
 import numpy
 
-from .TrajectoryBufferIM        import *
-from .EpisodicBuffer            import *
-from ..training.ValuesLogger    import *
+from .TrajectoryBufferIM  import *
+from ..training.ValuesLogger           import *
+
+from .isolation_forest import *
 
 
 class AgentDiffExpAdv(): 
@@ -53,8 +54,8 @@ class AgentDiffExpAdv():
         
         self.state_normalise        = config.state_normalise
 
-        self.buffer_size            = config.buffer_size
-        self.closest_count          = config.closest_count
+        self.forest_depth       = config.forest_depth
+        self.forest_count       = config.forest_count
 
 
         if hasattr(config, "rnn_policy"):
@@ -86,7 +87,6 @@ class AgentDiffExpAdv():
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
 
         self.trajectory_buffer = TrajectoryBufferIM(self.steps, self.n_envs)
-        self.episodic_buffer   = EpisodicBuffer(self.buffer_size, self.n_envs, (512, ))
 
         # optional, for state mean and variance normalisation
         if self.state_normalise:
@@ -156,8 +156,8 @@ class AgentDiffExpAdv():
         print("denoising_steps      ", self.denoising_steps)
         print("time_distances       ", self.time_distances)
         print("state_normalise      ", self.state_normalise)
-        print("buffer_size          ", self.buffer_size)
-        print("closest_count        ", self.closest_count)
+        print("forest_depth         ", self.forest_depth)
+        print("forest_count         ", self.forest_count)
 
         print("rnn_policy           ", self.rnn_policy)
         print("rnn_shape            ", self.rnn_shape)  
@@ -187,18 +187,13 @@ class AgentDiffExpAdv():
 
         rewards_ext_scaled = self.reward_ext_coeff*rewards_ext
 
-        # internal motivation based on diffusion
+        # internal motivaiotn based on diffusion
         rewards_int_a, _, z  = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
         rewards_int_a        = rewards_int_a.float().detach().cpu().numpy()
 
-        rewards_int_b = self.episodic_buffer.compare(z, self.closest_count)
-        rewards_int_b = rewards_int_b.detach().cpu.numpy()
-        self.episodic_buffer.add(z)
 
+        self.z_features.append(z.detach().cpu().numpy())
 
-        rewards_int_scaled = self.reward_int_a_coeff*rewards_int_a + self.reward_int_b_coeff*rewards_int_b
-
-        
         if "room_id" in infos[0]:
             resp = self._process_room_ids(infos)
             self.room_ids.append(resp)
@@ -208,17 +203,28 @@ class AgentDiffExpAdv():
         if training_enabled:   
             # put trajectory into policy buffer
             if self.rnn_policy:
-                self.trajectory_buffer.add(states=states_t, logits=logits_t, values_ext=values_ext_t, values_int=values_int_t, actions=actions, rewards_ext=rewards_ext_scaled, rewards_int=rewards_int_scaled, dones=dones, steps=self.episode_steps, hidden_state=self.hidden_state_t)
+                self.trajectory_buffer.add(states=states_t, logits=logits_t, values_ext=values_ext_t, values_int=values_int_t, actions=actions, rewards_ext=rewards_ext_scaled, rewards_int=rewards_int_a, dones=dones, steps=self.episode_steps, hidden_state=self.hidden_state_t)
             else:
-                self.trajectory_buffer.add(states=states_t, logits=logits_t, values_ext=values_ext_t, values_int=values_int_t, actions=actions, rewards_ext=rewards_ext_scaled, rewards_int=rewards_int_scaled, dones=dones, steps=self.episode_steps)
+                self.trajectory_buffer.add(states=states_t, logits=logits_t, values_ext=values_ext_t, values_int=values_int_t, actions=actions, rewards_ext=rewards_ext_scaled, rewards_int=rewards_int_a, dones=dones, steps=self.episode_steps)
 
             # if buffer is full, run training loop
             if self.trajectory_buffer.is_full():
                 if self.saving_enabled:
                     self.save_features()
                     self.saving_enabled = False
-            
-                 self.trajectory_buffer.compute_returns(self.gamma_ext, self.gamma_int)
+
+                # episodic novelty reward
+                rewards_int_b   = self._episodic_internal_motivation(self.z_features, True)
+
+                rewards_int_scaled = self.reward_int_a_coeff*self.trajectory_buffer.buffer["rewards_int"]*(1.0 + self.reward_int_b_coeff*torch.from_numpy(rewards_int_b))
+                rewards_int_scaled = numpy.clip(rewards_int_scaled, -1.0, 1.0)
+
+                # update in buffer
+                self.trajectory_buffer.buffer["rewards_int"] = rewards_int_scaled
+
+                self.z_features = []    
+                
+                self.trajectory_buffer.compute_returns(self.gamma_ext, self.gamma_int)
 
                 self.log_rewards_int.add("mean_a", rewards_int_a.mean())    
                 self.log_rewards_int.add("std_a",  rewards_int_a.std())
@@ -246,8 +252,6 @@ class AgentDiffExpAdv():
 
             if self.rnn_policy:
                 self.hidden_state_t[i]  = 0.0
-
-            self.episodic_buffer.reset(i)
 
         if self.rnn_policy:
             self.log_rnn.add("mean", self.hidden_state_t.mean().detach().cpu().float().numpy().item())
@@ -571,4 +575,32 @@ class AgentDiffExpAdv():
 
         return result
     
-   
+    
+    def _episodic_internal_motivation(self, z, normalise):
+        z = numpy.array(z)
+
+        n_steps = z.shape[0]
+        n_envs  = z.shape[1]
+        n_features = z.shape[2]
+
+        z = numpy.reshape(z, (n_steps*n_envs, n_features))
+
+        forest = IsolationForest()
+        _, scores = forest.fit(z, self.forest_depth, self.forest_count)
+
+        if normalise:
+            min_v = scores.min()
+            max_v = scores.max()
+            k = 1.0/(max_v - min_v + 1e-8)
+            q = 1.0 - k*max_v
+            scores = k*scores + q
+
+            #print("scores = ", scores.mean(), scores.min(), scores.max())
+            #scores = (scores - scores.mean())/(scores.std() + 1e-8) 
+
+        scores = numpy.reshape(scores, (n_steps, n_envs))
+        scores = numpy.array(scores, dtype=numpy.float32)
+
+        
+
+        return scores
