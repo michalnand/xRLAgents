@@ -218,7 +218,7 @@ class AgentDiffExpAdv():
                     self.save_features()
                     self.saving_enabled = False
             
-                 self.trajectory_buffer.compute_returns(self.gamma_ext, self.gamma_int)
+                self.trajectory_buffer.compute_returns(self.gamma_ext, self.gamma_int)
 
                 self.log_rewards_int.add("mean_a", rewards_int_a.mean())    
                 self.log_rewards_int.add("std_a",  rewards_int_a.std())
