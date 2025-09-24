@@ -197,10 +197,11 @@ class AgentDiffExpAdvA():
         rewards_int_b = rewards_int_b.detach().cpu().numpy()
         
         rewards_int_scaled = self.reward_int_a_coeff*rewards_int_a + self.reward_int_b_coeff*rewards_int_b
+        rewards_int_scaled = numpy.clip(rewards_int_scaled, -1.0, 1.0)
 
         if "room_id" in infos[0]:
             resp = self._process_room_ids(infos)
-            self.room_ids.append(resp)
+            self.room_ids.append(resp)  
 
             
         # top PPO training part
