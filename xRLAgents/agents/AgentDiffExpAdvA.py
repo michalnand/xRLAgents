@@ -6,7 +6,7 @@ from .EpisodicBuffer            import *
 from ..training.ValuesLogger    import *
 
 
-class AgentDiffExpAdv(): 
+class AgentDiffExpAdvA(): 
     def __init__(self, envs, Config, Model):
         self.envs = envs
  
