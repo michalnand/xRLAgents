@@ -29,7 +29,7 @@ class EpisodicBuffer():
         return novelty
 
 
-    def _similarity(self, a, b)
+    def _similarity(self, a, b):
         a_norm = torch.nn.functional.normalize(a, p=2, dim=1)
         b_norm = torch.nn.functional.normalize(b, p=2, dim=1)
 
