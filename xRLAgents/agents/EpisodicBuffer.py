@@ -14,7 +14,8 @@ class EpisodicBuffer():
         # shape = (batch_size, buffer_size)
         similarity = self._similarity(x, self.buffer)
         
-        scores, _  = similarity.max(dim=-1)
+        #scores, _  = similarity.max(dim=-1)
+        scores = similarity.mean(dim=-1)    
 
         # find least correlated items ins x
         _, indices = torch.sort(scores)
@@ -25,7 +26,7 @@ class EpisodicBuffer():
             self.buffer[self.ptr] = x[idx].detach().cpu().float()
             self.ptr = (self.ptr + 1)%self.buffer.shape[0]
 
-        novelty = -scores
+        novelty = 1.0 - scores
         return novelty
 
 
