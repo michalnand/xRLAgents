@@ -26,7 +26,7 @@ class EpisodicBuffer():
             self.buffer[self.ptr] = x[idx].detach().cpu().float()
             self.ptr = (self.ptr + 1)%self.buffer.shape[0]
 
-        novelty = 1.0 - scores
+        novelty = -scores   
         return novelty
 
 
