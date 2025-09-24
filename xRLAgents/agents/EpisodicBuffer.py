@@ -1,7 +1,47 @@
 import torch 
-import numpy
 
-  
+
+class EpisodicBuffer():
+    def __init__(self, buffer_size, top_n_count, shape):
+        
+        self.top_n_count = top_n_count
+        self.buffer = torch.zeros((buffer_size, ) + shape, dtype=torch.float32)
+
+        self.ptr = 0
+
+
+    def step(self, x):
+        # shape = (batch_size, buffer_size)
+        similarity = self._similarity(x, self.buffer)
+        
+        scores, _  = similarity.max(dim=-1)
+
+        # find least correlated items ins x
+        _, indices = torch.sort(scores)
+
+        # update buffer only with most relevant (least correlated)
+        for n in range(self.top_n_count):
+            idx = indices[n]
+            self.buffer[self.ptr] = x[idx].detach().cpu().float()
+            self.ptr = (self.ptr + 1)%self.buffer.shape[0]
+
+        novelty = -scores
+        return novelty
+
+
+    def _similarity(self, a, b)
+        a_norm = torch.nn.functional.normalize(a, p=2, dim=1)
+        b_norm = torch.nn.functional.normalize(b, p=2, dim=1)
+
+        cos_sim = a_norm @ b_norm.T
+
+        return cos_sim
+    
+
+
+
+
+'''
 class EpisodicBuffer():
     def __init__(self, buffer_size, n_envs, shape):
         
@@ -37,3 +77,4 @@ class EpisodicBuffer():
         mean_top_values = top_values.mean(dim=0)    
 
         return mean_top_values
+'''
