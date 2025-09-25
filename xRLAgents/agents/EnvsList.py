@@ -43,7 +43,7 @@ class EnvsList:
         infos   = []
 
         for i in range(len(self.envs)):
-            state, reward, done, _, info = self.envs[i].step(actions[i])
+            state, reward, done, info = self.envs[i].step(actions[i])
 
             states.append(state)
             rewards.append(reward)
