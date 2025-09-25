@@ -93,6 +93,8 @@ class EnvsList:
 
     def _update_log(self, info):
         for key, value in info.items():
+            
             if isinstance(value, int) or isinstance(value, float):
+                print(key, value)
                 self.env_log.add(str(key), float(value))
 
