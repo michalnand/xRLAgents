@@ -60,10 +60,8 @@ class EnvsList:
         rewards = numpy.stack(rewards)
         dones   = numpy.stack(dones)
 
-
-
-        
         return states, rewards, dones, infos
+
     
     def reset(self, env_id):
         return self.envs[env_id].reset()
@@ -90,11 +88,8 @@ class EnvsList:
     def __getitem__(self, index):
         return self.envs[index]
     
-
     def _update_log(self, info):
-        for key, value in info.items():
-            
+        for key, value in info.items():            
             if isinstance(value, int) or isinstance(value, float):
-                print(key, value)
                 self.env_log.add(str(key), float(value))
 
