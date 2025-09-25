@@ -1,6 +1,7 @@
 import numpy
 import gymnasium as gym
 
+from ..training.ValuesLogger           import *
 
 '''
     multiple environments wrapper
@@ -24,6 +25,8 @@ class EnvsList:
 
         self.observation_space = self.envs[0].observation_space
         self.action_space      = self.envs[0].action_space
+
+        self.env_log = ValuesLogger("env")
 
         print("EnvsList")
         print("env	        : ", env_name)
@@ -50,11 +53,14 @@ class EnvsList:
             dones.append(done)
             infos.append(info)
 
+            if info is not None:
+                self._update_log(info)
+
         states  = numpy.stack(states)
         rewards = numpy.stack(rewards)
         dones   = numpy.stack(dones)
 
-      
+
 
         
         return states, rewards, dones, infos
@@ -77,6 +83,16 @@ class EnvsList:
     
     def render(self, env_id):
         return self.envs[env_id].render()
+    
+    def get_logs(self):
+        return [self.env_log]
 
     def __getitem__(self, index):
         return self.envs[index]
+    
+
+    def _update_log(self, info):
+        for key, value in info.items():
+            if isinstance(value, int) or isinstance(value, float):
+                self.env_log.add(str(key), float(value))
+
