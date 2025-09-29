@@ -58,7 +58,11 @@ class AgentDiffExp():
         else:
             self.rnn_policy         = False
             self.rnn_shape          = None
-            
+        
+        if hasattr(config, "reward_shaping"):
+            self.reward_shaping = config.reward_shaping
+        else:
+            self.reward_shaping = None  
 
        
         self.n_envs         = len(envs)
@@ -173,9 +177,13 @@ class AgentDiffExp():
         # environment step  
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
+        # optional rewards shaping
+        if self.reward_shaping is not None:
+            rewards_ext_scaled = self.reward_ext_coeff*self.reward_shaping(states, rewards_ext, infos)
+        else:
+            rewards_ext_scaled = self.reward_ext_coeff*rewards_ext
 
-        rewards_ext_scaled = self.reward_ext_coeff*rewards_ext
-
+    
         # internal motivaiotn based on diffusion
         rewards_int, _     = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
         rewards_int        = rewards_int.float().detach().cpu().numpy()

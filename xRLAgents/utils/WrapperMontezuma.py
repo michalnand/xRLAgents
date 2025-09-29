@@ -183,8 +183,10 @@ class MaxSteps(gym.Wrapper):
 
 
 class Rewards(gym.Wrapper):
-    def __init__(self, env):
+    def __init__(self, env, shaping = False):
         gym.Wrapper.__init__(self, env)
+        self.shaping = shaping
+        
        
 
     def reset(self, seed = None, options = None):
@@ -195,6 +197,10 @@ class Rewards(gym.Wrapper):
         state, reward, done, info = self.env.step(action)
 
         info["raw_reward"] = reward
+        info["doors"]      = False
+
+        if abs(reward - 300.0) < 0.1:
+            info["doors"] = True
 
         if reward > 0:
             reward = 1.0
@@ -293,6 +299,33 @@ def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps
     
     env = MaxSteps(env, max_steps)
     env = Rewards(env)
+
+    # room_address 3 for montezuma, 1 for pitfall
+    env = ExploredRoomsEnv(env, room_address = 3) 
+
+    env = StateManager(env)  
+
+    return env
+
+
+
+  
+
+def WrapperMontezumaShaped(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
+
+    ale = env.unwrapped.ale
+    ale.setFloat("repeat_action_probability", 0.0)
+    ale.setInt("frame_skip", 1) 
+
+    #env = VideoRecorder(env)
+    env = RemoveTrunc(env)
+    env = NopOpsEnv(env)    
+    env = StickyActionEnv(env)
+    env = MaxAndSkipEnv(env)
+    env = ResizeEnv(env, height, width, frame_stacking)
+    
+    env = MaxSteps(env, max_steps)
+    env = Rewards(env, True)
 
     # room_address 3 for montezuma, 1 for pitfall
     env = ExploredRoomsEnv(env, room_address = 3) 
