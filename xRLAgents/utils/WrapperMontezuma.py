@@ -5,6 +5,7 @@ import numpy
 from PIL import Image, ImageFilter
 
 import cv2
+import matplotlib.pyplot as plt
 
 
 class VideoRecorder(gym.Wrapper):
@@ -128,12 +129,13 @@ class MaxAndSkipEnv(gym.Wrapper):
 
 
 class ResizeEnv(gym.Wrapper):
-    def __init__(self, env, height = 96, width = 96, frame_stacking = 4, player_position = False):
+    def __init__(self, env, height = 96, width = 96, frame_stacking = 4, player_position = False, enhance=False):
         gym.Wrapper.__init__(self, env)
         self.height = height
         self.width  = width
         self.frame_stacking = frame_stacking
         self.player_position= player_position
+        self.enhance        = enhance
 
         self.px = 0
         self.py = 0
@@ -174,13 +176,15 @@ class ResizeEnv(gym.Wrapper):
 
             cv2.imshow("window ", cv_img)
             cv2.waitKey(50)
-            '''     
-        
+            '''
+               
 
         img = img.convert('L')
         img = img.resize((self.width, self.height))
 
-        img = numpy.array(img, dtype=numpy.uint8)
+        img = numpy.array(img)
+        if self.enhance:
+            img = self._enhance(img)
 
 
         self.state    = numpy.roll(self.state, 1, axis=0)
@@ -211,7 +215,11 @@ class ResizeEnv(gym.Wrapper):
             y = 0
 
         return numpy.array(mask, dtype=numpy.uint8), x, y
-        
+    
+    def _enhance(self, img):
+        img = numpy.array(img, dtype=int)
+        img = numpy.array(97*img + 17, dtype=numpy.uint8)
+        return img
     
 class MaxSteps(gym.Wrapper):
     def __init__(self, env, max_steps):
@@ -401,7 +409,33 @@ def WrapperPitfallShaped(env, height = 96, width = 96, frame_stacking = 4, max_s
     env = NopOpsEnv(env)    
     env = StickyActionEnv(env)
     env = MaxAndSkipEnv(env)
-    env = ResizeEnv(env, height, width, frame_stacking, True)
+    env = ResizeEnv(env, height, width, frame_stacking, True, False)
+    
+    env = MaxSteps(env, max_steps)
+    env = Rewards(env)
+
+    # room_address 3 for montezuma, 1 for pitfall
+    env = ExploredRoomsEnv(env, room_address = 1) 
+
+    env = StateManager(env)  
+
+    return env  
+
+
+
+
+def WrapperPitfallShapedEnhanced(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
+
+    ale = env.unwrapped.ale
+    ale.setFloat("repeat_action_probability", 0.0)
+    ale.setInt("frame_skip", 1) 
+
+    #env = VideoRecorder(env)
+    env = RemoveTrunc(env)
+    env = NopOpsEnv(env)    
+    env = StickyActionEnv(env)
+    env = MaxAndSkipEnv(env)
+    env = ResizeEnv(env, height, width, frame_stacking, True, True)
     
     env = MaxSteps(env, max_steps)
     env = Rewards(env)
@@ -421,7 +455,7 @@ if __name__ == "__main__":
 
     #env = gym.make("ALE/MontezumaRevenge-v5")
     env = gym.make("ALE/Pitfall-v5")
-    env = WrapperPitfallShaped(env)
+    env = WrapperPitfallShapedEnhanced(env)
     
     state, info = env.reset()
     
@@ -443,6 +477,10 @@ if __name__ == "__main__":
         else:
             print(-1)
 
+        cv2.imshow("w", state[0])
+        cv2.waitKey(1)
+
+        print(info)
 
         if done:
             env.reset()
