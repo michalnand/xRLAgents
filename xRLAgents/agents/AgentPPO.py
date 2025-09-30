@@ -116,7 +116,7 @@ class AgentPPO():
                 self.train()
                 self.trajectory_buffer.clear()  
 
-            print("scaled rewars ", rewards_ext_scaled.mean(), rewards_ext_scaled.std(), rewards_ext_scaled.min(), rewards_ext_scaled.max()) 
+                print("scaled rewards ", rewards_ext_scaled.mean(), rewards_ext_scaled.std(), rewards_ext_scaled.min(), rewards_ext_scaled.max()) 
 
 
         # update hidden state
