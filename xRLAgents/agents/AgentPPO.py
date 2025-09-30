@@ -99,7 +99,7 @@ class AgentPPO():
             rewards_ext_scaled = rewards
 
 
-        print(rewards_ext_scaled)   
+          
 
         # top PPO training part
         if training_enabled:
@@ -114,7 +114,9 @@ class AgentPPO():
             if self.trajectory_buffer.is_full():
                 self.trajectory_buffer.compute_returns(self.gamma)
                 self.train()
-                self.trajectory_buffer.clear()
+                self.trajectory_buffer.clear()  
+
+            print("scaled rewars ", rewards_ext_scaled.mean(), rewards_ext_scaled.std(), rewards_ext_scaled.min(), rewards_ext_scaled.max()) 
 
 
         # update hidden state
