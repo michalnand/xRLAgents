@@ -2,7 +2,7 @@ import ale_py
 import gymnasium as gym
 import numpy
 
-from PIL import Image
+from PIL import Image, ImageFilter
 
 import cv2
 
@@ -66,7 +66,7 @@ class NopOpsEnv(gym.Wrapper):
             if done:
                 obs = self.env.reset()
            
-        return obs, None
+        return obs, {}
 
     def step(self, action):
         return self.env.step(action)
@@ -128,11 +128,15 @@ class MaxAndSkipEnv(gym.Wrapper):
 
 
 class ResizeEnv(gym.Wrapper):
-    def __init__(self, env, height = 96, width = 96, frame_stacking = 4):
+    def __init__(self, env, height = 96, width = 96, frame_stacking = 4, player_position = False):
         gym.Wrapper.__init__(self, env)
         self.height = height
         self.width  = width
         self.frame_stacking = frame_stacking
+        self.player_position= player_position
+
+        self.px = 0
+        self.py = 0
 
         state_shape = (self.frame_stacking, self.height, self.width)
         self.dtype  = numpy.float32
@@ -143,23 +147,72 @@ class ResizeEnv(gym.Wrapper):
     def reset(self, seed = None, options = None):    
         state, info = self.env.reset()
 
+        info["px"] = self.px
+        info["py"] = self.py    
+
         return self._observation(state), info
     
     def step(self, action):    
         state, reward, done, info = self.env.step(action)
+
+        info["px"] = self.px
+        info["py"] = self.py    
+
         return self._observation(state), reward, done, info
     
 
     def _observation(self, state):
         img = Image.fromarray(state)
+
+        if self.player_position:
+            _, self.px, self.py = self._get_player_position(numpy.array(img))
+
+            '''
+            cv_img = numpy.array(img, dtype=numpy.uint8)
+            cv_img = cv2.circle(cv_img, center=(self.px, self.py), radius=5, color=(0, 0, 255), thickness=-1)
+            cv_img = cv2.cvtColor(cv_img, cv2.COLOR_RGB2BGR)
+
+            cv2.imshow("window ", cv_img)
+            cv2.waitKey(50)
+            '''     
+        
+
         img = img.convert('L')
         img = img.resize((self.width, self.height))
+
+        img = numpy.array(img, dtype=numpy.uint8)
+
 
         self.state    = numpy.roll(self.state, 1, axis=0)
         self.state[0] = (numpy.array(img).astype(self.dtype)/255.0).copy()
         
-        return self.state 
+        return self.state
 
+    def _get_player_position(self, frame):
+        mask = frame[:, :, 0] > 190 
+        
+        mask = numpy.logical_and(mask, frame[:, :, 1] < 190)
+        mask = numpy.logical_and(mask, frame[:, :, 2] < 190)
+        
+
+        #mask = frame[:, :, 0] > 150   
+        #mask = numpy.logical_and(mask, frame[:, :, 1] < 80)
+        #mask = numpy.logical_and(mask, frame[:, :, 2] < 80)
+
+        if numpy.any(mask):
+            # Get coordinates of matches
+            ys, xs = numpy.where(mask)
+
+            # Use centroid of detected region
+            x = int(xs.mean())
+            y = int(ys.mean())
+        else:
+            x = 0
+            y = 0
+
+        return numpy.array(mask, dtype=numpy.uint8), x, y
+        
+    
 class MaxSteps(gym.Wrapper):
     def __init__(self, env, max_steps):
         gym.Wrapper.__init__(self, env)
@@ -335,15 +388,63 @@ def WrapperMontezumaShaped(env, height = 96, width = 96, frame_stacking = 4, max
     return env
 
 
+  
+
+def WrapperPitfallShaped(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
+
+    ale = env.unwrapped.ale
+    ale.setFloat("repeat_action_probability", 0.0)
+    ale.setInt("frame_skip", 1) 
+
+    #env = VideoRecorder(env)
+    env = RemoveTrunc(env)
+    env = NopOpsEnv(env)    
+    env = StickyActionEnv(env)
+    env = MaxAndSkipEnv(env)
+    env = ResizeEnv(env, height, width, frame_stacking, True)
+    
+    env = MaxSteps(env, max_steps)
+    env = Rewards(env)
+
+    # room_address 3 for montezuma, 1 for pitfall
+    env = ExploredRoomsEnv(env, room_address = 1) 
+
+    env = StateManager(env)  
+
+    return env  
+
+
+
+
 
 if __name__ == "__main__":
 
-    env = gym.make("ALE/MontezumaRevenge-v5")
-    env = WrapperMontezuma(env)
+    #env = gym.make("ALE/MontezumaRevenge-v5")
+    env = gym.make("ALE/Pitfall-v5")
+    env = WrapperPitfallShaped(env)
     
-    print(env.reset())
-    print("\n\n")
-    state, reward, done, info = env.step(0)
-    print(state.shape)
-    print(reward, done, info)
-    print("\n\n")
+    state, info = env.reset()
+    
+
+    px_now = 0
+    px_prev = 0
+    while True:
+        action = numpy.random.randint(0, env.action_space.n)
+        state, reward, done, info = env.step(action)
+
+        px_prev = px_now
+        px_now  = info["px"]
+        dx      = px_now - px_prev
+
+        py      = info["py"] - 110
+
+        if dx > 0 and py < 0:
+            print(1)
+        else:
+            print(-1)
+
+
+        if done:
+            env.reset()
+    
+    

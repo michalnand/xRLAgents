@@ -55,6 +55,11 @@ class AgentPPO():
 
             self.log_rnn = None
 
+        if hasattr(config, "reward_shaping"):
+            self.reward_shaping = config.reward_shaping
+        else:
+            self.reward_shaping = None  
+
 
 
         # create mdoel
@@ -87,14 +92,23 @@ class AgentPPO():
         # environment step
         states_new, rewards, dones, infos = self.envs.step(actions)
 
+        # optional rewards shaping
+        if self.reward_shaping is not None:
+            rewards_ext_scaled = self.reward_shaping(states, rewards, infos)
+        else:
+            rewards_ext_scaled = rewards
+
+
+        print(rewards_ext_scaled)   
+
         # top PPO training part
         if training_enabled:
             
             # put trajectory into policy buffer
-            if self.rnn_policy:
-                self.trajectory_buffer.add(states=states_t, logits=logits_t, values=values_t, actions=actions, rewards=rewards, dones=dones, hidden_state=self.hidden_state_t)
+            if self.rnn_policy:     
+                self.trajectory_buffer.add(states=states_t, logits=logits_t, values=values_t, actions=actions, rewards=rewards_ext_scaled, dones=dones, hidden_state=self.hidden_state_t)
             else:
-                self.trajectory_buffer.add(states=states_t, logits=logits_t, values=values_t, actions=actions, rewards=rewards, dones=dones)
+                self.trajectory_buffer.add(states=states_t, logits=logits_t, values=values_t, actions=actions, rewards=rewards_ext_scaled, dones=dones)
 
             # if buffer is full, run training loop
             if self.trajectory_buffer.is_full():
