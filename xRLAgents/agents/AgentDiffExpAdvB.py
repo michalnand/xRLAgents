@@ -506,7 +506,9 @@ class AgentDiffExpAdvB():
         indices = torch.randint(0, states_buffer.shape[0], size=(batch_size, ))
         states_buffer_batch = states_buffer[indices]
         states_buffer_batch = states_buffer_batch.to(self.device)
-        states_buffer_batch = self._state_normalise(states_buffer_batch)
+
+        if self.state_normalise:
+            states_buffer_batch = self._state_normalise(states_buffer_batch)
 
         # obtain features
         z_curr   = self.model.forward_im_features(states_curr).detach()
