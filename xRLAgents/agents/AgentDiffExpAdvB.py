@@ -180,9 +180,9 @@ class AgentDiffExpAdvB():
         # update circular states buffer
         for n in range(self.n_envs):
             if numpy.random.rand() < self.buffer_prob:
-                print("states_buffer_ptr = ", self.states_buffer_ptr)
+                print("states_buffer_ptr = ", n, self.states_buffer_ptr)   
 
-                self.states_buffer[self.states_buffer_ptr] = states_t.to("cpu")
+                self.states_buffer[self.states_buffer_ptr] = states_t[n].to("cpu")
                 self.states_buffer_ptr = (self.states_buffer_ptr + 1)%self.states_buffer.shape[0]
 
                 
