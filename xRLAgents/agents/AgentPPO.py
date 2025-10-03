@@ -141,7 +141,17 @@ class AgentPPO():
         torch.save(self.model.state_dict(), result_path + "/model.pt")
 
     def load(self, result_path):
-        self.model.load_state_dict(torch.load(result_path + "/model.pt", map_location = self.device, weights_only=True))
+        state_dict = torch.load(result_path + "/model.pt", map_location=self.device)
+
+        
+        new_state_dict = {}
+        for k, v in state_dict.items():
+            k_new = k.replace("features", "model_features")
+            k_new = k_new.replace("actor_critic", "model_actor_critic")
+            new_state_dict[k_new] = v
+        
+
+        self.model.load_state_dict(state_dict)
 
     def get_logs(self):
         result = []

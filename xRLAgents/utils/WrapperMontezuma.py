@@ -244,12 +244,9 @@ class MaxSteps(gym.Wrapper):
 
 
 class Rewards(gym.Wrapper):
-    def __init__(self, env, shaping = False):
+    def __init__(self, env):    
         gym.Wrapper.__init__(self, env)
-        self.shaping = shaping
         
-       
-
     def reset(self, seed = None, options = None):
         return self.env.reset()
 
@@ -258,11 +255,7 @@ class Rewards(gym.Wrapper):
         state, reward, done, info = self.env.step(action)
 
         info["raw_reward"] = reward
-        info["doors"]      = False
-
-        if abs(reward - 300.0) < 0.1:
-            info["doors"] = True
-
+        
         if reward > 0:
             reward = 1.0
         else:
@@ -453,8 +446,8 @@ def WrapperPitfallShapedEnhanced(env, height = 96, width = 96, frame_stacking = 
 
 if __name__ == "__main__":
 
-    #env = gym.make("ALE/MontezumaRevenge-v5")
-    env = gym.make("ALE/Pitfall-v5")
+    env = gym.make("ALE/MontezumaRevenge-v5")
+    #env = gym.make("ALE/Pitfall-v5")
     env = WrapperPitfallShapedEnhanced(env)
     
     state, info = env.reset()
