@@ -484,6 +484,8 @@ class AgentDiffExpAdvB():
         # diversity novelty
         diversity = self.model.forward_im_disc(z_target)
 
+        diversity = diversity[:, 0] 
+
         # normalise into -1, 1
         diversity = 2.0*diversity - 1.0
         
