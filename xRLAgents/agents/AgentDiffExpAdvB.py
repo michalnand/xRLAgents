@@ -214,8 +214,6 @@ class AgentDiffExpAdvB():
 
         rewards_int_a  = rewards_int_a.float().detach().cpu().numpy()
         rewards_int_b  = rewards_int_b.float().detach().cpu().numpy()
-
-        print("im rewards ", rewards_int_a.mean(), rewards_int_b.std(), rewards_int_b.mean(), rewards_int_b.std())
         
 
         rewards_int_scaled = numpy.clip(self.reward_int_a_coeff*rewards_int_a + self.reward_int_b_coeff*rewards_int_b, -1.0, 1.0)
@@ -485,7 +483,7 @@ class AgentDiffExpAdvB():
         # diversity novelty
         diversity = self.model.forward_im_disc(z_target)
 
-        diversity = diversity[:, 0] 
+        diversity = diversity[:, 0]     
 
         # normalise into -1, 1
         diversity = 2.0*diversity - 1.0
@@ -517,7 +515,7 @@ class AgentDiffExpAdvB():
         # buffer states have target 0
         loss_disc = loss_func(current_pred, torch.ones_like(current_pred)) + loss_func(buffer_pred, torch.zeros_like(buffer_pred))
 
-        
+
         acc = (current_pred > 0.5).float().sum() + (buffer_pred < 0.5).float().sum()
         acc = acc/(2*batch_size) 
 
