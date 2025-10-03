@@ -121,7 +121,7 @@ class AgentDiffExpAdvB():
         # result loggers
         self.log_rewards_int    = ValuesLogger("rewards_int")
         self.log_loss_ppo       = ValuesLogger("loss_ppo")
-        self.log_loss_diffusion = ValuesLogger("loss_diffusion")
+        self.log_loss_im        = ValuesLogger("loss_im")
         self.log_loss_im_ssl    = ValuesLogger("loss_im_ssl")
 
         if self.rnn_policy:
@@ -362,7 +362,7 @@ class AgentDiffExpAdvB():
 
     def get_logs(self):
 
-        logs = [self.log_rewards_int, self.log_loss_ppo, self.log_loss_diffusion, self.log_loss_im_ssl]
+        logs = [self.log_rewards_int, self.log_loss_ppo, self.log_loss_im, self.log_loss_im_ssl]
 
         if self.rnn_policy:
             logs.append(self.log_rnn)
@@ -433,16 +433,16 @@ class AgentDiffExpAdvB():
                 self.log_loss_im_ssl.add(str(key), info_ssl[key])
             
             
-            self.log_loss_im_ssl.add("loss_disc", loss_disc.float().detach().cpu().numpy().item())
-            self.log_loss_im_ssl.add("disc_acc", acc_disc)
-
 
             self.optimizer.zero_grad()        
             loss.mean().backward() 
             self.optimizer.step() 
 
             # log results
-            self.log_loss_diffusion.add("loss_diffusion", loss_diffusion.float().detach().cpu().numpy())
+            self.log_loss_im.add("loss_diffusion", loss_diffusion.float().detach().cpu().numpy())
+            self.log_loss_im.add("loss_disc", loss_disc.float().detach().cpu().numpy().item())
+            self.log_loss_im.add("disc_acc", acc_disc)
+
                 
             
 
@@ -517,8 +517,7 @@ class AgentDiffExpAdvB():
         # buffer states have target 0
         loss_disc = loss_func(current_pred, torch.ones_like(current_pred)) + loss_func(buffer_pred, torch.zeros_like(buffer_pred))
 
-        print(">>> _discriminator_loss ", current_pred.shape, torch.ones_like(current_pred).shape)
-
+        
         acc = (current_pred > 0.5).float().sum() + (buffer_pred < 0.5).float().sum()
         acc = acc/(2*batch_size) 
 
