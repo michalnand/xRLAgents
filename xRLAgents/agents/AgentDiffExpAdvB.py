@@ -185,8 +185,8 @@ class AgentDiffExpAdvB():
             else:
                 p = self.buffer_prob
 
-            if numpy.random.rand() < p:
-                print("states_buffer_ptr = ", n, self.states_buffer_ptr, p)     
+            if numpy.random.rand() < p: 
+                #print("states_buffer_ptr = ", n, self.states_buffer_ptr, p)     
 
                 idx = self.states_buffer_ptr%self.states_buffer.shape[0]
                 self.states_buffer[idx] = states_t[n].to("cpu")
