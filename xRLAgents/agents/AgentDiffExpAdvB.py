@@ -178,12 +178,19 @@ class AgentDiffExpAdvB():
         states_t = torch.from_numpy(states).to(self.dtype).to(self.device)
 
         # update circular states buffer
-        for n in range(self.n_envs):
-            if numpy.random.rand() < self.buffer_prob:
-                print("states_buffer_ptr = ", n, self.states_buffer_ptr)   
+        for n in range(self.n_envs):    
+            # fast buffer initialisation
+            if self.states_buffer_ptr < self.states_buffer.shape[0]:
+                p = 0.1 
+            else:
+                p = self.buffer_prob
 
-                self.states_buffer[self.states_buffer_ptr] = states_t[n].to("cpu")
-                self.states_buffer_ptr = (self.states_buffer_ptr + 1)%self.states_buffer.shape[0]
+            if numpy.random.rand() < p:
+                print("states_buffer_ptr = ", n, self.states_buffer_ptr, p)     
+
+                idx = self.states_buffer_ptr%self.states_buffer.shape[0]
+                self.states_buffer[idx] = states_t[n].to("cpu")
+                self.states_buffer_ptr = self.states_buffer_ptr + 1
 
                 
 
