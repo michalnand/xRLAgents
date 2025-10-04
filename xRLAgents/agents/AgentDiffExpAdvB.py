@@ -180,17 +180,15 @@ class AgentDiffExpAdvB():
         # update circular states buffer
         for n in range(self.n_envs):    
             # fast buffer initialisation
-            if self.states_buffer_ptr < self.states_buffer.shape[0]:
+            if self.iterations < self.states_buffer.shape[0]:
                 p = 0.1 
             else:
                 p = self.buffer_prob
 
             if numpy.random.rand() < p: 
-                #print("states_buffer_ptr = ", n, self.states_buffer_ptr, p)     
-
-                idx = self.states_buffer_ptr%self.states_buffer.shape[0]
+                # store to random place
+                idx = numpy.random.randint(self.states_buffer.shape[0])   
                 self.states_buffer[idx] = states_t[n].to("cpu")
-                self.states_buffer_ptr = self.states_buffer_ptr + 1
 
                 
 
@@ -497,34 +495,43 @@ class AgentDiffExpAdvB():
         
         return novelty.detach(), diversity.detach(), loss
 
-
+    '''
+        states_curr     : batch sample of current states, shape (batch_size, ) + state_shape
+        states_buffer   : full buffer of past states, shape (buffer_size, ) + state_shape
+    '''
     def _discriminator_loss(self, states_curr, states_buffer):
 
         batch_size = states_curr.shape[0]
 
-        # sample from buffer
+        # sample from buffer equal batch size
         indices = torch.randint(0, states_buffer.shape[0], size=(batch_size, ))
         states_buffer_batch = states_buffer[indices]
         states_buffer_batch = states_buffer_batch.to(self.device)
 
+        # normalise raw states with actual stats
         if self.state_normalise:
             states_buffer_batch = self._state_normalise(states_buffer_batch)
 
-        # obtain features
+        # obtain features, trained via self supervised loss
         z_curr   = self.model.forward_im_features(states_curr).detach()
         z_buffer = self.model.forward_im_features(states_buffer_batch).detach()
 
-        # classification
+        # discriminator output, with sigmoid, binary classification
         current_pred = self.model.forward_im_disc(z_curr)
         buffer_pred  = self.model.forward_im_disc(z_buffer)
 
+        
+
+        # current fresh states have target 1
+        # buffer old states have target 0
         loss_func = torch.nn.BCELoss()
 
-        # current states have target 1
-        # buffer states have target 0
-        loss_disc = loss_func(current_pred, torch.ones_like(current_pred)) + loss_func(buffer_pred, torch.zeros_like(buffer_pred))
+        prediction  = torch.cat([current_pred, buffer_pred], dim=0)
+        target      = torch.cat([torch.ones_like(current_pred), torch.zeros_like(buffer_pred)], dim=0)
+        loss_disc   = loss_func(prediction, target)
 
 
+        # statistics, accuracy computation, ( TP + TN ) / total_samples
         acc = (current_pred > 0.5).float().sum() + (buffer_pred < 0.5).float().sum()
         acc = acc/(2*batch_size) 
 
