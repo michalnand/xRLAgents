@@ -14,5 +14,7 @@ from .AgentPPOSND           import *
 from .AgentDiffExp              import *
 from .AgentDiffExpAdvB          import *
 
+from .AgentPPOShiftHunter      import *
+
 
 from .loss_self_supervised  import *

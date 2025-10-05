@@ -28,8 +28,16 @@ class AgentPPO():
 
 
         self.n_envs             = len(envs)
-        self.state_shape        = self.envs.observation_space.shape
-        self.actions_count      = self.envs.action_space.n
+
+        if hasattr(self.envs, "observation_shape"):
+            self.state_shape    = self.envs.observation_shape
+        else:
+            self.state_shape    = self.envs.observation_space.shape
+
+        if hasattr(self.envs, "actions_count"):
+            self.actions_count  = self.envs.actions_count
+        else:
+            self.actions_count  = self.envs.action_space.n
 
        
         self.log_loss_ppo = ValuesLogger("loss_ppo")
@@ -115,9 +123,7 @@ class AgentPPO():
                 self.trajectory_buffer.compute_returns(self.gamma)
                 self.train()
                 self.trajectory_buffer.clear()  
-
-                print("scaled rewards ", rewards_ext_scaled.mean(), rewards_ext_scaled.std(), rewards_ext_scaled.min(), rewards_ext_scaled.max()) 
-
+                
 
         # update hidden state
         if self.rnn_policy:
