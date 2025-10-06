@@ -218,26 +218,27 @@ class AgentPPOShiftHunter():
         batch_count = samples_count//self.ss_batch_size
 
         
-        #main IM training loop
-        for batch_idx in range(batch_count):        
-            #internal motivation loss, MSE diffusion    
-            states  = self.trajectory_buffer.sample_states(self.ss_batch_size, self.device)
+        #main IM training loop  
+        for e in range(20):
+            for batch_idx in range(batch_count):        
+                #internal motivation loss, MSE diffusion    
+                states  = self.trajectory_buffer.sample_states(self.ss_batch_size, self.device)
 
 
-            indices = torch.randint(0, self.states_buffer.shape[0], size=(self.ss_batch_size, ))
-            states_buffer_batch = self.states_buffer[indices]
-            states_buffer_batch = states_buffer_batch.to(self.device)
+                indices = torch.randint(0, self.states_buffer.shape[0], size=(self.ss_batch_size, ))
+                states_buffer_batch = self.states_buffer[indices]
+                states_buffer_batch = states_buffer_batch.to(self.device)
 
-            # discriminator loss
-            loss_disc, acc_disc = self._discriminator_loss(states, states_buffer_batch)
-    
-            self.optimizer.zero_grad()        
-            loss_disc.mean().backward() 
-            self.optimizer.step() 
+                # discriminator loss
+                loss_disc, acc_disc = self._discriminator_loss(states, states_buffer_batch)
+        
+                self.optimizer.zero_grad()        
+                loss_disc.mean().backward() 
+                self.optimizer.step() 
 
-            # log results
-            self.log_loss_im.add("loss_disc", loss_disc.float().detach().cpu().numpy().item())
-            self.log_loss_im.add("disc_acc", acc_disc)
+                # log results
+                self.log_loss_im.add("loss_disc", loss_disc.float().detach().cpu().numpy().item())
+                self.log_loss_im.add("disc_acc", acc_disc)
 
                 
             
@@ -255,7 +256,6 @@ class AgentPPOShiftHunter():
 
 
     # state denoising ability novely detection
-    '''
     def _internal_motivation(self, states, th = 0.5):      
         # obtain taget features from states and noised states
         z_target  = self.model.forward_im_features(states)
@@ -272,8 +272,8 @@ class AgentPPOShiftHunter():
         y = torch.clip(k*y + q, -1.0, 1.0)
         
         return y.detach()
+    
     '''
-
     def _internal_motivation(self, states, th = 0.5):
 
         dist     = torch.cdist(states.cpu().flatten(1), self.states_buffer.flatten(1))
@@ -284,6 +284,8 @@ class AgentPPOShiftHunter():
         print("dist = ", dist_min.mean(), dist_min.std(), dist_min.min(), dist_min.max())
 
         return dist_min.detach()
+    '''
+
 
     '''
         states_curr     : batch sample of current states, shape (batch_size, ) + state_shape
