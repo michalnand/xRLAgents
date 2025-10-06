@@ -217,28 +217,26 @@ class AgentPPOShiftHunter():
         
         batch_count = samples_count//self.ss_batch_size
 
-        
-        #main IM training loop  
-        for e in range(32): 
-            for batch_idx in range(batch_count):        
-                #internal motivation loss, MSE diffusion    
-                states  = self.trajectory_buffer.sample_states(self.ss_batch_size, self.device)
+
+        #main IM training loop      
+        for batch_idx in range(batch_count):        
+            states  = self.trajectory_buffer.sample_states(self.ss_batch_size, self.device)
 
 
-                indices = torch.randint(0, self.states_buffer.shape[0], size=(self.ss_batch_size, ))
-                states_buffer_batch = self.states_buffer[indices]
-                states_buffer_batch = states_buffer_batch.to(self.device)
+            indices = torch.randint(0, self.states_buffer.shape[0], size=(self.ss_batch_size, ))
+            states_buffer_batch = self.states_buffer[indices]
+            states_buffer_batch = states_buffer_batch.to(self.device)
 
-                # discriminator loss
-                loss_disc, acc_disc = self._discriminator_loss(states, states_buffer_batch)
-        
-                self.optimizer.zero_grad()        
-                loss_disc.mean().backward() 
-                self.optimizer.step() 
+            # discriminator loss
+            loss_disc, acc_disc = self._discriminator_loss(states, states_buffer_batch)
+    
+            self.optimizer.zero_grad()        
+            loss_disc.mean().backward() 
+            self.optimizer.step() 
 
-                # log results
-                self.log_loss_im.add("loss_disc", loss_disc.float().detach().cpu().numpy().item())
-                self.log_loss_im.add("disc_acc", acc_disc)
+            # log results
+            self.log_loss_im.add("loss_disc", loss_disc.float().detach().cpu().numpy().item())
+            self.log_loss_im.add("disc_acc", acc_disc)
 
                 
             
