@@ -219,7 +219,7 @@ class AgentPPOShiftHunter():
 
         
         #main IM training loop  
-        for e in range(20):
+        for e in range(32): 
             for batch_idx in range(batch_count):        
                 #internal motivation loss, MSE diffusion    
                 states  = self.trajectory_buffer.sample_states(self.ss_batch_size, self.device)
