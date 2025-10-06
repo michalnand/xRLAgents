@@ -255,7 +255,7 @@ class AgentPPOShiftHunter():
 
 
     # state denoising ability novely detection
-    def _internal_motivation(self, states, th = 0.75):      
+    def _internal_motivation(self, states, th = 0.5):      
         # obtain taget features from states and noised states
         z_target  = self.model.forward_im_features(states)
 
@@ -265,8 +265,8 @@ class AgentPPOShiftHunter():
         y = y[:, 0]     
 
 
-        k = 1.0/(1.0 - th)
-        q = 0.0 - k*th
+        k = 2.0/(1.0 - th)
+        q = -1.0 - k*th
 
         y = torch.clip(k*y + q, -1.0, 1.0)
         
