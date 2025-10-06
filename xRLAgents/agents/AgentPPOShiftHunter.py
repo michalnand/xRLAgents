@@ -279,7 +279,7 @@ class AgentPPOShiftHunter():
         dist     = torch.cdist(states.cpu().flatten(1), self.states_buffer.flatten(1))
         dist_min = torch.min(dist, dim=-1)[0]
 
-        dist_min = dist_min/numpy.prod(self.state_shape)
+        dist_min = dist_min #/numpy.prod(self.state_shape)
 
         print("dist = ", dist_min.mean(), dist_min.std(), dist_min.min(), dist_min.max())
 
