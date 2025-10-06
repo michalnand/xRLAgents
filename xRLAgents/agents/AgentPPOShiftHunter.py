@@ -264,7 +264,7 @@ class AgentPPOShiftHunter():
         diversity = diversity[:, 0]     
 
         # normalise into -1, 1
-        diversity = 2.0*diversity - 1.0
+        diversity = 2.0*diversity - 1.0 
         
         return diversity.detach()
 
