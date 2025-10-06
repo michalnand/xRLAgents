@@ -142,6 +142,7 @@ class AgentPPOShiftHunter():
     
         # internal motivaiotn based on diffusion
         rewards_int = self._internal_motivation(states_t)
+       
 
         rewards_int  = rewards_int.float().detach().cpu().numpy()
     
@@ -254,19 +255,22 @@ class AgentPPOShiftHunter():
 
 
     # state denoising ability novely detection
-    def _internal_motivation(self, states):      
+    def _internal_motivation(self, states, th = 0.75):      
         # obtain taget features from states and noised states
         z_target  = self.model.forward_im_features(states)
 
         # diversity novelty
-        diversity = self.model.forward_im_disc(z_target)
+        y = self.model.forward_im_disc(z_target)
 
-        diversity = diversity[:, 0]     
+        y = y[:, 0]     
 
-        # normalise into -1, 1
-        diversity = 2.0*diversity - 1.0 
+
+        k = 1.0/(1.0 - th)
+        q = 0.0 - k*th
+
+        y = torch.clip(k*y + q, -1.0, 1.0)
         
-        return diversity.detach()
+        return y.detach()
 
     '''
         states_curr     : batch sample of current states, shape (batch_size, ) + state_shape
