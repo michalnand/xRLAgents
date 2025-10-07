@@ -170,15 +170,15 @@ class AgentDiffExpAdvC():
     def step(self, states, training_enabled):     
         states_t = torch.from_numpy(states).to(self.dtype).to(self.device)
 
+        # update past states buffer
+        for n in range(self.n_envs): 
+            if numpy.random.rand() < self.past_buffer_prob:
+                idx = numpy.random.randint(0, self.past_buffer_size)
+                self.past_buffer[idx] = states_t[n].detach().cpu().clone()
+
         if self.state_normalise:
             self._update_normalisation(states_t, alpha = 0.99)
             states_t = self._state_normalise(states_t)
-
-        # update past states buffer
-        for n in range(self.n_envs):
-            if numpy.random.rand() < self.past_buffer_prob:
-                idx = numpy.random.randint(0, self.past_buffer_size)
-                self.past_buffer[idx] = states_t[n].detach().cpu()
 
         # obtain model output, logits and values, use abstract state space z
         if self.rnn_policy:
@@ -552,6 +552,11 @@ class AgentDiffExpAdvC():
 
         result = self.past_buffer[indices]
         result = result.to(self.device)
+
+        # use fresh normalisation
+        if self.state_normalise:
+            result = self._state_normalise(result)
+
         return result
 
     #update running stats when training enabled
