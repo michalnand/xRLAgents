@@ -39,6 +39,7 @@ class AgentPPOShiftHunter():
         self.steps              = config.steps
         self.batch_size         = config.batch_size
         self.ss_batch_size      = config.ss_batch_size
+        self.im_ssl_loss        = config.im_ssl_loss
         
         self.training_epochs    = config.training_epochs
         
@@ -83,7 +84,8 @@ class AgentPPOShiftHunter():
         # result loggers
         self.log_rewards_int    = ValuesLogger("rewards_int")
         self.log_loss_ppo       = ValuesLogger("loss_ppo")
-        self.log_loss_im        = ValuesLogger("loss_im")
+        self.log_loss_im_ssl    = ValuesLogger("loss_im_ssl")
+        
 
         
         self.saving_enabled = False
@@ -110,6 +112,7 @@ class AgentPPOShiftHunter():
         print("steps                ", self.steps)
         print("batch_size           ", self.batch_size)
         print("ss_batch_size        ", self.ss_batch_size)
+        print("im_ssl_loss          ", self.im_ssl_loss)
         print("training_epochs      ", self.training_epochs)
         print("learning_rate        ", learning_rate)
         
@@ -140,32 +143,23 @@ class AgentPPOShiftHunter():
 
         rewards_ext_scaled = self.reward_ext_coeff*rewards_ext
     
-        # internal motivaiotn based on diffusion
         rewards_int = self._internal_motivation(states_t)
-       
-
-        rewards_int  = rewards_int.float().detach().cpu().numpy()
-    
-        rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int, -1.0, 1.0)
-
 
             
         # top PPO training part
         if training_enabled:   
             # put trajectory into policy buffer
-            self.trajectory_buffer.add(states=states_t, logits=logits_t, values_ext=values_ext_t, values_int=values_int_t, actions=actions, rewards_ext=rewards_ext_scaled, rewards_int=rewards_int_scaled, dones=dones)
+            self.trajectory_buffer.add(states=states_t, logits=logits_t, values_ext=values_ext_t, values_int=values_int_t, actions=actions, rewards_ext=rewards_ext_scaled, rewards_int=rewards_int, dones=dones)
 
             # if buffer is full, run training loop
-            if self.trajectory_buffer.is_full():    
+            if self.trajectory_buffer.is_full():     
                 self.trajectory_buffer.compute_returns(self.gamma_ext, self.gamma_int)
-                
+
                 self.train()
 
                 self.trajectory_buffer.clear()
 
-                self.log_rewards_int.add("mean", rewards_int.mean())    
-                self.log_rewards_int.add("std",  rewards_int.std())
-
+                
         self.iterations+= 1
        
         return states_new, rewards_ext, dones, infos
@@ -180,12 +174,46 @@ class AgentPPOShiftHunter():
         self.model.load_state_dict(torch.load(result_path + "/model.pt", map_location = self.device))
 
     def get_logs(self):
-        logs = [self.log_rewards_int, self.log_loss_ppo, self.log_loss_im]
+        logs = [self.log_rewards_int, self.log_loss_ppo, self.log_loss_im_ssl]
         return logs
 
 
-    def train(self): 
+    def train(self):  
         samples_count = self.steps*self.n_envs
+
+
+        batch_count = samples_count//self.ss_batch_size
+
+        # discriminator training
+        for batch_idx in range(batch_count):        
+            # sample current states
+            states_curr  = self.trajectory_buffer.sample_states(self.ss_batch_size, self.device)
+
+            # sample old states
+            indices = torch.randint(0, self.states_buffer.shape[0], size=(self.ss_batch_size, ))
+            states_past = self.states_buffer[indices]
+            states_past = states_past.to(self.device)
+
+            # features training for IM    
+            # self supervised target regularisation
+            loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_curr, states_past)
+
+            # discriminator loss
+            loss_disc, info_disc = self._im_disc_loss(self.model, states_curr, states_past)
+
+            loss = loss_ssl + loss_disc
+            
+            self.optimizer.zero_grad()        
+            loss.mean().backward() 
+            self.optimizer.step() 
+
+            for key in info_ssl:
+                self.log_loss_im_ssl.add(str(key), info_ssl[key])
+
+            for key in info_disc:   
+                self.log_loss_im_ssl.add(str(key), info_disc[key])
+
+        
         batch_count = samples_count//self.batch_size
 
         # epoch training
@@ -215,31 +243,7 @@ class AgentPPOShiftHunter():
 
          
         
-        batch_count = samples_count//self.ss_batch_size
-
-
-        #main IM training loop      
-        for batch_idx in range(batch_count):        
-            states  = self.trajectory_buffer.sample_states(self.ss_batch_size, self.device)
-
-
-            indices = torch.randint(0, self.states_buffer.shape[0], size=(self.ss_batch_size, ))
-            states_buffer_batch = self.states_buffer[indices]
-            states_buffer_batch = states_buffer_batch.to(self.device)
-
-            # discriminator loss
-            loss_disc, acc_disc = self._discriminator_loss(states, states_buffer_batch)
-    
-            self.optimizer.zero_grad()        
-            loss_disc.mean().backward() 
-            self.optimizer.step() 
-
-            # log results
-            self.log_loss_im.add("loss_disc", loss_disc.float().detach().cpu().numpy().item())
-            self.log_loss_im.add("disc_acc", acc_disc)
-
-                
-            
+       
 
 
     # sample action, probs computed from logits
@@ -254,55 +258,47 @@ class AgentPPOShiftHunter():
 
 
     # state denoising ability novely detection
-    def _internal_motivation(self, states, th = 0.5):      
-        # obtain taget features from states and noised states
-        z_target  = self.model.forward_im_features(states)
+    def _internal_motivation(self, states, th = 0.5):        
+        # obtain features
+        z  = self.model.forward_im_features(states)
+        y  = self.model.forward_im_disc(z)
 
-        # diversity novelty
-        y = self.model.forward_im_disc(z_target)
+        # internal motivation is equal to confidence
+        rewards_int = y[:, 0]     
 
-        y = y[:, 0]     
+        rewards_int = rewards_int.detach().cpu().numpy()
 
-
+        # reward scaling
         k = 2.0/(1.0 - th)
         q = -1.0 - k*th
 
-        y = torch.clip(k*y + q, -1.0, 1.0)
-        
-        return y.detach()
+        rewards_int_scaled = self.reward_int_coeff*numpy.clip(k*rewards_int + q, -1.0, 1.0)
+
+        self.log_rewards_int.add("mean", rewards_int.mean())    
+        self.log_rewards_int.add("std",  rewards_int.std())
+
+        return rewards_int_scaled
+
     
-    '''
-    def _internal_motivation(self, states, th = 0.5):
-
-        dist     = torch.cdist(states.cpu().flatten(1), self.states_buffer.flatten(1))
-        dist_min = torch.min(dist, dim=-1)[0]
-
-        dist_min = dist_min #/numpy.prod(self.state_shape)
-
-        print("dist = ", dist_min.mean(), dist_min.std(), dist_min.min(), dist_min.max())
-
-        return dist_min.detach()
-    '''
-
+    
 
     '''
         states_curr     : batch sample of current states, shape (batch_size, ) + state_shape
         states_buffer   : full buffer of past states, shape (buffer_size, ) + state_shape
     '''
-    def _discriminator_loss(self, states_curr, states_buffer):
+    def _im_disc_loss(self, model, states_curr, states_buffer):
+
         batch_size = states_curr.shape[0]
 
         # obtain features, trained via self supervised loss
-        z_curr   = self.model.forward_im_features(states_curr)
-        z_buffer = self.model.forward_im_features(states_buffer)
+        z_curr   = model.forward_im_features(states_curr).detach()
+        z_buffer = model.forward_im_features(states_buffer).detach()
 
         # discriminator output, with sigmoid, binary classification
-        current_pred = self.model.forward_im_disc(z_curr)
-        buffer_pred  = self.model.forward_im_disc(z_buffer)
+        current_pred = model.forward_im_disc(z_curr)
+        buffer_pred  = model.forward_im_disc(z_buffer)
 
-        
-        # current fresh states have target 1
-        # buffer old states have target 0
+
         loss_func = torch.nn.BCELoss()
 
         prediction  = torch.cat([current_pred, buffer_pred], dim=0)
@@ -314,7 +310,11 @@ class AgentPPOShiftHunter():
         acc = (current_pred > 0.5).float().sum() + (buffer_pred < 0.5).float().sum()
         acc = acc/(2*batch_size) 
 
-        return loss_disc, acc.float().detach().cpu().numpy().item()
+        loss_info = {}
+        loss_info["disc_loss"] = loss_disc.float().detach().cpu().numpy().item()
+        loss_info["disc_acc"]  = acc.float().detach().cpu().numpy().item()
+
+        return loss_disc, loss_info
 
 
     # main PPO loss
