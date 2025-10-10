@@ -203,7 +203,7 @@ class AgentDiffExpB():
         # for evenly distributed score, alpha is close to 0
         r_std = self.episode_score.std()
         r_max = self.episode_score.max()
-        alpha = 5*r_std/(r_std + r_max + 1e-6)
+        alpha = 2*r_std/(r_std + r_max + 1e-6)
         alpha = 1.0 - numpy.clip(alpha, 0.0, 1.0)         
         
         # if a is close to one, we have very low variance of rewards, increase internal motivation
