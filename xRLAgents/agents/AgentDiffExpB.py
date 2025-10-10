@@ -199,16 +199,16 @@ class AgentDiffExpB():
         rewards_int, _     = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
         rewards_int        = rewards_int.float().detach().cpu().numpy()
 
-        # if episode_score have low variance, a is close to zero, 
-        # for evenly distributed score, a is close to 1
+        # if episode_score have low variance, alpha is close to 1, 
+        # for evenly distributed score, alpha is close to 0
         r_std = self.episode_score.std()
         r_max = self.episode_score.max()
         alpha = 5*r_std/(r_std + r_max + 1e-6)
-        alpha = numpy.clip(alpha, 0.0, 1.0)
+        alpha = 1.0 - numpy.clip(alpha, 0.0, 1.0)         
         
-        # if a is close to zero, we have very low variance of rewards, increase internal motivation
-        # if a is close to one, huge score variance, keep normal exploration
-        reward_int_coeff    = alpha*self.reward_int_min_coeff + (1.0 - alpha)*self.reward_int_max_coeff
+        # if a is close to one, we have very low variance of rewards, increase internal motivation
+        # if a is close to zero, huge score variance, keep normal exploration
+        reward_int_coeff    = (1.0 - alpha)*self.reward_int_min_coeff + alpha*self.reward_int_max_coeff
 
         rewards_int_scaled  = numpy.clip(reward_int_coeff*rewards_int, 0.0, 1.0)
 
