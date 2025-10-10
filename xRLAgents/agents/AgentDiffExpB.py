@@ -269,7 +269,10 @@ class AgentDiffExpB():
         self.log_rewards_int.add("reward_int_coeff", reward_int_coeff)
 
         self.log_rewards_int.add("rewards_int_mean", rewards_int.mean())
-        self.log_rewards_int.add("rewards_int_std",  rewards_int.std())
+        self.log_rewards_int.add("rewards_int_std",  rewards_int.std()) 
+
+        self.log_rewards_int.add("rewards_int_scaled_mean", rewards_int_scaled.mean())
+        self.log_rewards_int.add("rewards_int_scaled_std",  rewards_int_scaled.std())
         
         return states_new, rewards_ext, dones, infos
     
