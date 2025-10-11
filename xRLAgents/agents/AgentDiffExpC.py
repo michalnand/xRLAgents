@@ -357,14 +357,7 @@ class AgentDiffExpC():
                 advantages_ext  = batch["advantages_ext"]
                 advantages_int  = batch["advantages_int"]
 
-                print(states.shape)
-                print(logits.shape)
-                print(actions.shape)
-                print(returns_ext.shape)
-                print(returns_int.shape)
-                print(advantages_ext.shape)
-                print(advantages_int.shape)
-                print()
+                
                 # compute main PPO loss
                 if self.rnn_policy:
                     hidden_state  = batch["hidden_state"]
@@ -449,18 +442,12 @@ class AgentDiffExpC():
 
     # main PPO loss
     def _loss_ppo(self, states, hidden_states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
-
-        print("_loss_ppo")
         if hidden_states is not None:
             logits_new, values_ext_new, values_int_new, _ = self.model.forward(states, hidden_states)
         else:
             logits_new, values_ext_new, values_int_new  = self.model.forward(states)
 
-        print("tensors ")
-        print(logits_new.shape)
-        print(values_ext_new.shape)
-        print(values_int_new.shape)
-        
+       
         #critic loss
         loss_critic = self._ppo_critic_loss(values_ext_new, returns_ext, values_int_new, returns_int)
 
@@ -484,7 +471,7 @@ class AgentDiffExpC():
         info["loss_critic"]  = loss_critic.float().detach().cpu().numpy().item()
         info["loss_entropy"] = loss_entropy.float().detach().cpu().numpy().item()
 
-        return loss
+        return loss, info
 
 
         
