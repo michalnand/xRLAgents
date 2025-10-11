@@ -265,17 +265,17 @@ class AgentDiffExpC():
             x = self.trajectory_buffer.buffer["states"][n]  
             x = x.to(device=self.device, dtype=self.dtype)
 
+            z_ppo, z_im = self.model.forward_features(x)
+
             # ppo features
-            z = self.model.forward_ppo_features(x)
             z_ppo.append(z.detach().cpu().float().numpy())
 
             # im features
-            z = self.model.forward_im_features(x)
             z_im.append(z.detach().cpu().float().numpy())
 
             # diffusion prediction
             noise_hat = self.model.forward_im_diffusion(z)
-            z_hat = z - noise_hat
+            z_hat = z_im - noise_hat
 
             z_denoised.append(z_hat.detach().cpu().float().numpy())
 
