@@ -275,7 +275,7 @@ class AgentDiffExpC():
 
             # diffusion prediction
             noise_hat = self.model.forward_im_diffusion(z_im_tmp)
-            z_hat = z_im - noise_hat
+            z_hat = z_im_tmp - noise_hat
 
             z_denoised.append(z_hat.detach().cpu().float().numpy())
 
