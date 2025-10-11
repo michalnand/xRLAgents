@@ -12,8 +12,7 @@ from .EnvsListParallel      import *
 from .AgentPPOSND           import *
 
 from .AgentDiffExp              import *    
-from .AgentDiffExpB             import *    
-#from .AgentDiffExpAdvC          import *
+from .AgentDiffExpC             import *    
 
 from .AgentPPOShiftHunter      import *
 
