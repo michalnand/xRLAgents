@@ -358,6 +358,14 @@ class AgentDiffExpC():
                 advantages_int  = batch["advantages_int"]
 
                 print(e, batch_idx)
+                print(states.shape)
+                print(logits.shape)
+                print(actions.shape)
+                print(returns_ext.shape)
+                print(returns_int.shape)
+                print(advantages_ext.shape)
+                print(advantages_int.shape)
+                print()
                 # compute main PPO loss
                 if self.rnn_policy:
                     hidden_state  = batch["hidden_state"]
