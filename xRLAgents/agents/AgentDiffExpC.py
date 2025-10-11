@@ -268,10 +268,10 @@ class AgentDiffExpC():
             z_ppo, z_im = self.model.forward_features(x)
 
             # ppo features
-            z_ppo.append(z.detach().cpu().float().numpy())
+            z_ppo.append(z_ppo.detach().cpu().float().numpy())
 
             # im features
-            z_im.append(z.detach().cpu().float().numpy())
+            z_im.append(z_im.detach().cpu().float().numpy())
 
             # diffusion prediction
             noise_hat = self.model.forward_im_diffusion(z)
