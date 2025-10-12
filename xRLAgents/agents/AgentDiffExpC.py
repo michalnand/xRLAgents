@@ -384,7 +384,7 @@ class AgentDiffExpC():
 
                     for n in range(len(states_seq)):                
                         tmp = torch.zeros_like(states_seq[n])
-                        tmp[:, :] = states_seq[n][:, 0]
+                        tmp[:, :] = states_seq[n][:, 0].unsqueeze(1)
 
                         states_seq_tmp.append(tmp)
                 else:
