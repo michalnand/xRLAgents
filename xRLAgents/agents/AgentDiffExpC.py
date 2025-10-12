@@ -435,7 +435,6 @@ class AgentDiffExpC():
         # single frame input for internal motivation
         if self.im_single_frame:
             states_tmp = torch.zeros_like(states)
-            print(states.shape, states_tmp.shape)
             states_tmp[:, :] = states[:, 0].unsqueeze(1)
         else:
             states_tmp = states
