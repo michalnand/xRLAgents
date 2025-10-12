@@ -43,10 +43,12 @@ class AgentDiffExpC():
         learning_rate             = config.learning_rate
         self.im_ssl_loss          = config.im_ssl_loss
         self.im_noise             = config.im_noise
+        self.im_single_frame      = config.im_single_frame
         self.alpha_min            = config.alpha_min
         self.alpha_max            = config.alpha_max
         self.alpha_inf            = config.alpha_inf
         self.denoising_steps      = config.denoising_steps
+        
 
         self.time_distances       = config.time_distances
         
@@ -145,6 +147,7 @@ class AgentDiffExpC():
         print("learning_rate        ", learning_rate)
         print("im_ssl_loss          ", self.im_ssl_loss)
         print("im_noise             ", self.im_noise)
+        print("im_single_frame      ", self.im_single_frame)
         print("alpha_min            ", self.alpha_min)
         print("alpha_max            ", self.alpha_max)
         print("alpha_inf            ", self.alpha_inf)
@@ -357,7 +360,7 @@ class AgentDiffExpC():
                 advantages_ext  = batch["advantages_ext"]
                 advantages_int  = batch["advantages_int"]
 
-                
+
                 # compute main PPO loss
                 if self.rnn_policy:
                     hidden_state  = batch["hidden_state"]
@@ -373,6 +376,20 @@ class AgentDiffExpC():
 
                 #self supervised target regularisation
                 states_seq, labels = self.trajectory_buffer.sample_states_seq(self.ss_batch_size, self.time_distances, self.device)
+
+                # single frame input for internal motivation
+                if self.im_single_frame:   
+                    states_seq_tmp = []
+
+                    for n in range(len(states_seq_tmp)):
+                        tmp = torch.zeros_like(states.shape)
+                        tmp[:, :] = states_seq[n][:, 0]
+
+                        states_seq_tmp.append(tmp)
+                else:
+                    states_seq_tmp = states
+
+
                 loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_seq, labels)
 
                 # total loss    
@@ -415,8 +432,15 @@ class AgentDiffExpC():
     # state denoising ability novely detection
     def _internal_motivation(self, states, alpha_min, alpha_max, denoising_steps):
       
+        # single frame input for internal motivation
+        if self.im_single_frame:
+            states_tmp = torch.zeros_like(states.shape)
+            states_tmp[:, :] = states[:, 0]
+        else:
+            states_tmp = states
+
         # obtain taget features from states and noised states
-        _, z_target  = self.model.forward_features(states)
+        _, z_target  = self.model.forward_features(states_tmp)
         z_target     = z_target.detach()
 
         # add noise into features
