@@ -381,8 +381,8 @@ class AgentDiffExpC():
                 if self.im_single_frame:   
                     states_seq_tmp = []
 
-                    for n in range(len(states_seq_tmp)):
-                        tmp = torch.zeros_like(states.shape)
+                    for n in range(len(states_seq_tmp)):            
+                        tmp = torch.zeros_like(states_seq[n])
                         tmp[:, :] = states_seq[n][:, 0]
 
                         states_seq_tmp.append(tmp)
@@ -434,7 +434,7 @@ class AgentDiffExpC():
       
         # single frame input for internal motivation
         if self.im_single_frame:
-            states_tmp = torch.zeros_like(states.shape)
+            states_tmp = torch.zeros_like(states)
             states_tmp[:, :] = states[:, 0]
         else:
             states_tmp = states
