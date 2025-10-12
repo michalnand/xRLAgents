@@ -378,6 +378,7 @@ class AgentDiffExpC():
                 states_seq, labels = self.trajectory_buffer.sample_states_seq(self.ss_batch_size, self.time_distances, self.device)
 
                 # single frame input for internal motivation
+                # dont use frame stacking, just copy current frame
                 if self.im_single_frame:   
                     states_seq_tmp = []
 
@@ -433,6 +434,7 @@ class AgentDiffExpC():
     def _internal_motivation(self, states, alpha_min, alpha_max, denoising_steps):
       
         # single frame input for internal motivation
+        # dont use frame stacking, just copy current frame
         if self.im_single_frame:
             states_tmp = torch.zeros_like(states)
             states_tmp[:, :] = states[:, 0].unsqueeze(1)
