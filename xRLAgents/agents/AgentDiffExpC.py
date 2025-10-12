@@ -382,16 +382,16 @@ class AgentDiffExpC():
                 if self.im_single_frame:   
                     states_seq_tmp = []
 
-                    for n in range(len(states_seq_tmp)):            
+                    for n in range(len(states_seq)):                
                         tmp = torch.zeros_like(states_seq[n])
                         tmp[:, :] = states_seq[n][:, 0]
 
                         states_seq_tmp.append(tmp)
                 else:
-                    states_seq_tmp = states
+                    states_seq_tmp = states 
 
 
-                loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_seq, labels)
+                loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_seq_tmp, labels)
 
                 # total loss    
                 loss = loss_ppo + loss_diffusion + loss_ssl
