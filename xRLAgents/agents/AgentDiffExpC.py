@@ -388,7 +388,7 @@ class AgentDiffExpC():
 
                         states_seq_tmp.append(tmp)
                 else:
-                    states_seq_tmp = states 
+                    states_seq_tmp = states_seq     
 
 
                 loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_seq_tmp, labels)
