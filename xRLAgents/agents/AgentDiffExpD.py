@@ -561,7 +561,7 @@ class AgentDiffExpD():
 
   
     def internal_motivation(self):
-        # obtain contextual states features
+        # obtain contextual states features, normalise if needed
         z_context = self._contextual_features(self.model.forward_features, self.states_buffer, self.ss_batch_size, self.state_normalise)
         z_context_norm = torch.nn.functional.normalize(z_context)
 
@@ -600,7 +600,7 @@ class AgentDiffExpD():
 
     # from samples buffer, of shape (buffer_size, n_channels, height, width)
     # computes features z, of shape (buffer_size, n_features)
-    def _contextual_features(self, forward_func, samples, batch_size):
+    def _contextual_features(self, forward_func, samples, batch_size, state_normalise):
         z_result = []
 
         n_batches = samples.shape[0]//batch_size
@@ -611,7 +611,7 @@ class AgentDiffExpD():
                 batch = samples[n*batch_size:(n+1)*batch_size]
                 
                 batch = batch.to(self.device)
-                if self.state_normalise:
+                if state_normalise:
                     batch = self._state_normalise(batch)
 
                 _, z_tmp = forward_func(batch)
@@ -622,7 +622,7 @@ class AgentDiffExpD():
                 batch = samples[n_batches*batch_size:]
 
                 batch = batch.to(self.device)
-                if self.state_normalise:
+                if state_normalise:
                     batch = self._state_normalise(batch)
 
                 _, z_tmp = forward_func(batch)
