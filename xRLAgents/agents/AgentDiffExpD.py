@@ -582,8 +582,9 @@ class AgentDiffExpD():
             rewards_int_b = self._contextual_im(states_curr, z_context_norm)
             rewards_int_b = rewards_int_b.float().detach().cpu()
 
-            # IM scaling and store into buffer
-            rewards_int_scaled = numpy.clip(self.reward_int_a_coeff*rewards_int_a + self.reward_int_b_coeff*rewards_int_b, 0.0, 1.0)
+            # IM scaling and store into buffer  
+            #rewards_int_scaled = numpy.clip(self.reward_int_a_coeff*rewards_int_a + self.reward_int_b_coeff*rewards_int_b, 0.0, 1.0)
+            rewards_int_scaled = numpy.clip(self.reward_int_a_coeff*rewards_int_a * (1.0 + self.reward_int_b_coeff*rewards_int_b), 0.0, 1.0)
             self.trajectory_buffer.buffer["rewards_int"][:, n] = rewards_int_scaled
 
 
