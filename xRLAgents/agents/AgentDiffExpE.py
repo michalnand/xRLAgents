@@ -645,7 +645,6 @@ class AgentDiffExpE():
 
         if labels is not None:
             loss_func = torch.nn.BCELoss()
-            print(y.shape, labels.shape)
             loss = loss_func(y, labels)
         else:
             loss = None
