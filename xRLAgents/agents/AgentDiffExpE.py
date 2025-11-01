@@ -122,7 +122,6 @@ class AgentDiffExpE():
         self.log_loss_ppo       = ValuesLogger("loss_ppo")
         self.log_loss_im        = ValuesLogger("loss_im")
         self.log_loss_im_ssl    = ValuesLogger("loss_im_ssl")
-        self.log_loss_im_disc   = ValuesLogger("loss_im_disc")
 
         if self.rnn_policy:
             self.log_rnn        = ValuesLogger("rnn")
@@ -364,7 +363,7 @@ class AgentDiffExpE():
 
     def get_logs(self):
 
-        logs = [self.log_rewards_int, self.log_loss_ppo, self.log_loss_im, self.log_loss_im_ssl, self.log_loss_im_disc]
+        logs = [self.log_rewards_int, self.log_loss_ppo, self.log_loss_im, self.log_loss_im_ssl]
 
         if self.rnn_policy:
             logs.append(self.log_rnn)
