@@ -14,6 +14,7 @@ from .AgentPPOSND           import *
 from .AgentDiffExp              import *    
 from .AgentDiffExpC             import *   
 from .AgentDiffExpD             import *    
+from .AgentDiffExpE             import *    
 
 from .AgentPPOShiftHunter      import *
 
