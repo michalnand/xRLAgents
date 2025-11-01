@@ -409,8 +409,8 @@ class AgentDiffExpE():
                 _, loss_diffusion  = self._diffusion_im_func(states, self.alpha_min, self.alpha_max, self.denoising_steps)
 
                 # discriminator term    
-                _, loss_disc_pos = self._discriminator_im_func(self.model, states,     torch.ones(self.ss_batch_size, device=self.device))
-                _, loss_disc_neg = self._discriminator_im_func(self.model, states_old, torch.zeros(self.ss_batch_size, device=self.device))
+                _, loss_disc_pos = self._discriminator_im_func(states,     torch.ones(self.ss_batch_size, device=self.device))
+                _, loss_disc_neg = self._discriminator_im_func(states_old, torch.zeros(self.ss_batch_size, device=self.device))
                 
                 loss_disc = loss_disc_pos + loss_disc_neg
 
