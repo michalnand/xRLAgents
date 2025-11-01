@@ -120,7 +120,7 @@ class AgentDiffExpE():
         # result loggers
         self.log_rewards_int    = ValuesLogger("rewards_int")
         self.log_loss_ppo       = ValuesLogger("loss_ppo")
-        self.log_loss_diffusion = ValuesLogger("loss_diffusion")
+        self.log_loss_im        = ValuesLogger("loss_im")
         self.log_loss_im_ssl    = ValuesLogger("loss_im_ssl")
         self.log_loss_im_disc   = ValuesLogger("loss_im_disc")
 
@@ -364,7 +364,7 @@ class AgentDiffExpE():
 
     def get_logs(self):
 
-        logs = [self.log_rewards_int, self.log_loss_ppo, self.log_loss_diffusion, self.log_loss_im_ssl, self.log_loss_im_disc]
+        logs = [self.log_rewards_int, self.log_loss_ppo, self.log_loss_im, self.log_loss_im_ssl, self.log_loss_im_disc]
 
         if self.rnn_policy:
             logs.append(self.log_rnn)
@@ -412,7 +412,7 @@ class AgentDiffExpE():
                 _, loss_disc_pos = self._discriminator_im_func(states,     torch.ones(self.ss_batch_size, device=self.device))
                 _, loss_disc_neg = self._discriminator_im_func(states_old, torch.zeros(self.ss_batch_size, device=self.device))
                 
-                loss_disc = loss_disc_pos + loss_disc_neg
+                loss_diversity = loss_disc_pos + loss_disc_neg  
 
                 #self supervised target regularisation
                 states_seq, labels = self.trajectory_buffer.sample_states_seq(self.ss_batch_size, self.time_distances, self.device)
@@ -435,7 +435,7 @@ class AgentDiffExpE():
 
                
                 # total loss    
-                loss = loss_ppo + loss_diffusion + loss_ssl + loss_disc
+                loss = loss_ppo + loss_diffusion + loss_ssl + loss_diversity
 
                 self.optimizer.zero_grad()        
                 loss.backward()
@@ -452,10 +452,8 @@ class AgentDiffExpE():
                 for key in info_ssl:
                     self.log_loss_im_ssl.add(str(key), info_ssl[key])
 
-                for key in info_disc:
-                    self.log_loss_im_disc.add(str(key), info_disc[key])
-
-                self.log_loss_diffusion.add("loss_diffusion", loss_diffusion.float().detach().cpu().numpy())
+                self.log_loss_im.add("loss_diffusion", loss_diffusion.float().detach().cpu().numpy())
+                self.log_loss_im.add("loss_diversity", loss_diversity.float().detach().cpu().numpy())
             
 
 
