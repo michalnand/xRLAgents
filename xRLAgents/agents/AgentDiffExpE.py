@@ -658,11 +658,11 @@ class AgentDiffExpE():
     def _sample_buffer(self, batch_size, device):
         size    = self.states_buffer.shape[0]
         indices = torch.randint(0, size, (batch_size,))
+        
         batch   = self.states_buffer[indices]
+        batch   = batch.to(self.device)
 
         if self.state_normalise:
             batch = self._state_normalise(batch)
 
-        return batch.to(device)
-    
-        
+        return batch
