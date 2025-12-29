@@ -416,7 +416,7 @@ class AgentDiffExpF():
                 # binary cross entropy for diversity loss
                
                 # positive samples
-                states_curr          = self._sample_buffer_states(self.states_buffer_curr, self.ss_batch_size, self.state_normalise, self.device)
+                states_curr          = self.trajectory_buffer.sample_states(self.ss_batch_size, self.device)
                 pos_labels           = torch.ones((states_curr.shape[0], ), device=self.device)
                 _, loss_diversity_a  = self._diversity_internal_motivation(states_curr, pos_labels)
                 
