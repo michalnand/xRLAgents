@@ -215,7 +215,6 @@ class AgentDiffExpF():
         rewards_int_a = rewards_int_a.float().detach().cpu().numpy()    
         rewards_int_b = rewards_int_b.float().detach().cpu().numpy()
 
-        print(rewards_int_a.shape, rewards_int_b.shape)
 
         rewards_int_scaled = numpy.clip(self.reward_int_a_coeff*rewards_int_a + self.reward_int_b_coeff*rewards_int_b, -1.0, 1.0)
 
@@ -642,7 +641,7 @@ class AgentDiffExpF():
 
 
     def _sample_buffer_states(self, ss_batch_size, normalise, device):
-        indices = torch.random.randint(0, self.buffer_size, (ss_batch_size, ))
+        indices = torch.randint(0, self.buffer_size, (ss_batch_size, ))
 
         result = self.states_buffer[indices]
         result = result.to(device)
