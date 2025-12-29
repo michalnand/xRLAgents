@@ -57,6 +57,7 @@ class AgentDiffExpF():
 
         self.buffer_size          = config.buffer_size
         self.buffer_prob          = config.buffer_prob
+        self.buffer_ptr           = 0
 
         if hasattr(config, "rnn_policy"):
             self.rnn_policy         = config.rnn_policy
