@@ -421,7 +421,7 @@ class AgentDiffExpF():
                 _, loss_diversity_a  = self._diversity_internal_motivation(states_curr, pos_labels)
                 
                 # negative samples
-                states_old           = self._sample_buffer_states(self.states_buffer_old, self.ss_batch_size, self.state_normalise, self.device)
+                states_old           = self._sample_buffer_states(self.states_buffer_curr, self.ss_batch_size, self.state_normalise, self.device)
                 neg_labels           = torch.zeros((states_old.shape[0], ), device=self.device)
                 _, loss_diversity_b  = self._diversity_internal_motivation(states_old, neg_labels)
 
