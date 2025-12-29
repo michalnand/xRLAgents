@@ -210,7 +210,7 @@ class AgentDiffExpF():
     
         # internal motivaiotn based on diffusion
         rewards_int_a, _ = self._novelty_internal_motivation(states_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
-        rewards_int_b, _ = self._diversity_internal_motivation(states_t, torch.ones((states_t.shape[0], 1), device=self.device))
+        rewards_int_b, _ = self._diversity_internal_motivation(states_t, torch.ones((states_t.shape[0], ), device=self.device))
 
         rewards_int_a = rewards_int_a.float().detach().cpu().numpy()    
         rewards_int_b = rewards_int_b.float().detach().cpu().numpy()
@@ -409,11 +409,11 @@ class AgentDiffExpF():
                 # binary cross entropy for diversity loss
                
                 # positive samples
-                pos_labels           = torch.ones((states.shape[0], 1), device=self.device)
+                pos_labels           = torch.ones((states.shape[0], ), device=self.device)
                 _, loss_diversity_a  = self._diversity_internal_motivation(states, pos_labels)
                 
                 # negative samples
-                neg_labels           = torch.zeros((states.shape[0], 1), device=self.device)
+                neg_labels           = torch.zeros((states.shape[0], ), device=self.device)
                 _, loss_diversity_b  = self._diversity_internal_motivation(states_buffer, neg_labels)
 
                 loss_diversity       = loss_diversity_a + loss_diversity_b
@@ -526,6 +526,7 @@ class AgentDiffExpF():
         z     = z.detach()
         
         y_pred = self.model.forward_im_discriminator(z)
+        y_pred = y_pred.squeeze(1)
 
         loss_func = torch.nn.BCELoss()
         loss = loss_func(y_pred, labels)
