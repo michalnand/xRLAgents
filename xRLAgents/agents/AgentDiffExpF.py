@@ -180,7 +180,7 @@ class AgentDiffExpF():
             # warm buffer start for initialisation
             if self.buffer_ptr < self.buffer_size:
                 p = 10*p
-
+            
             if numpy.random.rand() < self.buffer_prob:
                 self.states_buffer[self.buffer_ptr%self.buffer_size] = states_t[n].cpu().clone()
                 self.buffer_ptr = self.buffer_ptr + 1
@@ -399,7 +399,7 @@ class AgentDiffExpF():
 
                 # sample batch
                 states         = self.trajectory_buffer.sample_states(self.ss_batch_size, self.device)
-                states_buffer  = self._sample_buffer_states(self.ss_batch_size, self.state_normalise, self.device)
+                states_old     = self._sample_buffer_states(self.ss_batch_size, self.state_normalise, self.device)
 
                 # internal motivation loss
                 #  MSE for diffusion    
@@ -413,7 +413,7 @@ class AgentDiffExpF():
                 
                 # negative samples
                 neg_labels           = torch.zeros((states.shape[0], ), device=self.device)
-                _, loss_diversity_b  = self._diversity_internal_motivation(states_buffer, neg_labels)
+                _, loss_diversity_b  = self._diversity_internal_motivation(states, neg_labels)
 
                 loss_diversity       = loss_diversity_a + loss_diversity_b
 
