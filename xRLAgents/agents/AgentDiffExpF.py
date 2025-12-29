@@ -215,6 +215,8 @@ class AgentDiffExpF():
         rewards_int_a = rewards_int_a.float().detach().cpu().numpy()    
         rewards_int_b = rewards_int_b.float().detach().cpu().numpy()
 
+        print(rewards_int_a.shape, rewards_int_b.shape)
+
         rewards_int_scaled = numpy.clip(self.reward_int_a_coeff*rewards_int_a + self.reward_int_b_coeff*rewards_int_b, -1.0, 1.0)
 
 
