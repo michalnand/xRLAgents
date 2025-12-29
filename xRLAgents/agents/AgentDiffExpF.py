@@ -91,9 +91,11 @@ class AgentDiffExpF():
         # initialise optimizer and trajectory buffer
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
 
-        self.trajectory_buffer = TrajectoryBufferIM(self.steps, self.n_envs)
-        self.states_buffer     = torch.zeros((self.buffer_size, ) + self.state_shape, dtype=torch.float32)
-        self.states_ptr        = 0
+        self.trajectory_buffer  = TrajectoryBufferIM(self.steps, self.n_envs)
+        self.states_buffer_curr = torch.zeros((self.buffer_size, ) + self.state_shape, dtype=torch.float32)
+        self.states_buffer_old  = torch.zeros((self.buffer_size, ) + self.state_shape, dtype=torch.float32)
+        self.states_buffer_ptr_curr = 0
+        self.states_buffer_ptr_old = 0
 
         # optional, for state mean and variance normalisation
         if self.state_normalise:
@@ -175,16 +177,20 @@ class AgentDiffExpF():
 
         # add new state with small probability
         for n in range(self.n_envs):
+            # store current states
+            self.states_buffer_curr[self.states_buffer_ptr_curr%self.buffer_size] = states_t[n].cpu().clone()
+            self.states_buffer_ptr_curr+= 1
+            
             p = self.buffer_prob
 
             # warm buffer start for initialisation
             if self.buffer_ptr < self.buffer_size:
                 p = 10*p
 
-            p = 10.0
+            # store old states
             if numpy.random.rand() < self.buffer_prob:
-                self.states_buffer[self.buffer_ptr%self.buffer_size] = states_t[n].cpu().clone()
-                self.buffer_ptr = self.buffer_ptr + 1
+                self.states_buffer_old[self.buffer_ptr%self.buffer_size] = states_t[n].cpu().clone()
+                self.states_buffer_ptr_old = self.states_buffer_ptr_old + 1
 
 
         if self.state_normalise:
@@ -400,7 +406,7 @@ class AgentDiffExpF():
 
                 # sample batch
                 states         = self.trajectory_buffer.sample_states(self.ss_batch_size, self.device)
-                states_old     = self._sample_buffer_states(self.ss_batch_size, self.state_normalise, self.device)
+                
 
                 # internal motivation loss
                 #  MSE for diffusion    
@@ -409,11 +415,13 @@ class AgentDiffExpF():
                 # binary cross entropy for diversity loss
                
                 # positive samples
-                pos_labels           = torch.ones((states.shape[0], ), device=self.device)
-                _, loss_diversity_a  = self._diversity_internal_motivation(states, pos_labels)
+                states_curr          = self._sample_buffer_states(self.states_buffer_curr, self.ss_batch_size, self.state_normalise, self.device)
+                pos_labels           = torch.ones((states_curr.shape[0], ), device=self.device)
+                _, loss_diversity_a  = self._diversity_internal_motivation(states_curr, pos_labels)
                 
                 # negative samples
-                neg_labels           = torch.zeros((states.shape[0], ), device=self.device)
+                states_old           = self._sample_buffer_states(self.states_buffer_old, self.ss_batch_size, self.state_normalise, self.device)
+                neg_labels           = torch.zeros((states_old.shape[0], ), device=self.device)
                 _, loss_diversity_b  = self._diversity_internal_motivation(states_old, neg_labels)
 
                 loss_diversity       = loss_diversity_a + loss_diversity_b
@@ -641,10 +649,10 @@ class AgentDiffExpF():
         return states_norm  
 
 
-    def _sample_buffer_states(self, ss_batch_size, normalise, device):
-        indices = torch.randint(0, self.buffer_size, (ss_batch_size, ))
+    def _sample_buffer_states(self, buffer, ss_batch_size, normalise, device):
+        indices = torch.randint(0, buffer.shape[0], (ss_batch_size, ))
 
-        result = self.states_buffer[indices]
+        result = buffer[indices]
         result = result.to(device)
 
         if normalise:
