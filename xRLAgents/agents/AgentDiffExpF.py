@@ -92,9 +92,8 @@ class AgentDiffExpF():
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
 
         self.trajectory_buffer  = TrajectoryBufferIM(self.steps, self.n_envs)
-        self.states_buffer_curr = torch.zeros((self.buffer_size, ) + self.state_shape, dtype=torch.float32)
+
         self.states_buffer_old  = torch.zeros((self.buffer_size, ) + self.state_shape, dtype=torch.float32)
-        self.states_buffer_ptr_curr = 0
         self.states_buffer_ptr_old = 0
 
         # optional, for state mean and variance normalisation
@@ -177,15 +176,11 @@ class AgentDiffExpF():
 
         # add new state with small probability
         for n in range(self.n_envs):
-            # store current states
-            self.states_buffer_curr[self.states_buffer_ptr_curr%self.buffer_size] = states_t[n].cpu().clone()
-            self.states_buffer_ptr_curr+= 1
-            
             p = self.buffer_prob
 
             # warm buffer start for initialisation
-            if self.states_buffer_ptr_curr < self.buffer_size:
-                p = 10*p
+            if self.states_buffer_ptr_old < self.buffer_size:
+                p = 10*p    
             
             p = 0.1
             # store old states
