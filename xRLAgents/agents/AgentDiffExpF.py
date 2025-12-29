@@ -6,7 +6,7 @@ from ..training.ValuesLogger           import *
 
 
 
-class AgentDiffExpC(): 
+class AgentDiffExpF(): 
     def __init__(self, envs, Config, Model):
         self.envs = envs
  
