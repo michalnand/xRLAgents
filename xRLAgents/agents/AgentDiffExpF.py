@@ -187,7 +187,7 @@ class AgentDiffExpF():
             if self.states_buffer_ptr_curr < self.buffer_size:
                 p = 10*p
             
-            p = 10.0
+            p = 0.1
             # store old states
             if numpy.random.rand() < p:
                 self.states_buffer_old[self.states_buffer_ptr_old%self.buffer_size] = states_t[n].cpu().clone()
