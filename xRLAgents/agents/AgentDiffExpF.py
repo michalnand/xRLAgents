@@ -187,7 +187,7 @@ class AgentDiffExpF():
             if self.buffer_ptr < self.buffer_size:
                 p = 10*p
             
-            p = 0.1
+            p = 10
             # store old states
             if numpy.random.rand() < self.buffer_prob:
                 self.states_buffer_old[self.buffer_ptr%self.buffer_size] = states_t[n].cpu().clone()
@@ -650,8 +650,8 @@ class AgentDiffExpF():
         return states_norm  
 
 
-    def _sample_buffer_states(self, buffer, ss_batch_size, normalise, device):
-        indices = torch.randint(0, buffer.shape[0], (ss_batch_size, ))
+    def _sample_buffer_states(self, buffer, batch_size, normalise, device):
+        indices = torch.randint(0, buffer.shape[0], (batch_size, ))
 
         result = buffer[indices]
         result = result.to(device)
