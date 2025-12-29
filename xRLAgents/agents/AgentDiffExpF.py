@@ -187,9 +187,9 @@ class AgentDiffExpF():
             if self.buffer_ptr < self.buffer_size:
                 p = 10*p
             
-            p = 10
+            p = 10.0
             # store old states
-            if numpy.random.rand() < self.buffer_prob:
+            if numpy.random.rand() < p:
                 self.states_buffer_old[self.buffer_ptr%self.buffer_size] = states_t[n].cpu().clone()
                 self.states_buffer_ptr_old = self.states_buffer_ptr_old + 1
 
@@ -421,7 +421,7 @@ class AgentDiffExpF():
                 _, loss_diversity_a  = self._diversity_internal_motivation(states_curr, pos_labels)
                 
                 # negative samples
-                states_old           = self._sample_buffer_states(self.states_buffer_curr, self.ss_batch_size, self.state_normalise, self.device)
+                states_old           = self._sample_buffer_states(self.states_buffer_old, self.ss_batch_size, self.state_normalise, self.device)
                 neg_labels           = torch.zeros((states_old.shape[0], ), device=self.device)
                 _, loss_diversity_b  = self._diversity_internal_motivation(states_old, neg_labels)
 
