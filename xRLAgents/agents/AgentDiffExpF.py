@@ -186,7 +186,8 @@ class AgentDiffExpF():
             # warm buffer start for initialisation
             if self.buffer_ptr < self.buffer_size:
                 p = 10*p
-
+            
+            p = 0.1
             # store old states
             if numpy.random.rand() < self.buffer_prob:
                 self.states_buffer_old[self.buffer_ptr%self.buffer_size] = states_t[n].cpu().clone()
