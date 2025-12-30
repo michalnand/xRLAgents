@@ -175,17 +175,11 @@ class AgentDiffExpF():
         states_t = torch.from_numpy(states).to(self.dtype).to(self.device)
 
         # add new state with small probability
-        for n in range(self.n_envs):
-            p = self.buffer_prob
-
-            # warm buffer start for initialisation
-            if self.states_buffer_ptr_old < self.buffer_size:
-                p = 10*p    
-            
+        for n in range(self.n_envs): 
             # store old states  
-            if numpy.random.rand() < p:
-                self.states_buffer_old[self.states_buffer_ptr_old%self.buffer_size] = states_t[n].cpu().clone()
-                self.states_buffer_ptr_old = self.states_buffer_ptr_old + 1
+            if numpy.random.rand() < self.buffer_prob:
+                self.states_buffer_old[self.states_buffer_ptr_old] = states_t[n].cpu().clone()
+                self.states_buffer_ptr_old = (self.states_buffer_ptr_old + 1)%self.buffer_size
 
 
         if self.state_normalise:
@@ -403,7 +397,8 @@ class AgentDiffExpF():
                 states         = self.trajectory_buffer.sample_states(self.ss_batch_size, self.device)
                 
 
-                # internal motivation loss
+                # internal motivation
+
                 #  MSE for diffusion    
                 _, loss_diffusion    = self._novelty_internal_motivation(states, self.alpha_min, self.alpha_max, self.denoising_steps)
                 
@@ -648,7 +643,7 @@ class AgentDiffExpF():
         indices = torch.randint(0, buffer.shape[0], (batch_size, ))
 
         result = buffer[indices]
-        result = result.to(device)
+        result = result.to(device)  
 
         if normalise:
             result = self._state_normalise(result)
