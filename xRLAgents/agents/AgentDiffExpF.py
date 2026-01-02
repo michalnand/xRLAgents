@@ -174,6 +174,11 @@ class AgentDiffExpF():
     def step(self, states, training_enabled):     
         states_t = torch.from_numpy(states).to(self.dtype).to(self.device)
 
+       
+        if self.state_normalise:
+            self._update_normalisation(states_t, alpha = 0.99)
+            states_t = self._state_normalise(states_t)
+
         # add new state with small probability
         for n in range(self.n_envs): 
             # store old states  
@@ -182,9 +187,7 @@ class AgentDiffExpF():
                 self.states_buffer_ptr_old = (self.states_buffer_ptr_old + 1)%self.buffer_size
 
 
-        if self.state_normalise:
-            self._update_normalisation(states_t, alpha = 0.99)
-            states_t = self._state_normalise(states_t)
+
 
         # obtain model output, logits and values, use abstract state space z
         if self.rnn_policy:
@@ -410,7 +413,7 @@ class AgentDiffExpF():
                 _, loss_diversity_a  = self._diversity_internal_motivation(states_curr, pos_labels)
                 
                 # negative samples
-                states_old           = self._sample_buffer_states(self.states_buffer_old, self.ss_batch_size, self.state_normalise, self.device)
+                states_old           = self._sample_buffer_states(self.states_buffer_old, self.ss_batch_size, self.device)
                 neg_labels           = torch.zeros((states_old.shape[0], ), device=self.device)
                 _, loss_diversity_b  = self._diversity_internal_motivation(states_old, neg_labels)
 
@@ -639,14 +642,11 @@ class AgentDiffExpF():
         return states_norm  
 
 
-    def _sample_buffer_states(self, buffer, batch_size, normalise, device):
+    def _sample_buffer_states(self, buffer, batch_size, device):
         indices = torch.randint(0, buffer.shape[0], (batch_size, ))
 
         result = buffer[indices]
         result = result.to(device)  
-
-        if normalise:
-            result = self._state_normalise(result)
 
         return result
 
