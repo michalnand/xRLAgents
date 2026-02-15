@@ -186,3 +186,38 @@ def images_ssim(batch_a: torch.Tensor, batch_b: torch.Tensor, kernel_size=7):
 
     return ssim_matrix
 
+
+
+    
+def loss_sigreg_func(z, t_range = 5.0, num_t_points=17, num_projections=16):
+    N, K = z.shape
+
+    t = torch.linspace(-t_range, t_range, num_t_points, device=z.device) 
+    phi_target = torch.exp(-0.5 * t**2)
+    
+    # 1, Sample random directions
+    A = torch.randn(K, num_projections, device=z.device)
+    A = A / A.norm(dim=0, keepdim=True)  # normalize columns
+
+    # 2, Project embeddings
+    # (N, M)
+    projections = z @ A
+
+    # 3, Compute empirical characteristic function
+    # shape: (N, M, T)
+    x_t = projections.unsqueeze(-1) * t
+
+    # e^{i t x}
+    ecf = torch.exp(1j * x_t).mean(dim=0)  # (M, T)
+
+    # 4, Weighted L2 distance
+    diff = ecf - phi_target  # broadcast over M
+    error = (diff.abs() ** 2) * phi_target  # Gaussian window
+
+    # integrate over t
+    integral = torch.trapz(error, t, dim=1)
+
+    # scale by N (as in paper)
+    loss = N * integral.mean()
+
+    return loss.real
