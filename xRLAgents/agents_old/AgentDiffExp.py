@@ -43,12 +43,10 @@ class AgentDiffExp():
         learning_rate             = config.learning_rate
         self.im_ssl_loss          = config.im_ssl_loss
         self.im_noise             = config.im_noise
-        self.im_single_frame      = config.im_single_frame
         self.alpha_min            = config.alpha_min
         self.alpha_max            = config.alpha_max
         self.alpha_inf            = config.alpha_inf
         self.denoising_steps      = config.denoising_steps
-        
 
         self.time_distances       = config.time_distances
         
@@ -147,7 +145,6 @@ class AgentDiffExp():
         print("learning_rate        ", learning_rate)
         print("im_ssl_loss          ", self.im_ssl_loss)
         print("im_noise             ", self.im_noise)
-        print("im_single_frame      ", self.im_single_frame)
         print("alpha_min            ", self.alpha_min)
         print("alpha_max            ", self.alpha_max)
         print("alpha_inf            ", self.alpha_inf)
@@ -268,17 +265,17 @@ class AgentDiffExp():
             x = self.trajectory_buffer.buffer["states"][n]  
             x = x.to(device=self.device, dtype=self.dtype)
 
-            z_ppo_tmp, z_im_tmp = self.model.forward_features(x)
-
             # ppo features
-            z_ppo.append(z_ppo_tmp.detach().cpu().float().numpy())
+            z = self.model.forward_ppo_features(x)
+            z_ppo.append(z.detach().cpu().float().numpy())
 
             # im features
-            z_im.append(z_im_tmp.detach().cpu().float().numpy())
+            z = self.model.forward_im_features(x)
+            z_im.append(z.detach().cpu().float().numpy())
 
             # diffusion prediction
-            noise_hat = self.model.forward_im_diffusion(z_im_tmp)
-            z_hat = z_im_tmp - noise_hat
+            noise_hat = self.model.forward_im_diffusion(z)
+            z_hat = z - noise_hat
 
             z_denoised.append(z_hat.detach().cpu().float().numpy())
 
@@ -340,7 +337,6 @@ class AgentDiffExp():
 
         return logs
 
-
     def train(self): 
         samples_count = self.steps*self.n_envs
         batch_count = samples_count//self.batch_size
@@ -361,63 +357,55 @@ class AgentDiffExp():
                 advantages_int  = batch["advantages_int"]
 
 
-                # compute main PPO loss
                 if self.rnn_policy:
                     hidden_state  = batch["hidden_state"]
-                    loss_ppo, info_ppo = self._loss_ppo(states, hidden_state, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
+
+                    # compute main PPO loss
+                    loss_ppo = self._loss_ppo(states, hidden_state, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
+
                 else:
-                    loss_ppo, info_ppo = self._loss_ppo(states, None, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
+                    # compute main PPO loss
+                    loss_ppo = self._loss_ppo(states, None, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
 
 
-
-                #internal motivation loss, MSE diffusion    
-                states  = self.trajectory_buffer.sample_states(self.ss_batch_size, self.device)
-                _, loss_diffusion  = self._internal_motivation(states, self.alpha_min, self.alpha_max, self.denoising_steps)
-
-                #self supervised target regularisation
-                states_seq, labels = self.trajectory_buffer.sample_states_seq(self.ss_batch_size, self.time_distances, self.device)
-
-                # single frame input for internal motivation
-                # dont use frame stacking, just copy current frame
-                if self.im_single_frame:   
-                    states_seq_tmp = []
-
-                    for n in range(len(states_seq)):                
-                        tmp = torch.zeros_like(states_seq[n])
-                        tmp[:, :] = states_seq[n][:, 0].unsqueeze(1)
-
-                        states_seq_tmp.append(tmp)
-                else:
-                    states_seq_tmp = states_seq     
-
-
-                loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_seq_tmp, labels)
-
-                # total loss    
-                loss = loss_ppo + loss_diffusion + loss_ssl
 
                 self.optimizer.zero_grad()        
-                loss.backward()
+                loss_ppo.backward()
 
                 # gradient clip for stabilising training
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
                 self.optimizer.step() 
 
-
-                # log results
-                for key in info_ppo:
-                    self.log_loss_ppo.add(str(key), info_ppo[key])
-                
-                for key in info_ssl:
-                    self.log_loss_im_ssl.add(str(key), info_ssl[key])
-
-                self.log_loss_diffusion.add("loss_diffusion", loss_diffusion.float().detach().cpu().numpy())
-            
-
-
          
         
+        batch_count = samples_count//self.ss_batch_size
         
+        #main IM training loop
+        for batch_idx in range(batch_count):        
+            #internal motivation loss, MSE diffusion    
+            states  = self.trajectory_buffer.sample_states(self.ss_batch_size, self.device)
+            _, loss_diffusion  = self._internal_motivation(states, self.alpha_min, self.alpha_max, self.denoising_steps)
+
+
+            #self supervised target regularisation
+            states_seq, labels = self.trajectory_buffer.sample_states_seq(self.ss_batch_size, self.time_distances, self.device)
+            loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_seq, labels)
+            
+            loss = loss_diffusion + loss_ssl
+
+            for key in info_ssl:
+                self.log_loss_im_ssl.add(str(key), info_ssl[key])
+
+
+            self.optimizer.zero_grad()        
+            loss.mean().backward() 
+            self.optimizer.step() 
+
+            # log results
+            self.log_loss_diffusion.add("loss_diffusion", loss_diffusion.float().detach().cpu().numpy())
+                
+           
+
 
     # sample action, probs computed from logits
     def _sample_actions(self, logits):
@@ -433,17 +421,8 @@ class AgentDiffExp():
     # state denoising ability novely detection
     def _internal_motivation(self, states, alpha_min, alpha_max, denoising_steps):
       
-        # single frame input for internal motivation
-        # dont use frame stacking, just copy current frame
-        if self.im_single_frame:
-            states_tmp = torch.zeros_like(states)
-            states_tmp[:, :] = states[:, 0].unsqueeze(1)
-        else:
-            states_tmp = states
-
         # obtain taget features from states and noised states
-        _, z_target  = self.model.forward_features(states_tmp)
-        z_target     = z_target.detach()
+        z_target  = self.model.forward_im_features(states).detach()
 
         # add noise into features
         z_noised, noise, alpha = self.im_noise(z_target, alpha_min, alpha_max)
@@ -468,12 +447,13 @@ class AgentDiffExp():
 
     # main PPO loss
     def _loss_ppo(self, states, hidden_states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
+        
         if hidden_states is not None:
             logits_new, values_ext_new, values_int_new, _ = self.model.forward(states, hidden_states)
         else:
             logits_new, values_ext_new, values_int_new  = self.model.forward(states)
 
-       
+
         #critic loss
         loss_critic = self._ppo_critic_loss(values_ext_new, returns_ext, values_int_new, returns_int)
 
@@ -484,20 +464,20 @@ class AgentDiffExp():
         #advantages normalisation 
         advantages_norm  = (advantages - advantages.mean())/(advantages.std() + 1e-8)
 
-        #PPO main actor loss    
+        #PPO main actor loss
         loss_policy, loss_entropy = self._ppo_actor_loss(logits, logits_new, advantages_norm, actions, self.eps_clip, self.entropy_beta)
 
 
         #total loss
         loss = self.val_coeff*loss_critic + loss_policy + loss_entropy
 
-        # logs
-        info = {}
-        info["loss_policy"]  = loss_policy.float().detach().cpu().numpy().item()
-        info["loss_critic"]  = loss_critic.float().detach().cpu().numpy().item()
-        info["loss_entropy"] = loss_entropy.float().detach().cpu().numpy().item()
 
-        return loss, info
+
+        self.log_loss_ppo.add("loss_policy",  loss_policy.float().detach().cpu().numpy().item())
+        self.log_loss_ppo.add("loss_critic",  loss_critic.float().detach().cpu().numpy().item())
+        self.log_loss_ppo.add("loss_entropy", loss_entropy.float().detach().cpu().numpy().item())
+
+        return loss
 
 
         
