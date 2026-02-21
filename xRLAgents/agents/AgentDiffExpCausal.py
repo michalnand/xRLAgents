@@ -189,14 +189,15 @@ class AgentDiffExpCausal():
         else:
             rewards_ext_scaled = self.reward_ext_coeff*rewards_ext
 
-    
-        # internal motivaiotn based on diffusion
+        
+        # internal motivation based on diffusion
         rewards_int_a, _     = self._im_diffusion(states_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
         rewards_int_a        = rewards_int_a.float().detach().cpu().numpy()
 
-        # internal motivaiotn based on causality prediction
-        states_curr = torch.from_numpy(states_new).to(self.dtype).to(self.device)
-        states_curr =  self._state_normalise(states_curr)
+        # internal motivation based on causality prediction
+        states_curr          = torch.from_numpy(states_new).to(self.dtype).to(self.device)
+        states_curr          = self._state_normalise(states_curr)
+
         rewards_int_b, _, _  = self._im_causality(states_t, states_curr) 
         rewards_int_b        = rewards_int_b.float().detach().cpu().numpy()
 
@@ -386,8 +387,8 @@ class AgentDiffExpCausal():
                 _, loss_diffusion   = self._im_diffusion(states, self.alpha_min, self.alpha_max, self.denoising_steps)
 
                 #internal motivation loss, BCE states causality
-                states_prev, states_now      = self.trajectory_buffer.sample_causal_states(self.ss_batch_size, self.device)
-                _, loss_causality, accuracy  = self._im_causality(states_prev, states_now) 
+                states_curr, states_next     = self.trajectory_buffer.sample_causal_states(self.ss_batch_size, self.device)
+                _, loss_causality, accuracy  = self._im_causality(states_curr, states_next) 
 
                 #self supervised target regularisation
                 states_seq, labels = self.trajectory_buffer.sample_states_seq(self.ss_batch_size, self.time_distances, self.device)
