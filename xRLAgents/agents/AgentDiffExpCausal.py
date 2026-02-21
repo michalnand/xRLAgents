@@ -6,14 +6,14 @@ from ..training.ValuesLogger           import *
 
 
 
-class AgentDiffExpB(): 
+class AgentDiffExpCausal(): 
     def __init__(self, envs, Config, Model):
         self.envs = envs
  
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         
-        config = Config()
+        config = Config()   
 
 
         if hasattr(config, "dtype"):
@@ -200,7 +200,7 @@ class AgentDiffExpB():
         rewards_int_b, _, _  = self._im_causality(states_t, states_curr) 
         rewards_int_b        = rewards_int_b.float().detach().cpu().numpy()
 
-        rewards_int_scaled = numpy.clip(self.reward_int_coeff_a*rewards_int_a + self.reward_int_coeff_b*rewards_int_b, 0.0, 1.0)
+        rewards_int_scaled = numpy.clip(self.reward_int_coeff_a*rewards_int_a + self.reward_int_coeff_b*rewards_int_b, -1.0, 1.0)
 
 
         if "room_id" in infos[0]:
@@ -522,8 +522,12 @@ class AgentDiffExpB():
         accuracy = accuracy/2.0     
         accuracy = accuracy.detach().cpu().float().numpy().item()
 
+        novelty_pos = novelty_pos.detach().squeeze()
 
-        return novelty_pos.detach().squeeze(), loss, accuracy
+        # scale into -1, 1 range    
+        novelty_pos = (novelty_pos - 0.5)*2.0
+
+        return novelty_pos, loss, accuracy
 
 
 

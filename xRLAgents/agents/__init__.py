@@ -6,6 +6,6 @@ from .EnvsListParallel          import *
 
 
 from .AgentDiffExp              import * 
-from .AgentDiffExpB             import *    
+from .AgentDiffExpCausal        import *    
 
 from .loss_self_supervised      import *
