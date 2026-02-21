@@ -96,6 +96,21 @@ class TrajectoryBufferIM:
         return result
     
 
+    def sample_causal_states(self, batch_size, device, d_max = 8):
+
+        total_size  = self.buffer_size*self.n_envs
+
+        indices_curr    = torch.randint(0, total_size, (batch_size,), device=self.device)
+
+        indices_next    = indices_curr + self.n_envs*torch.randint(0, d_max + 1, size=(batch_size, ))
+        indices_next    = torch.clip(indices_next, 0, total_size-1)
+
+        states_curr = self.buffer["states"][indices_curr].to(device)
+        states_next = self.buffer["states"][indices_next].to(device)
+
+        return states_curr, states_next
+    
+
     def sample_states_seq(self, batch_size, time_distances, device, dtype = None):
         if dtype is None:
             dtype = torch.float32
