@@ -189,7 +189,7 @@ class AgentDiffExpCausal():
         else:
             rewards_ext_scaled = self.reward_ext_coeff*rewards_ext
 
-        
+
         # internal motivation based on diffusion
         rewards_int_a, _     = self._im_diffusion(states_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
         rewards_int_a        = rewards_int_a.float().detach().cpu().numpy()
@@ -502,10 +502,10 @@ class AgentDiffExpCausal():
         dz_neg = z_prev - z_now
 
         # causality novelty
-        novelty_pos = self.model.forward_im_causality(dz_pos.detach())
+        novelty_pos = self.model.forward_im_causality(dz_pos)
         novelty_pos = torch.nn.functional.sigmoid(novelty_pos)
         
-        novelty_neg = self.model.forward_im_causality(dz_neg.detach())
+        novelty_neg = self.model.forward_im_causality(dz_neg)
         novelty_neg = torch.nn.functional.sigmoid(novelty_neg)  
 
         loss_func   = torch.nn.BCELoss()
@@ -513,7 +513,7 @@ class AgentDiffExpCausal():
         labels_pos  = torch.ones((states_prev.shape[0], 1), device=self.device)
         loss_pos    = loss_func(novelty_pos, labels_pos) 
 
-        labels_neg  = torch.zeros((states_prev.shape[0], 1), device=self.device)
+        labels_neg  = torch.ones((states_prev.shape[0], 1), device=self.device)
         loss_neg    = loss_func(novelty_neg, labels_neg) 
 
         loss = loss_pos + loss_neg
