@@ -501,19 +501,17 @@ class AgentDiffExpCausal():
         dz_pos = z_now  - z_prev
         dz_neg = z_prev - z_now
 
-        # causality novelty
-        novelty_pos = self.model.forward_im_causality(dz_pos)
-        novelty_pos = torch.nn.functional.sigmoid(novelty_pos)
-        
+        # causality novelty, model outputs sigmoid
+        novelty_pos = self.model.forward_im_causality(dz_pos)        
         novelty_neg = self.model.forward_im_causality(dz_neg)
-        novelty_neg = torch.nn.functional.sigmoid(novelty_neg)  
 
         loss_func   = torch.nn.BCELoss()
         
         labels_pos  = torch.ones((states_prev.shape[0], 1), device=self.device)
-        loss_pos    = loss_func(novelty_pos, labels_pos) 
+        print("novelty_pos ", novelty_pos.shape, "labels_pos ", labels_pos.shape) 
+        loss_pos    = loss_func(novelty_pos, labels_pos)    
 
-        labels_neg  = torch.ones((states_prev.shape[0], 1), device=self.device)
+        labels_neg  = torch.zeros((states_prev.shape[0], 1), device=self.device)
         loss_neg    = loss_func(novelty_neg, labels_neg) 
 
         loss = loss_pos + loss_neg
