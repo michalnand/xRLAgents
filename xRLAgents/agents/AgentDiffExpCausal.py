@@ -498,34 +498,42 @@ class AgentDiffExpCausal():
         _, z_prev  = self.model.forward_features(states_prev_tmp)
         _, z_now   = self.model.forward_features(states_now_tmp)
 
+        # create symmetrical dataset, causal and non-causal pairs
+        # this helps balance the dataset and stabilise training, 
+        # as we have equal number of positive and negative samples
         dz_pos = z_now  - z_prev
-        dz_neg = z_prev - z_now
+        dz_neg = z_prev - z_now 
 
         # causality novelty, model outputs sigmoid
-        novelty_pos = self.model.forward_im_causality(dz_pos)        
-        novelty_neg = self.model.forward_im_causality(dz_neg)
+        causality_pos = self.model.forward_im_causality(dz_pos.detach())        
+        causality_neg = self.model.forward_im_causality(dz_neg.detach())
 
         loss_func   = torch.nn.BCELoss()
         
+        # positive pairs, causality should be 1
         labels_pos  = torch.ones((states_prev.shape[0], 1), device=self.device)
-        loss_pos    = loss_func(novelty_pos, labels_pos)        
+        loss_pos    = loss_func(causality_pos, labels_pos)        
 
+        # negative pairs, causality should be 0
         labels_neg  = torch.zeros((states_prev.shape[0], 1), device=self.device)
-        loss_neg    = loss_func(novelty_neg, labels_neg) 
+        loss_neg    = loss_func(causality_neg, labels_neg) 
 
-        loss = loss_pos + loss_neg
+        # total loss
+        loss = loss_pos + loss_neg  
 
-        accuracy = ((novelty_pos > 0.5).float() == labels_pos).float().mean() 
-        accuracy+= ((novelty_neg < 0.5).float() == labels_neg).float().mean()
+        # debug accuracy for logging, not used for training, as we train on loss value
+        accuracy = ((causality_pos > 0.5).float() == labels_pos).float().mean() 
+        accuracy+= ((causality_neg < 0.5).float() == labels_neg).float().mean()
         accuracy = accuracy/2.0     
         accuracy = accuracy.detach().cpu().float().numpy().item()
 
-        novelty_pos = novelty_pos.detach().squeeze()
 
-        # scale into -1, 1 range    
-        novelty_pos = (novelty_pos - 0.5)*2.0
+        # resulted internal motivation, scale into -1, 1 range
+        # high confidence 1.0, means predictable agent behaviour 
+        causality_pos = causality_pos.detach().squeeze()
+        causality_pos = (causality_pos - 0.5)*2.0
 
-        return novelty_pos, loss, accuracy
+        return causality_pos, loss, accuracy
 
 
 
