@@ -508,8 +508,7 @@ class AgentDiffExpCausal():
         loss_func   = torch.nn.BCELoss()
         
         labels_pos  = torch.ones((states_prev.shape[0], 1), device=self.device)
-        print("novelty_pos ", novelty_pos.shape, "labels_pos ", labels_pos.shape) 
-        loss_pos    = loss_func(novelty_pos, labels_pos)    
+        loss_pos    = loss_func(novelty_pos, labels_pos)        
 
         labels_neg  = torch.zeros((states_prev.shape[0], 1), device=self.device)
         loss_neg    = loss_func(novelty_neg, labels_neg) 
