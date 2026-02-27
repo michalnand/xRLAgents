@@ -531,7 +531,7 @@ class AgentDiffExpCausal():
 
         # debug accuracy for logging, not used for training, as we train on loss value
         tp_count = ((causality_pos > 0.5) == (labels_pos > 0.5)).float().sum()
-        tn_count = ((causality_neg < 0.5) == (labels_neg < 0.5)).float().su()
+        tn_count = ((causality_neg < 0.5) == (labels_neg < 0.5)).float().sum()
 
         accuracy = (tp_count + tn_count)/(causality.shape[0]) 
         
