@@ -511,6 +511,8 @@ class AgentDiffExpCausal():
         causality_pos = self.model.forward_im_causality(dz_pos)        
         causality_neg = self.model.forward_im_causality(dz_neg)
 
+        print( (dz_pos**2).mean(), (dz_pos**2).std(), (dz_neg**2).mean(), (dz_neg**2).std() )
+
         
         
         # positive pairs, causality should be 1
