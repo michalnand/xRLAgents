@@ -518,6 +518,10 @@ class AgentDiffExpCausal():
         labels_neg  = torch.zeros((states_prev.shape[0], 1), device=self.device)
         loss_neg    = loss_func(causality_neg, labels_neg) 
 
+        print(causality_pos.shape, labels_pos.shape)
+        print(causality_neg.shape, labels_neg.shape)
+        print("\n\n")   
+
         # total loss    
         loss = loss_pos + loss_neg  
 
