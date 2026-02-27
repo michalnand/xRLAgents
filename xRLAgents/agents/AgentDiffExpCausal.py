@@ -508,22 +508,18 @@ class AgentDiffExpCausal():
         causality_pos = self.model.forward_im_causality(dz_pos)        
         causality_neg = self.model.forward_im_causality(dz_neg)
 
-        loss_func   = torch.nn.BCELoss()
+        
         
         # positive pairs, causality should be 1
+        loss_func   = torch.nn.BCELoss()
         labels_pos  = torch.ones((states_prev.shape[0], 1), device=self.device)
-        loss_pos    = loss_func(causality_pos, labels_pos)        
-
-        # negative pairs, causality should be 0
         labels_neg  = torch.zeros((states_prev.shape[0], 1), device=self.device)
-        loss_neg    = loss_func(causality_neg, labels_neg) 
 
-        print(causality_pos.shape, labels_pos.shape)
-        print(causality_neg.shape, labels_neg.shape)
-        print("\n\n")   
+        causality   = torch.cat([causality_pos, causality_neg], dim=0)
+        labels      = torch.cat([labels_pos, labels_neg], dim=0)
+        loss        = loss_func(causality, labels)        
 
-        # total loss    
-        loss = loss_pos + loss_neg  
+   
 
         # debug accuracy for logging, not used for training, as we train on loss value
         accuracy = ((causality_pos > 0.5).float() == labels_pos).float().mean() 
