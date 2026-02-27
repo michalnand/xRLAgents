@@ -96,7 +96,7 @@ class TrajectoryBufferIM:
         return result
     
 
-    def sample_causal_states(self, batch_size, device, d_max = 8):
+    def sample_causal_states(self, batch_size, device, d_max = 1):
 
         total_size  = self.buffer_size*self.n_envs
 
