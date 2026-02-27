@@ -528,7 +528,7 @@ class AgentDiffExpCausal():
         labels      = torch.cat([labels_pos, labels_neg], dim=0)
         loss        = loss_func(causality, labels)        
 
-        print(labels)
+        print(causality.shape, labels.shape)
 
         # debug accuracy for logging, not used for training, as we train on loss value
         accuracy = ((causality_pos > 0.5).float() == labels_pos).float().mean() 
