@@ -502,7 +502,10 @@ class AgentDiffExpCausal():
         # this helps balance the dataset and stabilise training, 
         # as we have equal number of positive and negative samples
         dz_pos = z_now  - z_prev
-        dz_neg = z_prev - z_now 
+        #dz_neg = z_prev - z_now    
+
+        indices_shuffled = torch.randperm(z_prev.shape[0], device=self.device)
+        dz_neg = z_now  - z_prev[indices_shuffled]
 
         # causality novelty, model outputs sigmoid
         causality_pos = self.model.forward_im_causality(dz_pos)        
@@ -519,8 +522,6 @@ class AgentDiffExpCausal():
         causality   = torch.cat([causality_pos, causality_neg], dim=0)
         labels      = torch.cat([labels_pos, labels_neg], dim=0)
         loss        = loss_func(causality, labels)        
-
-        print(causality[:, 0])
 
         # debug accuracy for logging, not used for training, as we train on loss value
         accuracy = ((causality_pos > 0.5).float() == labels_pos).float().mean() 
