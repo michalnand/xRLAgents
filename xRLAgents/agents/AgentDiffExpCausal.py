@@ -515,7 +515,7 @@ class AgentDiffExpCausal():
         loss_pos    = loss_func(causality_pos, labels_pos)        
 
         # negative pairs, causality should be 0
-        labels_neg  = torch.zeros((states_prev.shape[0], 1), device=self.device)
+        labels_neg  = torch.ones((states_prev.shape[0], 1), device=self.device)
         loss_neg    = loss_func(causality_neg, labels_neg) 
 
         # total loss
