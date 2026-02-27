@@ -505,8 +505,8 @@ class AgentDiffExpCausal():
         dz_neg = z_prev - z_now 
 
         # causality novelty, model outputs sigmoid
-        causality_pos = self.model.forward_im_causality(dz_pos.detach())        
-        causality_neg = self.model.forward_im_causality(dz_neg.detach())
+        causality_pos = self.model.forward_im_causality(dz_pos)        
+        causality_neg = self.model.forward_im_causality(dz_neg)
 
         loss_func   = torch.nn.BCELoss()
         
