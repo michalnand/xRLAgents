@@ -501,8 +501,11 @@ class AgentDiffExpCausal():
         # create symmetrical dataset, causal and non-causal pairs
         # this helps balance the dataset and stabilise training, 
         # as we have equal number of positive and negative samples
-        dz_pos = z_now  - z_prev
+        #dz_pos = z_now  - z_prev
         #dz_neg = z_prev - z_now    
+
+        dz_pos = z_now  - z_prev
+        
 
         indices_shuffled = torch.randperm(z_prev.shape[0], device=self.device)
         dz_neg = z_now  - z_prev[indices_shuffled]
