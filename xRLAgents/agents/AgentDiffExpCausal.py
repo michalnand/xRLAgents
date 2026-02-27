@@ -503,14 +503,16 @@ class AgentDiffExpCausal():
         # this helps balance the dataset and stabilise training, 
         # as we have equal number of positive and negative samples
         # diff trick helps to avoid memorisation during steady state policy
+
         dz_pos = z_next - z_curr
-        dz_neg = z_curr - z_next    
+        dz_pos = dz_pos/torch.norm(dz_pos, dim=1, keepdim=True)
+        dz_neg = -dz_pos    
 
         # causality novelty, model outputs sigmoid
         causality_pos = self.model.forward_im_causality(dz_pos)        
         causality_neg = self.model.forward_im_causality(dz_neg)
         
-            
+
         # positive pairs, causality should be 1
         # negative pairs, non-causality should be 0
         loss_func   = torch.nn.BCELoss()
