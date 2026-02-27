@@ -482,42 +482,40 @@ class AgentDiffExpCausal():
         
         return novelty.detach(), loss
 
-    def _im_causality(self, states_prev, states_now):
+    def _im_causality(self, states_curr, states_next):
         # single frame input for internal motivation
         # dont use frame stacking, just copy current frame
         if self.im_single_frame:
-            states_prev_tmp = torch.zeros_like(states_prev)
-            states_prev_tmp[:, :] = states_prev[:, 0].unsqueeze(1)
+            states_curr_tmp = torch.zeros_like(states_curr)
+            states_curr_tmp[:, :] = states_curr[:, 0].unsqueeze(1)
 
-            states_now_tmp = torch.zeros_like(states_now)
-            states_now_tmp[:, :] = states_now[:, 0].unsqueeze(1)
+            states_next_tmp = torch.zeros_like(states_next)
+            states_next_tmp[:, :] = states_next[:, 0].unsqueeze(1)
         else:
-            states_prev_tmp = states_prev
-            states_now_tmp = states_now
+            states_curr_tmp = states_curr
+            states_next_tmp = states_next   
 
-        _, z_prev  = self.model.forward_features(states_prev_tmp)
-        _, z_now   = self.model.forward_features(states_now_tmp)
+        # obtain features from current and next states
+        _, z_curr  = self.model.forward_features(states_curr_tmp)
+        _, z_next  = self.model.forward_features(states_next_tmp)
 
         # create symmetrical dataset, causal and non-causal pairs
         # this helps balance the dataset and stabilise training, 
         # as we have equal number of positive and negative samples
-        dz_pos = z_now  - z_prev
-        dz_neg = z_prev - z_now    
-
-        #dz_pos = z_now  - z_prev
-        #indices_shuffled = torch.randperm(z_prev.shape[0], device=self.device)
-        #dz_neg = z_now  - z_prev[indices_shuffled]  
+        # diff trick helps to avoid memorisation during steady state policy
+        dz_pos = z_next - z_curr
+        dz_neg = z_curr - z_next    
 
         # causality novelty, model outputs sigmoid
         causality_pos = self.model.forward_im_causality(dz_pos)        
         causality_neg = self.model.forward_im_causality(dz_neg)
         
-        
+            
         # positive pairs, causality should be 1
         # negative pairs, non-causality should be 0
         loss_func   = torch.nn.BCELoss()
-        labels_pos  = torch.ones((states_prev.shape[0], 1), device=self.device)
-        labels_neg  = torch.zeros((states_prev.shape[0], 1), device=self.device)
+        labels_pos  = torch.ones((states_curr.shape[0], 1), device=self.device)
+        labels_neg  = torch.zeros((states_curr.shape[0], 1), device=self.device)
 
         causality   = torch.cat([causality_pos, causality_neg], dim=0).squeeze(1)
         labels      = torch.cat([labels_pos, labels_neg], dim=0).squeeze(1)

@@ -96,9 +96,9 @@ class TrajectoryBufferIM:
         return result
     
 
-    def sample_causal_states(self, batch_size, device, d_max = 2):
+    def sample_causal_states(self, batch_size, device, d_max = 8):
 
-        total_size  = self.buffer_size*self.n_envs
+        total_size  = self.buffer_size*self.n_envs  
 
         indices_curr    = torch.randint(0, total_size, (batch_size,), device=self.device)
 
