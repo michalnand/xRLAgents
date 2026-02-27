@@ -505,7 +505,7 @@ class AgentDiffExpCausal():
         # diff trick helps to avoid memorisation during steady state policy
 
         dz_pos = z_next - z_curr
-        dz_pos = dz_pos/torch.norm(dz_pos, dim=1, keepdim=True)
+        dz_pos = dz_pos/(torch.norm(dz_pos, dim=1, keepdim=True) + 1e-8)
         dz_neg = -dz_pos    
 
         # causality novelty, model outputs sigmoid
