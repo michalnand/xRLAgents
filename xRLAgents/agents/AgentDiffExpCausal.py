@@ -515,15 +515,15 @@ class AgentDiffExpCausal():
         loss_pos    = loss_func(causality_pos, labels_pos)        
 
         # negative pairs, causality should be 0
-        labels_neg  = torch.ones((states_prev.shape[0], 1), device=self.device)
+        labels_neg  = torch.zeros((states_prev.shape[0], 1), device=self.device)
         loss_neg    = loss_func(causality_neg, labels_neg) 
 
-        # total loss
+        # total loss    
         loss = loss_pos + loss_neg  
 
         # debug accuracy for logging, not used for training, as we train on loss value
         accuracy = ((causality_pos > 0.5).float() == labels_pos).float().mean() 
-        accuracy+= ((causality_neg > 0.5).float() == labels_neg).float().mean()
+        accuracy+= ((causality_neg < 0.5).float() == labels_neg).float().mean()
         accuracy = accuracy/2.0     
         accuracy = accuracy.detach().cpu().float().numpy().item()
 
