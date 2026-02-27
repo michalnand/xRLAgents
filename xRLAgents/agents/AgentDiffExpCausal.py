@@ -506,7 +506,7 @@ class AgentDiffExpCausal():
 
         dz_pos = z_now  - z_prev
         indices_shuffled = torch.randperm(z_prev.shape[0], device=self.device)
-        dz_neg = z_now  - z_prev[indices_shuffled]
+        dz_neg = z_now  - z_prev[indices_shuffled]  
 
         # causality novelty, model outputs sigmoid
         causality_pos = self.model.forward_im_causality(dz_pos)        
