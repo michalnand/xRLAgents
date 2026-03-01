@@ -501,17 +501,17 @@ class AgentDiffExpSurprise:
         _, z_now  = self.model.forward_features(states_now_tmp)
         _, z_next = self.model.forward_features(states_next_tmp)
 
-        #z_now  = z_now.detach()
-        #z_next = z_next.detach()
+        z_now  = z_now.detach()
+        z_next = z_next.detach()
 
         # next state prediction, from current state and action
         z_next_hat = self.model.forward_im_surprise(z_now, actions)
 
-        # MSE difference is suprise internal motivation reward
-        loss_suprise = ((z_next.detach() - z_next_hat)**2).mean()    
-        surprise     = ((z_next.detach() - z_next_hat)**2).mean(dim=1)
+        # MSE difference is surprise internal motivation reward
+        loss_surprise = ((z_next.detach() - z_next_hat)**2).mean()    
+        surprise      = ((z_next.detach() - z_next_hat)**2).mean(dim=1)
 
-        return surprise.detach(), loss_suprise
+        return surprise.detach(), loss_surprise
     
 
 
