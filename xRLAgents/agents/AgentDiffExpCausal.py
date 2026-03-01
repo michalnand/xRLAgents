@@ -197,6 +197,9 @@ class AgentDiffExpCausal():
         rewards_int_a, _     = self._im_diffusion(states_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
         rewards_int_a        = rewards_int_a.float().detach().cpu().numpy()
 
+        self.log_rewards_int.add("mean_a", rewards_int_a.mean())
+        self.log_rewards_int.add("std_a",  rewards_int_a.std())
+        
 
         if "room_id" in infos[0]:
             resp = self._process_room_ids(infos)
@@ -231,7 +234,7 @@ class AgentDiffExpCausal():
 
                 self.trajectory_buffer.clear()
 
-                for n in range(self.steps):
+                for n in range(self.steps): 
                     self.log_rewards_int.add("mean_b", rewards_int_b[n].mean().detach().cpu().float().numpy().item())
                     self.log_rewards_int.add("std_b",  rewards_int_b[n].std().detach().cpu().float().numpy().item())
         
@@ -259,8 +262,6 @@ class AgentDiffExpCausal():
             
         self.iterations+= 1
      
-        self.log_rewards_int.add("mean_a", rewards_int_a.mean())
-        self.log_rewards_int.add("std_a",  rewards_int_a.std())
         
         return states_new, rewards_ext, dones, infos
     
