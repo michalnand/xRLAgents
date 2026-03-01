@@ -568,7 +568,7 @@ class AgentDiffExpCausal():
             reward = causality.mean(dim=0)                   # (n_envs, )
             result[n] = reward.detach()
 
-        return result.detach()
+        return result.detach().cpu()
 
 
 
