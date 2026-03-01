@@ -117,7 +117,7 @@ class TrajectoryBufferIM:
         total_size  = self.buffer_size*self.n_envs  
 
         indices_curr    = torch.randint(0, total_size, (batch_size,), device=self.device)
-        indices_next    = torch.clip(indices_next + self.n_envs, 0, total_size-1) 
+        indices_next    = torch.clip(indices_curr + self.n_envs, 0, total_size-1)   
 
         states_curr = self.buffer["states"][indices_curr].to(device)
         states_next = self.buffer["states"][indices_next].to(device)
