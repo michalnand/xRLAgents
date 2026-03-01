@@ -198,9 +198,10 @@ class AgentDiffExpSurprise:
 
         # internal motivation based on future state prediction
         states_curr          = torch.from_numpy(states_new).to(self.dtype).to(self.device)
-        states_curr          = self._state_normalise(states_curr)   
+        states_curr          = self._state_normalise(states_curr)       
 
-        rewards_int_b, _     = self._im_surprise(states_t, states_curr, actions) 
+        actions_t            = torch.from_numpy(actions).to(torch.long).to(self.device)
+        rewards_int_b, _     = self._im_surprise(states_t, states_curr, actions_t) 
         rewards_int_b        = rewards_int_b.float().detach().cpu().numpy()
 
         rewards_int_scaled = numpy.clip(self.reward_int_coeff_a*rewards_int_a + self.reward_int_coeff_b*rewards_int_b, -1.0, 1.0)
@@ -504,7 +505,6 @@ class AgentDiffExpSurprise:
         #z_next = z_next.detach()
 
         # next state prediction, from current state and action
-        actions = torch.from_numpy(actions).to(torch.long).to(self.device)
         z_next_hat = self.model.forward_im_surprise(z_now, actions)
 
         # MSE difference is suprise internal motivation reward
