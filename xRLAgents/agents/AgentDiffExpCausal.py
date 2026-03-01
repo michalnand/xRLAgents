@@ -519,14 +519,14 @@ class AgentDiffExpCausal():
 
         # TODO shall we keep detach ?
         #dz = dz.detach()    
-        causality = self.model.forward_im_causality(dz)  
+        causality = self.model.forward_im_causality(dz).squeeze()
 
         print("causality shape ", causality.shape)
 
         print("\n\n")
 
-        loss_func = torch.nn.BCELoss()     
-        loss = loss_func(causality.squeeze(), labels.squeeze())
+        loss_func = torch.nn.BCELoss()       
+        loss = loss_func(causality, labels)
 
         # debug metric
         accuracy = ((causality > 0.5) == (labels > 0.5)).float().mean()
