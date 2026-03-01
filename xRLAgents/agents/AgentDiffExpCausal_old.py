@@ -49,7 +49,6 @@ class AgentDiffExpCausal():
         self.alpha_max            = config.alpha_max
         self.alpha_inf            = config.alpha_inf
         self.denoising_steps      = config.denoising_steps
-        self.causality_horizon    = config.causality_horizon
         
 
         self.time_distances       = config.time_distances
@@ -156,10 +155,8 @@ class AgentDiffExpCausal():
         print("alpha_max            ", self.alpha_max)
         print("alpha_inf            ", self.alpha_inf)
         print("denoising_steps      ", self.denoising_steps)
-        print("causality_horizon    ", self.causality_horizon)
         print("time_distances       ", self.time_distances)
         print("state_normalise      ", self.state_normalise)
-        
 
         print("rnn_policy           ", self.rnn_policy)
         print("rnn_shape            ", self.rnn_shape)  
@@ -197,19 +194,28 @@ class AgentDiffExpCausal():
         rewards_int_a, _     = self._im_diffusion(states_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
         rewards_int_a        = rewards_int_a.float().detach().cpu().numpy()
 
+        # internal motivation based on causality prediction
+        states_curr          = torch.from_numpy(states_new).to(self.dtype).to(self.device)
+        states_curr          = self._state_normalise(states_curr)
+
+        rewards_int_b, _, _  = self._im_causality(states_t, states_curr) 
+        rewards_int_b        = rewards_int_b.float().detach().cpu().numpy()
+
+        rewards_int_scaled = numpy.clip(self.reward_int_coeff_a*rewards_int_a + self.reward_int_coeff_b*rewards_int_b, -1.0, 1.0)
+
 
         if "room_id" in infos[0]:
             resp = self._process_room_ids(infos)
             self.room_ids.append(resp)
 
-
+            
         # top PPO training part
         if training_enabled:   
             # put trajectory into policy buffer
             if self.rnn_policy:
-                self.trajectory_buffer.add(states=states_t, logits=logits_t, values_ext=values_ext_t, values_int=values_int_t, actions=actions, rewards_ext=rewards_ext_scaled, rewards_int=rewards_int_a, dones=dones, steps=self.episode_steps, hidden_state=self.hidden_state_t)
+                self.trajectory_buffer.add(states=states_t, logits=logits_t, values_ext=values_ext_t, values_int=values_int_t, actions=actions, rewards_ext=rewards_ext_scaled, rewards_int=rewards_int_scaled, dones=dones, steps=self.episode_steps, hidden_state=self.hidden_state_t)
             else:
-                self.trajectory_buffer.add(states=states_t, logits=logits_t, values_ext=values_ext_t, values_int=values_int_t, actions=actions, rewards_ext=rewards_ext_scaled, rewards_int=rewards_int_a, dones=dones, steps=self.episode_steps)
+                self.trajectory_buffer.add(states=states_t, logits=logits_t, values_ext=values_ext_t, values_int=values_int_t, actions=actions, rewards_ext=rewards_ext_scaled, rewards_int=rewards_int_scaled, dones=dones, steps=self.episode_steps)
 
             # if buffer is full, run training loop
             if self.trajectory_buffer.is_full():
@@ -217,24 +223,11 @@ class AgentDiffExpCausal():
                     self.save_features()
                     self.saving_enabled = False
 
-                states_buffer = self.trajectory_buffer.buffer["states"]
-                rewards_int_a = self.trajectory_buffer.buffer["rewards_int"]
-                rewards_int_b = self._im_causality(states_buffer, self.causality_horizon)
-                rewards_int_scaled = self.reward_int_coeff_a*rewards_int_a + self.reward_int_coeff_b*rewards_int_b
-
-                # update buffer with true values
-                self.trajectory_buffer.buffer["rewards_int"] = torch.clip(rewards_int_scaled, 0.0, 1.0)
-               
                 self.trajectory_buffer.compute_returns(self.gamma_ext, self.gamma_int)
                 
                 self.train()
 
                 self.trajectory_buffer.clear()
-
-                for n in range(self.steps):
-                    self.log_rewards_int.add("mean_b", rewards_int_b[n].mean())
-                    self.log_rewards_int.add("std_b",  rewards_int_b[n].std())
-        
 
         
         self.episode_steps+= 1
@@ -261,6 +254,8 @@ class AgentDiffExpCausal():
      
         self.log_rewards_int.add("mean_a", rewards_int_a.mean())
         self.log_rewards_int.add("std_a",  rewards_int_a.std())
+        self.log_rewards_int.add("mean_b", rewards_int_b.mean())
+        self.log_rewards_int.add("std_b",  rewards_int_b.std())
         
         return states_new, rewards_ext, dones, infos
     
@@ -387,14 +382,13 @@ class AgentDiffExpCausal():
 
 
 
-                
-                states, steps       = self.trajectory_buffer.sample_states(self.ss_batch_size, self.device)
-
-                #internal motivation loss, MSE diffusion novelty detection
+                #internal motivation loss, MSE diffusion    
+                states              = self.trajectory_buffer.sample_states(self.ss_batch_size, self.device)
                 _, loss_diffusion   = self._im_diffusion(states, self.alpha_min, self.alpha_max, self.denoising_steps)
 
-                #internal motivation loss, BCE states causality, states oreder prediction
-                loss_causality, accuracy  = self._im_causality_loss(states, steps)
+                #internal motivation loss, BCE states causality
+                states_curr, states_next     = self.trajectory_buffer.sample_causal_states(self.ss_batch_size, self.device)
+                _, loss_causality, accuracy  = self._im_causality(states_curr, states_next) 
 
                 #self supervised target regularisation
                 states_seq, labels = self.trajectory_buffer.sample_states_seq(self.ss_batch_size, self.time_distances, self.device)
@@ -487,88 +481,63 @@ class AgentDiffExpCausal():
         loss = ((noise - noise_pred)**2).mean()
         
         return novelty.detach(), loss
-    
 
-    def _im_causality_loss(self, states, steps):
-        # states (batch, ) + state_shape
-        # steps (batch, ), corresponding episode step for each state
-
+    def _im_causality(self, states_curr, states_next):
         # single frame input for internal motivation
         # dont use frame stacking, just copy current frame
         if self.im_single_frame:
-            states_tmp = torch.zeros_like(states)
-            states_tmp[:, :] = states[:, 0].unsqueeze(1)          
-        else:
-            states_tmp = states
+            states_curr_tmp = torch.zeros_like(states_curr)
+            states_curr_tmp[:, :] = states_curr[:, 0].unsqueeze(1)
 
-        # obtain features from states
-        _, z = self.model.forward_features(states_tmp)
+            states_next_tmp = torch.zeros_like(states_next)
+            states_next_tmp[:, :] = states_next[:, 0].unsqueeze(1)
+        else:
+            states_curr_tmp = states_curr
+            states_next_tmp = states_next   
+
+        # obtain features from current and next states
+        _, z_curr  = self.model.forward_features(states_curr_tmp)
+        _, z_next  = self.model.forward_features(states_next_tmp)
 
         # create symmetrical dataset, causal and non-causal pairs
-        # if number of steps_a is smaller than steps_b, then state_a causes state_b, label 1
-        # if number of steps_a is greater than steps_b, then state_a does not cause state_b, label 0
-        ds      = steps.unsqueeze(0) - steps.unsqueeze(1)
-        labels  = (ds < 0).float()
-
+        # this helps balance the dataset and stabilise training, 
+        # as we have equal number of positive and negative samples
         # diff trick helps to avoid memorisation during steady state policy
-        dz = z.unsqueeze(0) - z.unsqueeze(1)
 
-        # TODO shall we keep detach ?
-        dz = dz.detach()    
-        causality = self.model.forward_im_causality(dz)  
+        dz_pos = z_next - z_curr
+        dz_neg = z_curr - z_next
 
-        loss_func = torch.nn.BCELoss()     
-        loss = loss_func(causality.squeeze(), labels.squeeze())
-
-        # debug metric
-        accuracy = ((causality > 0.5) == (labels > 0.5)).float().mean()
-        accuracy = accuracy.detach().cpu().float().numpy()
-
-
-        return loss, accuracy   
-    
-
-    def _im_causality(self, states_buffer, horizon):
-        # states_buffer (buffer_size, n_envs, ) + state_shape
-
-        #1, compute z features for each state in buffer
-        z = []
-        for n in range(self.steps):
-            x = states_buffer[n]  
-
-            if self.im_single_frame:
-                x_tmp = torch.zeros_like(x)
-                x_tmp[:, :] = x[:, 0].unsqueeze(1)          
+        # causality novelty, model outputs sigmoid  
+        causality_pos = self.model.forward_im_causality(dz_pos.detach())        
+        causality_neg = self.model.forward_im_causality(dz_neg.detach())    
         
-            x_tmp = x_tmp.to(device=self.device, dtype=self.dtype)
 
-            _, z_tmp  = self.model.forward_features(x_tmp)
-            z.append(z_tmp.detach().clone())
+        # positive pairs, causality should be 1
+        # negative pairs, non-causality should be 0
+        loss_func   = torch.nn.BCELoss()
+        labels_pos  = torch.ones((states_curr.shape[0], 1), device=self.device)
+        labels_neg  = torch.zeros((states_curr.shape[0], 1), device=self.device)
 
-        z = torch.stack(z, dim=0)  # (buffer_size, n_envs, z_dim)
+        causality   = torch.cat([causality_pos, causality_neg], dim=0).squeeze(1)
+        labels      = torch.cat([labels_pos, labels_neg], dim=0).squeeze(1)
+        loss        = loss_func(causality, labels)           
+
+
+        # debug accuracy for logging, not used for training, as we train on loss value
+        tp_count = ((causality > 0.5) == (labels > 0.5)).float()
+        tn_count = ((causality < 0.5) == (labels < 0.5)).float()    
+
+        accuracy = (tp_count.sum() + tn_count.sum())/(tp_count.shape[0] + tn_count.shape[0])    
         
-        result = torch.zeros((self.steps, self.n_envs, ), dtype=torch.float32, device=self.device)
+        accuracy = accuracy.detach().cpu().float().numpy().item()
 
-        #2, compute causality for pairs of states in buffer, with given horizon   
-        # model estimates cusality from features difference, dz = za - zb
-        # if za is before zb, model should answer with one, because za causes zb
-        # if za is after zb, model should answer with zero, 
-        # the state is rewarded more, if the model correctly predicts causality for more pairs of states in the future
-        # this means more coherent behaviour, nor chaotic motion, predictable trajectory
-        for n in range(self.steps - horizon):
-            z_curr = z[n]
-            z_next = z[n:n+horizon]
 
-            # make chunks of current state and next states, to compute causality in parallel
-            dz    = z_curr.unsqueeze(0) - z_next             # dz.shape (horizon, n_envs, z_dim)
+        # resulted internal motivation, scale into -1, 1 range
+        # high confidence 1.0, means predictable agent behaviour 
+        causality_pos = causality_pos.detach().squeeze()
+        causality_pos = (causality_pos - 0.5)*2.0
 
-            causality = self.model.forward_im_causality(dz)  # (horizon, n_envs, 1)
-            causality = causality.squeeze()                  # (horizon, n_envs)
-
-            reward = causality.mean(dim=0)                   # (n_envs, )
-            result[n] = reward.detach()
-
-        return result.detach()
+        return causality_pos, loss, accuracy
 
 
 

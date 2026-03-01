@@ -92,8 +92,9 @@ class TrajectoryBufferIM:
         idx = torch.randint(0, total_size, (batch_size,), device=self.device)
 
         result = self.buffer["states"][idx].to(device)
+        steps  = self.buffer["steps"][idx].to(device)
 
-        return result
+        return result, steps
     
 
     def sample_causal_states(self, batch_size, device, d_max = 8):
