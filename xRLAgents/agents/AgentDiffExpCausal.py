@@ -232,8 +232,8 @@ class AgentDiffExpCausal():
                 self.trajectory_buffer.clear()
 
                 for n in range(self.steps):
-                    self.log_rewards_int.add("mean_b", rewards_int_b[n].mean())
-                    self.log_rewards_int.add("std_b",  rewards_int_b[n].std())
+                    self.log_rewards_int.add("mean_b", rewards_int_b[n].mean().detach().cpu().float().numpy().item())
+                    self.log_rewards_int.add("std_b",  rewards_int_b[n].std().detach().cpu().float().numpy().item())
         
 
         
