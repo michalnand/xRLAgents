@@ -511,12 +511,19 @@ class AgentDiffExpCausal():
         ds      = steps.unsqueeze(0) - steps.unsqueeze(1)
         labels  = (ds < 0).float()
 
+        print("dz shape ", z.shape)
+        print("labels shape ", labels.shape)
+
         # diff trick helps to avoid memorisation during steady state policy
         dz = z.unsqueeze(0) - z.unsqueeze(1)
 
         # TODO shall we keep detach ?
-        dz = dz.detach()    
+        #dz = dz.detach()    
         causality = self.model.forward_im_causality(dz)  
+
+        print("causality shape ", causality.shape)
+
+        print("\n\n")
 
         loss_func = torch.nn.BCELoss()     
         loss = loss_func(causality.squeeze(), labels.squeeze())
