@@ -371,7 +371,7 @@ class AgentDiffExp():
 
 
                 #internal motivation loss, MSE diffusion    
-                states  = self.trajectory_buffer.sample_states(self.ss_batch_size, self.device)
+                states, _  = self.trajectory_buffer.sample_states(self.ss_batch_size, self.device)
                 _, loss_diffusion  = self._internal_motivation(states, self.alpha_min, self.alpha_max, self.denoising_steps)
 
                 #self supervised target regularisation
