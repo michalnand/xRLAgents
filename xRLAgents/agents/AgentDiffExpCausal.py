@@ -220,6 +220,7 @@ class AgentDiffExpCausal():
                     self.save_features()
                     self.saving_enabled = False
 
+                # estimate cusality internal motivation, we need future states from buffer to compute causality reward, so we compute it here before returns and advantages calculation, to use true values in buffer
                 states_buffer = self.trajectory_buffer.buffer["states"]
                 rewards_int_a = self.trajectory_buffer.buffer["rewards_int"]
                 rewards_int_b = self._im_causality(states_buffer, self.causality_horizon)
@@ -515,7 +516,7 @@ class AgentDiffExpCausal():
         dz = z.unsqueeze(0) - z.unsqueeze(1)
 
         # TODO shall we keep detach ?
-        #dz = dz.detach()    
+        dz = dz.detach()    
         causality = self.model.forward_im_causality(dz).squeeze()
 
         
