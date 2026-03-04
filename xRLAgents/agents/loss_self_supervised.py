@@ -213,45 +213,44 @@ def loss_sigreg_func(z, t_range = 5.0, num_t_points=17, num_projections=16):
 
 
 
-
-
-
-
 def loss_spectral_temporal_per_delta_func(Z, delta):
     """
     Computes spectral temporal loss for a single lag delta.
     
     Args:
-        Z: Tensor of shape (B, T, D)
+        Z: Tensor of shape (T, B, D)
         delta: temporal lag (int)
         
     Returns:
         scalar loss for this delta
     """
-    B, T, D = Z.shape
+    T, B, D = Z.shape
     
-    # Lagged pairs
-    Z_t  = Z[:, :-delta, :]   # (B, T-delta, D)
-    Z_tp = Z[:, delta:, :]    # (B, T-delta, D)
-
-   
-    # Flatten batch and time
-    X = Z_t.reshape(-1, D)    # (N, D)
-    Y = Z_tp.reshape(-1, D)   # (N, D)
+    if delta >= T:
+        raise ValueError("delta must be smaller than sequence length")
     
-    # Center features
+    # Pair (z_t, z_{t+delta})
+    Z_t  = Z[0:T-delta, :, :]      # (T-delta, B, D)
+    Z_tp = Z[delta:T, :, :]        # (T-delta, B, D)
+    
+    # Flatten time and batch together
+    X = Z_t.reshape(-1, D)         # (N, D)
+    Y = Z_tp.reshape(-1, D)        # (N, D)
+    
+    # Center features (important for covariance)
     X = X - X.mean(dim=0, keepdim=True)
     Y = Y - Y.mean(dim=0, keepdim=True)
     
     N = X.shape[0]
     
-    # Cross-covariance
-    C = (X.T @ Y) / N         # (D, D)
+    # Cross-covariance matrix
+    C = (X.T @ Y) / N              # (D, D)
     
     # Off-diagonal penalty
-    off_diag = C - torch.diag(torch.diag(C))
+    diag = torch.diag(C)
+    off_diag = C - torch.diag(diag)
+    
     loss = (off_diag ** 2).sum()
-
 
     print("Z shape:", Z.shape, delta)
     print("Z_t shape:", Z_t.shape)
