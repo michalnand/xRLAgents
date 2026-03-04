@@ -232,8 +232,9 @@ def loss_spectral_temporal_per_delta_func(Z, delta):
     
     # Lagged pairs
     Z_t  = Z[:, :-delta, :]   # (B, T-delta, D)
-    Z_tp = Z[:, delta:, :]    # (B, T-delta, D) 
+    Z_tp = Z[:, delta:, :]    # (B, T-delta, D)
 
+   
     # Flatten batch and time
     X = Z_t.reshape(-1, D)    # (N, D)
     Y = Z_tp.reshape(-1, D)   # (N, D)
@@ -250,6 +251,14 @@ def loss_spectral_temporal_per_delta_func(Z, delta):
     # Off-diagonal penalty
     off_diag = C - torch.diag(torch.diag(C))
     loss = (off_diag ** 2).sum()
+
+
+    print("Z shape:", Z.shape, delta)
+    print("Z_t shape:", Z_t.shape)
+    print("Z_tp shape:", Z_tp.shape)
+    print("loss ", loss)
+    print("\n\n")
+
     
     return loss
 
