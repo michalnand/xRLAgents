@@ -163,7 +163,7 @@ class TrajectoryBufferIM:
 
         indices_now     = torch.randint(0, self.n_envs*self.buffer_size, size=(batch_size, ))
 
-        for n in range(len(seq_len)):   
+        for n in range(seq_len):   
             indices = indices_now + n*self.n_envs
             indices = torch.clip(indices, 0, total_size-1)
 
