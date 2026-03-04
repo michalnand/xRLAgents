@@ -252,13 +252,6 @@ def loss_spectral_temporal_per_delta_func(Z, delta):
     
     loss = (off_diag ** 2).sum()
 
-    print("Z shape:", Z.shape, delta)
-    print("Z_t shape:", Z_t.shape)
-    print("Z_tp shape:", Z_tp.shape)
-    print("loss ", loss)
-    print("\n\n")
-
-    
     return loss
 
 
