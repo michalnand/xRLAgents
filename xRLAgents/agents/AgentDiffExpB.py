@@ -374,7 +374,7 @@ class AgentDiffExpB():
                 _, loss_diffusion  = self._internal_motivation(states, self.alpha_min, self.alpha_max, self.denoising_steps)
 
                 #self supervised target regularisation
-                states_seq = self.trajectory_buffer.sample_states_seq_fixed(self.ss_batch_size, self.time_distance, self.device)
+                states_seq = self.trajectory_buffer.sample_states_seq_fixed(self.ss_batch_size, self.time_distance + 1, self.device)
 
                 # single frame input for internal motivation
                 # dont use frame stacking, just copy current frame
