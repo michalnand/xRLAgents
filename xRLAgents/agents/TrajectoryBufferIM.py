@@ -151,6 +151,28 @@ class TrajectoryBufferIM:
 
        
         return states_result, steps_result
+    
+
+    def sample_states_seq_fixed(self, batch_size, seq_len, device, dtype = None):
+        if dtype is None:
+            dtype = torch.float32
+
+        total_size = self.buffer_size*self.n_envs
+
+        states_result   = []
+
+        indices_now     = torch.randint(0, self.n_envs*self.buffer_size, size=(batch_size, ))
+
+        for n in range(len(seq_len)):   
+            indices = indices_now + n*self.n_envs
+            indices = torch.clip(indices, 0, total_size-1)
+
+            states = (self.buffer["states"][indices]).to(dtype=dtype, device=device)
+            steps  = (self.buffer["steps"][indices]).to(device=device) 
+
+            states_result.append(states)        
+
+        return states_result
       
     def _gae(self, rewards, values, dones, gamma, lam):
         buffer_size = rewards.shape[0]
