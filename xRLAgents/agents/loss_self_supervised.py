@@ -240,17 +240,14 @@ def loss_spectral_temporal_per_delta_func(Z, delta):
     # Center features (important for covariance)
     X = X - X.mean(dim=0, keepdim=True)
     Y = Y - Y.mean(dim=0, keepdim=True)
+
     
     N = X.shape[0]
     
     # Cross-covariance matrix
-    C = (X.T @ Y) / N              # (D, D)
-    
-    # Off-diagonal penalty
-    diag = torch.diag(C)
-    off_diag = C - torch.diag(diag)
-    
-    loss = (off_diag ** 2).sum()
+    C = (X.T @ Y) / (N-1)              # (D, D)
+
+    loss = _off_diagonal(C).pow_(2).sum()/D
 
     return loss
 
