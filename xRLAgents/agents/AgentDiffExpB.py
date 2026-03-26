@@ -441,7 +441,7 @@ class AgentDiffExpB():
 
         # obtain taget features from states and noised states
         _, z_target  = self.model.forward_features(states_tmp)
-        z_target     = self.z_scaling*z_target.detach()
+        z_target     = z_target.detach()
 
         # add noise into features
         z_noised, noise, alpha = self.im_noise(z_target, alpha_min, alpha_max)
