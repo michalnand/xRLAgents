@@ -34,6 +34,11 @@ class AgentDiffExp():
         self.reward_ext_coeff   = config.reward_ext_coeff
         self.reward_int_coeff   = config.reward_int_coeff
 
+        if hasattr(config, "z_scaling"):
+            self.z_scaling      = config.z_scaling
+        else:
+            self.z_scaling      = 1.0
+
         self.steps              = config.steps
         self.batch_size         = config.batch_size
         self.ss_batch_size      = config.ss_batch_size
@@ -140,6 +145,7 @@ class AgentDiffExp():
         print("val_coeff            ", self.val_coeff)
         print("reward_ext_coeff     ", self.reward_ext_coeff)
         print("reward_int_coeff     ", self.reward_int_coeff)
+        print("z_scaling            ", self.z_scaling)
         print("steps                ", self.steps)
         print("batch_size           ", self.batch_size)
         print("ss_batch_size        ", self.ss_batch_size)
@@ -443,7 +449,7 @@ class AgentDiffExp():
 
         # obtain taget features from states and noised states
         _, z_target  = self.model.forward_features(states_tmp)
-        z_target     = z_target.detach()
+        z_target     = self.z_scaling*z_target.detach()
 
         # add noise into features
         z_noised, noise, alpha = self.im_noise(z_target, alpha_min, alpha_max)
