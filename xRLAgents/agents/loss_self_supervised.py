@@ -182,9 +182,9 @@ class SIGRegLoss(torch.nn.Module):
     SIGReg for generic features (no temporal dimension)
     Input: (B, D)
     """
-    def __init__(self, knots=17, num_proj=128):
+    def __init__(self, knots=17, num_proj=512):
         super().__init__()
-        self.num_proj = num_proj
+        self.num_proj = num_proj    
 
         # integration grid
         t = torch.linspace(0, 3, knots, dtype=torch.float32)
