@@ -6,7 +6,7 @@ from ..training.ValuesLogger           import *
 
 
 
-class AgentDiffExpB():  
+class AgentDiffExpB(): 
     def __init__(self, envs, Config, Model):
         self.envs = envs
  
@@ -34,6 +34,7 @@ class AgentDiffExpB():
         self.reward_ext_coeff   = config.reward_ext_coeff
         self.reward_int_coeff   = config.reward_int_coeff
 
+
         self.steps              = config.steps
         self.batch_size         = config.batch_size
         self.ss_batch_size      = config.ss_batch_size
@@ -49,9 +50,8 @@ class AgentDiffExpB():
         self.alpha_inf            = config.alpha_inf
         self.denoising_steps      = config.denoising_steps
         
-        self.time_distance        = config.time_distance
         
-        self.state_normalise      = config.state_normalise
+        self.state_normalise        = config.state_normalise
 
         if hasattr(config, "rnn_policy"):
             self.rnn_policy         = config.rnn_policy
@@ -151,7 +151,6 @@ class AgentDiffExpB():
         print("alpha_max            ", self.alpha_max)
         print("alpha_inf            ", self.alpha_inf)
         print("denoising_steps      ", self.denoising_steps)
-        print("time_distance        ", self.time_distance)
         print("state_normalise      ", self.state_normalise)
 
         print("rnn_policy           ", self.rnn_policy)
@@ -370,27 +369,27 @@ class AgentDiffExpB():
 
 
                 #internal motivation loss, MSE diffusion    
-                states, _  = self.trajectory_buffer.sample_states(self.ss_batch_size, self.device)
-                _, loss_diffusion  = self._internal_motivation(states, self.alpha_min, self.alpha_max, self.denoising_steps)
+                states, _  = self.trajectory_buffer.sample_states(self.ss_batch_size, self.device)  
+                _, loss_diffusion  = self._internal_motivation(states, self.alpha_min, self.alpha_max, 1)
 
                 #self supervised target regularisation
-                states_seq = self.trajectory_buffer.sample_states_seq_fixed(self.ss_batch_size, self.time_distance + 1, self.device)
+                states_now, states_next, actions = self.trajectory_buffer.sample_states_pairs(self.ss_batch_size, self.device)
 
                 # single frame input for internal motivation
                 # dont use frame stacking, just copy current frame
                 if self.im_single_frame:   
-                    states_seq_tmp = []
+                    states_now_tmp       = torch.zeros_like(states_now)
+                    states_now_tmp[:, :] = states_now[:, 0].unsqueeze(1)
 
-                    for n in range(len(states_seq)):                
-                        tmp = torch.zeros_like(states_seq[n])
-                        tmp[:, :] = states_seq[n][:, 0].unsqueeze(1)
-
-                        states_seq_tmp.append(tmp)
+                    states_next_tmp       = torch.zeros_like(states_next)
+                    states_next_tmp[:, :] = states_next[:, 0].unsqueeze(1)
                 else:
-                    states_seq_tmp = states_seq     
+                    states_now_tmp  = states_now
+                    states_next_tmp = states_next
 
-
-                loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_seq_tmp)
+                actions_onehot = torch.nn.functional.one_hot(actions, num_classes=self.actions_count).float()
+               
+                loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_now_tmp, states_next_tmp, actions_onehot)
 
                 # total loss    
                 loss = loss_ppo + loss_diffusion + loss_ssl

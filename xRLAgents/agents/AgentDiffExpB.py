@@ -48,6 +48,7 @@ class AgentDiffExpB():
         self.alpha_min            = config.alpha_min
         self.alpha_max            = config.alpha_max
         self.alpha_inf            = config.alpha_inf
+        self.max_distance         = config.max_distance
         self.denoising_steps      = config.denoising_steps
         
         
@@ -150,6 +151,7 @@ class AgentDiffExpB():
         print("alpha_min            ", self.alpha_min)
         print("alpha_max            ", self.alpha_max)
         print("alpha_inf            ", self.alpha_inf)
+        print("max_distance         ", self.max_distance)
         print("denoising_steps      ", self.denoising_steps)
         print("state_normalise      ", self.state_normalise)
 
@@ -373,23 +375,10 @@ class AgentDiffExpB():
                 _, loss_diffusion  = self._internal_motivation(states, self.alpha_min, self.alpha_max, 1)
 
                 #self supervised target regularisation
-                states_now, states_next, actions = self.trajectory_buffer.sample_states_pairs(self.ss_batch_size, self.device)
+                states_a, states_b, distances = self.trajectory_buffer.sample_causal_states(self.ss_batch_size, self.max_distance, self.device)
 
-                # single frame input for internal motivation
-                # dont use frame stacking, just copy current frame
-                if self.im_single_frame:   
-                    states_now_tmp       = torch.zeros_like(states_now)
-                    states_now_tmp[:, :] = states_now[:, 0].unsqueeze(1)
 
-                    states_next_tmp       = torch.zeros_like(states_next)
-                    states_next_tmp[:, :] = states_next[:, 0].unsqueeze(1)
-                else:
-                    states_now_tmp  = states_now
-                    states_next_tmp = states_next
-
-                actions_onehot = torch.nn.functional.one_hot(actions, num_classes=self.actions_count).float()
-               
-                loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_now_tmp, states_next_tmp, actions_onehot)
+                loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_a, states_b, distances)
 
                 # total loss    
                 loss = loss_ppo + loss_diffusion + loss_ssl

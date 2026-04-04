@@ -1,3 +1,5 @@
+from turtle import distance
+
 import torch
 
 class TrajectoryBufferIM:
@@ -97,20 +99,20 @@ class TrajectoryBufferIM:
         return result, steps
     
 
-    def sample_causal_states(self, batch_size, device, d_max = 8):
+    def sample_causal_states(self, batch_size, d_max, device):
 
         total_size  = self.buffer_size*self.n_envs  
 
         indices_curr    = torch.randint(0, total_size, (batch_size,), device=self.device)
-
-        indices_next    = indices_curr + self.n_envs*torch.randint(1, d_max + 1, size=(batch_size, ))
+        distances       = torch.randint(0, d_max + 1, size=(batch_size,), device=self.device)
+        indices_next    = indices_curr + self.n_envs*distances
         indices_next    = torch.clip(indices_next, 0, total_size-1) 
 
 
         states_curr = self.buffer["states"][indices_curr].to(device)
         states_next = self.buffer["states"][indices_next].to(device)
 
-        return states_curr, states_next
+        return states_curr, states_next, distances
     
 
     def sample_states_pairs(self, batch_size, device):
