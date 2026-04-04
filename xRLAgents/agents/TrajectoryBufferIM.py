@@ -110,7 +110,7 @@ class TrajectoryBufferIM:
         states_curr = self.buffer["states"][indices_curr].to(device)
         states_next = self.buffer["states"][indices_next].to(device)
 
-        return states_curr, states_next, distances
+        return states_curr, states_next, distances.to(device)
     
 
     def sample_states_pairs(self, batch_size, device):
