@@ -373,15 +373,15 @@ class AgentDiffExpC():
                 _, loss_diffusion  = self._internal_motivation(states, self.alpha_min, self.alpha_max, 1)
 
                 #self supervised target regularisation
-                state_prev, states_now, actions = self.trajectory_buffer.sample_states_pairs(self.ss_batch_size, self.device)
+                state_curr, states_next, actions = self.trajectory_buffer.sample_states_pairs(self.ss_batch_size, self.device)
 
                 # single frame input for internal motivation
-                # dont use frame stacking, just copy current frame
+                # dont use frame stacking, just copy current frame  
                 if self.im_single_frame:   
-                    state_prev = self._make_single_frame(state_prev)
-                    states_now = self._make_single_frame(states_now)
+                    state_curr  = self._make_single_frame(state_curr)
+                    states_next = self._make_single_frame(states_next)
 
-                loss_ssl, info_ssl = self.im_ssl_loss(self.model, state_prev, states_now, actions)
+                loss_ssl, info_ssl = self.im_ssl_loss(self.model, state_curr, states_next, actions)
 
                 # total loss    
                 loss = loss_ppo + loss_diffusion + loss_ssl
