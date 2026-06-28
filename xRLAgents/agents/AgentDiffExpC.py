@@ -383,7 +383,7 @@ class AgentDiffExpC():
                 if self.im_single_frame:   
                     state_prev = self._make_single_frame(state_prev)
                     states_now = self._make_single_frame(states_now)
-                
+
                 loss_ssl, info_ssl = self.im_ssl_loss(self.model, state_prev, states_now, actions)
 
                 # total loss    
@@ -432,7 +432,8 @@ class AgentDiffExpC():
             states = self._make_single_frame(states)
      
         # obtain taget features from states and noised states
-        _, z_target  = self.model.forward_features(states).detach()
+        _, z_target  = self.model.forward_features(states)
+        z_target = z_target.detach()
 
         # add noise into features
         z_noised, noise, alpha = self.im_noise(z_target, alpha_min, alpha_max)
