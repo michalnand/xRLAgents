@@ -50,8 +50,6 @@ class AgentDiffExpC():
         self.alpha_inf            = config.alpha_inf
         self.denoising_steps      = config.denoising_steps
         
-
-        self.time_distances       = config.time_distances
         
         self.state_normalise        = config.state_normalise
 
@@ -153,7 +151,6 @@ class AgentDiffExpC():
         print("alpha_max            ", self.alpha_max)
         print("alpha_inf            ", self.alpha_inf)
         print("denoising_steps      ", self.denoising_steps)
-        print("time_distances       ", self.time_distances)
         print("state_normalise      ", self.state_normalise)
 
         print("rnn_policy           ", self.rnn_policy)
