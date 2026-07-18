@@ -5,7 +5,8 @@ from .TrajectoryBufferIM  import *
 from ..training.ValuesLogger           import *
 
 
-class AgentDiffExpHierarchy(): 
+
+class AgentDiffExp(): 
     def __init__(self, envs, Config, Model):
         self.envs = envs
  
@@ -27,12 +28,16 @@ class AgentDiffExpHierarchy():
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip
         
-        self.adv_ext_coeff_a    = config.adv_ext_coeff_a
-        self.adv_ext_coeff_b    = config.adv_ext_coeff_b
+        self.adv_ext_coeff      = config.adv_ext_coeff
         self.adv_int_coeff      = config.adv_int_coeff
         self.val_coeff          = config.val_coeff
         self.reward_ext_coeff   = config.reward_ext_coeff
         self.reward_int_coeff   = config.reward_int_coeff
+
+        if hasattr(config, "z_scaling"):
+            self.z_scaling      = config.z_scaling
+        else:
+            self.z_scaling      = 1.0
 
         self.steps              = config.steps
         self.batch_size         = config.batch_size
@@ -135,11 +140,12 @@ class AgentDiffExpHierarchy():
         print("gamma_int            ", self.gamma_int)
         print("entropy_beta         ", self.entropy_beta)
         print("eps_clip             ", self.eps_clip)
-        print("adv_ext_coeff        ", self.adv_ext_coeff_a)
+        print("adv_ext_coeff        ", self.adv_ext_coeff)
         print("adv_int_coeff        ", self.adv_int_coeff)
         print("val_coeff            ", self.val_coeff)
         print("reward_ext_coeff     ", self.reward_ext_coeff)
         print("reward_int_coeff     ", self.reward_int_coeff)
+        print("z_scaling            ", self.z_scaling)
         print("steps                ", self.steps)
         print("batch_size           ", self.batch_size)
         print("ss_batch_size        ", self.ss_batch_size)
@@ -371,8 +377,8 @@ class AgentDiffExpHierarchy():
 
 
                 #internal motivation loss, MSE diffusion    
-                states  = self.trajectory_buffer.sample_states(self.ss_batch_size, self.device)
-                _, loss_diffusion  = self._internal_motivation(states, self.alpha_min, self.alpha_max, self.denoising_steps)
+                states, _  = self.trajectory_buffer.sample_states(self.ss_batch_size, self.device)  
+                _, loss_diffusion  = self._internal_motivation(states, self.alpha_min, self.alpha_max, 1)
 
                 #self supervised target regularisation
                 states_seq, labels = self.trajectory_buffer.sample_states_seq(self.ss_batch_size, self.time_distances, self.device)
@@ -443,7 +449,7 @@ class AgentDiffExpHierarchy():
 
         # obtain taget features from states and noised states
         _, z_target  = self.model.forward_features(states_tmp)
-        z_target     = z_target.detach()
+        z_target     = self.z_scaling*z_target.detach()
 
         # add noise into features
         z_noised, noise, alpha = self.im_noise(z_target, alpha_min, alpha_max)
@@ -478,7 +484,7 @@ class AgentDiffExpHierarchy():
         loss_critic = self._ppo_critic_loss(values_ext_new, returns_ext, values_int_new, returns_int)
 
         #actor loss        
-        advantages  = self.adv_ext_coeff_a*advantages_ext + self.adv_int_coeff*advantages_int
+        advantages  = self.adv_ext_coeff*advantages_ext + self.adv_int_coeff*advantages_int
         advantages  = advantages.detach() 
 
         #advantages normalisation 

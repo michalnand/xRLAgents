@@ -43,11 +43,14 @@ class RLTrainer:
             if update_log:
                 print(result_str)
 
+            '''
             # reset env where done
             done_idx = numpy.where(dones)[0]
             for e in done_idx:
                 states[e], _ = self.envs.reset(e)
+            '''
 
+            
             if (n%(n_steps//10)) == 0:
                 self.agent.save(self.result_path)
 
