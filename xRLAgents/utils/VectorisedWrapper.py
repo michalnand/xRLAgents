@@ -34,6 +34,9 @@ class VectorizedAtariWrapper:
         print(self.obs_shape)
         print(self.action_dim)
 
+    def __len__(self):
+        return self.num_envs
+
     def reset(self):
         obs, info = self.env.reset()
         # EnvPool returns array layout: (num_envs, channels, height, width) -> (128, 4, 96, 96)
