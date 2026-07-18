@@ -72,7 +72,7 @@ class AgentDiffExp():
             self.reward_shaping = None  
 
        
-        self.n_envs         = self.envs.num_envs
+        self.n_envs         = len(self.envs)
         self.state_shape    = self.envs.obs_shape
 
         self.actions_count  = self.envs.action_dim
