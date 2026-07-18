@@ -97,14 +97,14 @@ class VectorizedAtariWrapper:
             infos.append(info)
 
 
-
+            
 
         self.env_log.add("reward_episode_mean", self.episode_score.mean(), 1.0)
         self.env_log.add("reward_episode_std",  self.episode_score.std(), 1.0)
         self.env_log.add("reward_episode_min",  self.episode_score.min(), 1.0)
         self.env_log.add("reward_episode_max",  self.episode_score.max(), 1.0)
 
-        self.env_log.add("explored_rooms", explored_rooms.max(), 1.0)
+        self.env_log.add("explored_rooms", explored_rooms_max, 1.0)
       
 
         return obs, rewards_clip, dones, infos
