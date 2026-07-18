@@ -2,6 +2,7 @@ import envpool
 import numpy
 import time
 
+from ..training.ValuesLogger           import *
 
 class VectorizedAtariWrapper:
     def __init__(self, env_name = "MontezumaRevenge-v5", num_envs=128, room_id_adr = 3):
@@ -20,7 +21,7 @@ class VectorizedAtariWrapper:
             frame_skip=4,
             noop_max=30,
             repeat_action_probability=0.25,
-            reward_clip=True, # Automatically turns any positive reward to 1.0
+            reward_clip=False,
             max_episode_steps=4500,
             episodic_life=False,
         )
@@ -31,8 +32,10 @@ class VectorizedAtariWrapper:
         # The total number of discrete actions available (e.g., 18 for Atari)
         self.action_dim = int(self.env.action_space.n)
 
-        print(self.obs_shape)
-        print(self.action_dim)
+        self.env_log = ValuesLogger("env")
+
+        self.episode_score_curr = numpy.zeros(self.num_envs)
+        self.episode_score      = numpy.zeros(self.num_envs)
 
     def __len__(self):
         return self.num_envs
@@ -58,31 +61,67 @@ class VectorizedAtariWrapper:
         
         infos = []
 
+        self.episode_score_curr+= rewards   
+
+        explored_rooms_max = 0
+
         for n in range(self.num_envs):
+            if dones[n]:
+                self.episode_score[n] = self.episode_score_curr
+                self.episode_score_curr[n] = 0
+
+
             room_id = room_ids[n]
             if room_id not in self.explored_rooms[n]:
                 self.explored_rooms[n][room_id] = 1
             else:
                 self.explored_rooms[n][room_id]+= 1
+
+            explored_rooms_count = len(self.explored_rooms[n])
+
+            if explored_rooms_count > explored_rooms_max:
+                explored_rooms_max = int(explored_rooms_count)
             
             info = {}
             info["room_id"] = int(room_id)
-            info["explored_rooms"] = len(self.explored_rooms[n])
+            info["explored_rooms"]      = explored_rooms_count
+            info["episode_score"]       = self.episode_score[n]
+            info["episode_score_max"]   = numpy.max(self.episode_score)
 
             infos.append(info)
+
+
 
 
         obs = numpy.array(obs/255.0, dtype=numpy.float32)
         
         dones = numpy.array(terminated | truncated, dtype=numpy.bool)
 
-        return obs, rewards, dones, infos
+        rewards_clip = numpy.clip(rewards, 0.0, 1.0)
+
+
+
+        self.env_log.add("reward_episode_mean", self.episode_score.mean(), 1.0)
+        self.env_log.add("reward_episode_std",  self.episode_score.std(), 1.0)
+        self.env_log.add("reward_episode_min",  self.episode_score.min(), 1.0)
+        self.env_log.add("reward_episode_max",  self.episode_score.max(), 1.0)
+
+        self.env_log.add("explored_rooms", explored_rooms.max(), 1.0)
+      
+
+        return obs, rewards_clip, dones, infos
+    
+
+    def get_logs(self):
+        return [self.env_log]
     
 
     def _init_infos(self):
         self.explored_rooms = []
         for n in range(self.num_envs):
             self.explored_rooms.append({})
+
+
 
         
 # --- Quick Verification Run ---
