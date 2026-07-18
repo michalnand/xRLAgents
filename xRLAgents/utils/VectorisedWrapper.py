@@ -3,7 +3,7 @@ import numpy
 import time
 
 
-class VectorizedRLPipeline:
+class VectorizedAtariWrapper:
     def __init__(self, env_name = "MontezumaRevenge-v5", num_envs=128, room_id_adr = 3):
 
         self.num_envs = num_envs
