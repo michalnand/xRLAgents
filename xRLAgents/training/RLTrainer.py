@@ -19,7 +19,7 @@ class RLTrainer:
 
     def run(self, n_steps, log_period = 128):
         # reset all envs
-        states, _ = self.envs.reset_all()
+        states = self.envs.reset()
 
         # main training loop
         for n in range(n_steps):
