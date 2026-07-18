@@ -11,7 +11,7 @@ dependencies = [
   "matplotlib",
   "numpy",
   "torch"
-  
+  "envpool"
 ]
 
 [project.optional-dependencies]
@@ -19,7 +19,7 @@ all = [
   "numpy",
   "torch"
 ]
-
+ 
 
 [tool.setuptools.packages.find]
 where = ["."]
