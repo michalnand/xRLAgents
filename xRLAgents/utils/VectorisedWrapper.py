@@ -50,6 +50,12 @@ class VectorizedAtariWrapper:
     def step(self, actions):
         # Step all 128 environments instantly in C++
         obs, rewards, terminated, truncated, info = self.env.step(actions)
+
+        obs = numpy.array(obs/255.0, dtype=numpy.float32)
+    
+        rewards_clip = numpy.clip(rewards, 0.0, 1.0)
+
+        dones = numpy.array(terminated | truncated, dtype=numpy.bool)
         
         # Re-implementing your Custom Info Trackers (ExploredRooms / Custom Logic)
         # EnvPool provides 'info' as a dictionary containing batched arrays.
@@ -58,7 +64,7 @@ class VectorizedAtariWrapper:
         ram_buffer  = info["ram"] # Shape: (128, 128) -> All 128 bytes of Atari RAM for 128 envs
         room_ids    = ram_buffer[:, self.room_id_adr].astype(int) # Extract address 3  across all parallel envs
 
-        
+
         infos = []
 
         self.episode_score_curr+= rewards   
@@ -90,14 +96,6 @@ class VectorizedAtariWrapper:
 
             infos.append(info)
 
-
-
-
-        obs = numpy.array(obs/255.0, dtype=numpy.float32)
-        
-        dones = numpy.array(terminated | truncated, dtype=numpy.bool)
-
-        rewards_clip = numpy.clip(rewards, 0.0, 1.0)
 
 
 
