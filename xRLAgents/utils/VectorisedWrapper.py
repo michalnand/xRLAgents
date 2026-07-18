@@ -72,8 +72,8 @@ class VectorizedAtariWrapper:
         explored_rooms_max = 0
 
         for n in range(self.num_envs):
-            if dones[n]:
-                self.episode_score[n] = self.episode_score_curr
+            if dones[n]:        
+                self.episode_score[n] = float(self.episode_score_curr[n])
                 self.episode_score_curr[n] = 0
 
 
@@ -97,7 +97,7 @@ class VectorizedAtariWrapper:
             infos.append(info)
 
 
-            
+
 
         self.env_log.add("reward_episode_mean", self.episode_score.mean(), 1.0)
         self.env_log.add("reward_episode_std",  self.episode_score.std(), 1.0)
