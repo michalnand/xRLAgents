@@ -31,11 +31,11 @@ class VectorizedAtariWrapper:
         # The total number of discrete actions available (e.g., 18 for Atari)
         self.action_dim = int(self.env.action_space.n)
 
-        #self.env_log = ValuesLogger("env")
+        self.env_log = ValuesLogger("env")
+        self.steps = 0
 
         self._init_vars()
 
-        self.steps = 0
 
     def _init_vars(self):
         self.episode_score      = numpy.zeros(self.num_envs)
