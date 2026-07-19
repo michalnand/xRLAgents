@@ -55,6 +55,11 @@ class VectorizedAtariWrapper:
         self.explored_rooms_episode = numpy.zeros(self.num_envs)
 
 
+        self.infos = []
+        for n in range(self.num_envs):
+            self.infos({})
+
+
     def __len__(self):
         return self.num_envs
 
@@ -82,6 +87,8 @@ class VectorizedAtariWrapper:
         # udpate lifelong self.explored_rooms_max and episodic self.explored_rooms_episode
         if self.room_id_adr != -1 and (self.steps%10) == 0:
             self._update_rooms_counter(dones, infos["ram"])
+
+        
       
       
         # udpate logs
@@ -100,7 +107,7 @@ class VectorizedAtariWrapper:
       
         self.steps+= 1
 
-        return obs, rewards_clip, dones, infos
+        return obs, rewards_clip, dones, self.infos
     
 
     def get_logs(self):
@@ -115,7 +122,8 @@ class VectorizedAtariWrapper:
             if dones[n]:        
                 self.episode_score[n] = float(self.episode_score_curr[n])
                 self.episode_score_curr[n] = 0
-            
+
+                self.infos[n]["episode_score"] = self.episode_score[n]
                
 
     def _update_rooms_counter(self, dones, ram_buffer):
@@ -140,6 +148,8 @@ class VectorizedAtariWrapper:
                 self.explored_rooms_episode[n] = len(dict(self.room_id_curr[n]))
 
                 self.room_id_curr[n] = {}
+
+            self.infos[n]["room_id"] = room_id
 
 
 
