@@ -57,7 +57,7 @@ class VectorizedAtariWrapper:
 
         self.infos = []
         for n in range(self.num_envs):
-            self.infos({})
+            self.infos.append({})
 
 
     def __len__(self):
@@ -88,7 +88,7 @@ class VectorizedAtariWrapper:
         if self.room_id_adr != -1 and (self.steps%10) == 0:
             self._update_rooms_counter(dones, infos["ram"])
 
-        
+
       
       
         # udpate logs
