@@ -7,9 +7,8 @@ from ..training.ValuesLogger           import *
 class VectorizedAtariWrapper:
     def __init__(self, env_name = "MontezumaRevenge-v5", num_envs=128, room_id_adr = 3):
 
-        self.num_envs = num_envs
+        self.num_envs    = num_envs
         self.room_id_adr = room_id_adr
-        self._init_infos()
         
         # 1. Initialize hyper-optimized C++ backend
         self.env = envpool.make_gymnasium(
@@ -32,10 +31,29 @@ class VectorizedAtariWrapper:
         # The total number of discrete actions available (e.g., 18 for Atari)
         self.action_dim = int(self.env.action_space.n)
 
-        self.env_log = ValuesLogger("env")
+        #self.env_log = ValuesLogger("env")
 
-        self.episode_score_curr = numpy.zeros(self.num_envs)
+        self._init_vars()
+
+        self.steps = 0
+
+    def _init_vars(self):
         self.episode_score      = numpy.zeros(self.num_envs)
+        self.episode_score_curr = numpy.zeros(self.num_envs)
+
+        # lifelong visited rooms IDs
+        self.room_id_all = {}
+
+        self.room_id_curr = [] 
+        for n in range(self.num_envs):
+            self.room_id_curr.append({})
+
+        self.explored_rooms = [] 
+        for n in range(self.num_envs):
+            self.explored_rooms.append({})
+
+        self.explored_rooms_episode = numpy.zeros(self.num_envs)
+
 
     def __len__(self):
         return self.num_envs
@@ -49,63 +67,38 @@ class VectorizedAtariWrapper:
 
     def step(self, actions):
         # Step all 128 environments instantly in C++
-        obs, rewards, terminated, truncated, info = self.env.step(actions)
+        obs, rewards, terminated, truncated, infos = self.env.step(actions)
 
         obs = numpy.array(obs/255.0, dtype=numpy.float32)
     
         rewards_clip = numpy.clip(rewards, 0.0, 1.0)
 
         dones = numpy.array(terminated | truncated, dtype=numpy.bool)
-        
-        # Re-implementing your Custom Info Trackers (ExploredRooms / Custom Logic)
-        # EnvPool provides 'info' as a dictionary containing batched arrays.
-        # Inside Montezuma, RAM address 3 contains the room ID.
-        # We extract this from EnvPool's built-in batched RAM tracking.
-        ram_buffer  = info["ram"] # Shape: (128, 128) -> All 128 bytes of Atari RAM for 128 envs
-        room_ids    = ram_buffer[:, self.room_id_adr].astype(int) # Extract address 3  across all parallel envs
+       
+        # score holded in self.episode_score
+        self._update_score(rewards, dones)
 
 
-        infos = []
-
-        self.episode_score_curr+= rewards   
-
-        explored_rooms_max = 0
-
-        for n in range(self.num_envs):
-            if dones[n]:        
-                self.episode_score[n] = float(self.episode_score_curr[n])
-                self.episode_score_curr[n] = 0
-
-
-            room_id = room_ids[n]
-            if room_id not in self.explored_rooms[n]:
-                self.explored_rooms[n][room_id] = 1
-            else:
-                self.explored_rooms[n][room_id]+= 1
-
-            explored_rooms_count = len(self.explored_rooms[n])
-
-            if explored_rooms_count > explored_rooms_max:
-                explored_rooms_max = int(explored_rooms_count)
-            
-            info = {}
-            info["room_id"] = int(room_id)
-            info["explored_rooms"]      = explored_rooms_count
-            info["episode_score"]       = self.episode_score[n]
-            info["episode_score_max"]   = numpy.max(self.episode_score)
-
-            infos.append(info)
-
-
-
-
+        # udpate lifelong self.explored_rooms_max and episodic self.explored_rooms_episode
+        if self.room_id_adr != -1 and (self.steps%10) == 0:
+            self._update_rooms_counter(dones, infos["ram"])
+      
+      
+        # udpate logs
         self.env_log.add("reward_episode_mean", self.episode_score.mean(), 1.0)
         self.env_log.add("reward_episode_std",  self.episode_score.std(), 1.0)
         self.env_log.add("reward_episode_min",  self.episode_score.min(), 1.0)
         self.env_log.add("reward_episode_max",  self.episode_score.max(), 1.0)
 
-        self.env_log.add("explored_rooms", explored_rooms_max, 1.0)
+
+        self.env_log.add("explored_rooms", len(self.room_id_all), 1.0)
+        self.env_log.add("explored_rooms_episode_mean", self.explored_rooms_episode.mean(), 1.0)
+        self.env_log.add("explored_rooms_episode_std", self.explored_rooms_episode.std(), 1.0)
+        self.env_log.add("explored_rooms_episode_min", self.explored_rooms_episode.min(), 1.0)
+        self.env_log.add("explored_rooms_episode_max", self.explored_rooms_episode.max(), 1.0)
+
       
+        self.steps+= 1
 
         return obs, rewards_clip, dones, infos
     
@@ -114,20 +107,49 @@ class VectorizedAtariWrapper:
         return [self.env_log]
     
 
-    def _init_infos(self):
-        self.explored_rooms = []
+    def _update_score(self, rewards, dones):
+        # update episode raw score info
+        self.episode_score_curr+= rewards   
+
         for n in range(self.num_envs):
-            self.explored_rooms.append({})
+            if dones[n]:        
+                self.episode_score[n] = float(self.episode_score_curr[n])
+                self.episode_score_curr[n] = 0
+            
+               
+
+    def _update_rooms_counter(self, dones, ram_buffer):
+
+      
+        
+        # Extract address 3 (montezuma revenge)  across all parallel envs
+        room_ids    = ram_buffer[:, self.room_id_adr].astype(int)
+
+
+        for n in range(self.num_envs):
+            room_id = room_ids[n]
+
+            # global lifelong stats
+            self.room_id_all[room_id] = 1
+
+            # episodic room IDs
+            self.room_id_curr[n][room_id] = 1
+            
+            if dones[n]:
+                self.explored_rooms[n] = dict(self.room_id_curr[n])
+                self.explored_rooms_episode[n] = len(dict(self.room_id_curr[n]))
+
+                self.room_id_curr[n] = {}
 
 
 
         
 # --- Quick Verification Run ---
 if __name__ == "__main__":
-    pipeline = VectorizedRLPipeline(num_envs=128)
+    envs = VectorizedAtariWrapper("MontezumaRevenge-v5", 128)
 
     
-    obs, info = pipeline.reset()
+    obs = envs.reset()
     print("Initial Batch Tensor Shape:", obs.shape) # Output: torch.Size([128, 4, 96, 96])
 
     # Sample loop
@@ -135,7 +157,7 @@ if __name__ == "__main__":
     for n in range(500):
         time_start = time.time()
         random_actions = numpy.random.randint(0, 18, size=128) # Atari has 18 discrete actions
-        obs, rewards, dones, infos = pipeline.step(random_actions)
+        obs, rewards, dones, infos = envs.step(random_actions)
 
         time_stop = time.time()
 
@@ -145,7 +167,8 @@ if __name__ == "__main__":
 
         if (n%20) == 0:
             print("fps ", round(fps, 2))
-            print(f"Current Room ID for Env #0: {infos[0]['room_id']}")
+            print("all explored rooms ", len(envs.room_id_all))
+            print("curr explored rooms ", envs.explored_rooms_episode.max(), envs.explored_rooms_episode.mean())
             print("obs ", obs.shape)
             print("rewards ", rewards.shape)
             print("dones ", dones.shape)
