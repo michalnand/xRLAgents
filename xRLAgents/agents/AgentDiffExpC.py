@@ -65,11 +65,11 @@ class AgentDiffExpC():
         else:
             self.reward_shaping = None  
 
-       
-        self.n_envs         = len(envs)
-        self.state_shape    = self.envs.observation_space.shape
+    
+        self.n_envs         = len(self.envs)
+        self.state_shape    = self.envs.obs_shape
 
-        self.actions_count  = self.envs.action_space.n
+        self.actions_count  = self.envs.action_dim
 
         # create mdoel
         if self.rnn_policy:
@@ -89,18 +89,14 @@ class AgentDiffExpC():
 
         # optional, for state mean and variance normalisation
         if self.state_normalise:
-            self.state_mean  = torch.zeros((self.state_shape[1], self.state_shape[2]), dtype=self.dtype, device=self.device)
+            states = self.envs.reset()
+            states = states[:, 0]
 
-            for e in range(self.n_envs):
-                state, _ = self.envs.reset(e)
-                self.state_mean+= torch.from_numpy(state[0]).to(self.dtype).to(self.device)
-
-            self.state_mean/= self.n_envs
-            self.state_var = torch.ones(self.state_mean.shape, dtype=self.dtype, device=self.device)
+            self.state_mean = torch.from_numpy(states.mean(axis=0)).to(self.dtype).to(self.device)
+            self.state_var  = torch.ones(self.state_mean.shape, dtype=self.dtype, device=self.device)
         else:
-            for e in range(self.n_envs):
-                state, _ = self.envs.reset(e)
-        
+            states = self.envs.reset()
+      
         if self.rnn_policy:
             self.hidden_state_t = torch.zeros((self.n_envs, ) + self.rnn_shape).to(self.dtype).to(self.device)
 
