@@ -1,6 +1,5 @@
 import torch 
 import numpy
-import os
 
 from .TrajectoryBufferIM  import *
 from ..training.ValuesLogger           import *
@@ -35,7 +34,10 @@ class AgentDiffExp():
         self.reward_ext_coeff   = config.reward_ext_coeff
         self.reward_int_coeff   = config.reward_int_coeff
 
-
+        if hasattr(config, "z_scaling"):
+            self.z_scaling      = config.z_scaling
+        else:
+            self.z_scaling      = 1.0
 
         self.steps              = config.steps
         self.batch_size         = config.batch_size
@@ -52,7 +54,10 @@ class AgentDiffExp():
         self.alpha_inf            = config.alpha_inf
         self.denoising_steps      = config.denoising_steps
         
+
+        self.time_distances       = config.time_distances
         
+        self.state_normalise        = config.state_normalise
 
         if hasattr(config, "rnn_policy"):
             self.rnn_policy         = config.rnn_policy
@@ -61,7 +66,12 @@ class AgentDiffExp():
             self.rnn_policy         = False
             self.rnn_shape          = None
         
+        if hasattr(config, "reward_shaping"):
+            self.reward_shaping = config.reward_shaping
+        else:
+            self.reward_shaping = None  
 
+       
         self.n_envs         = len(self.envs)
         self.state_shape    = self.envs.obs_shape
 
@@ -83,7 +93,15 @@ class AgentDiffExp():
 
         self.trajectory_buffer = TrajectoryBufferIM(self.steps, self.n_envs)
 
-        states = self.envs.reset()
+        # optional, for state mean and variance normalisation
+        if self.state_normalise:
+            states = self.envs.reset()
+            states = states[:, 0]
+
+            self.state_mean = torch.from_numpy(states.mean(axis=0)).to(self.dtype).to(self.device)
+            self.state_var  = torch.ones(self.state_mean.shape, dtype=self.dtype, device=self.device)
+        else:
+            states = self.envs.reset()
             
         if self.rnn_policy:
             self.hidden_state_t = torch.zeros((self.n_envs, ) + self.rnn_shape).to(self.dtype).to(self.device)
@@ -136,6 +154,7 @@ class AgentDiffExp():
         print("alpha_max            ", self.alpha_max)
         print("alpha_inf            ", self.alpha_inf)
         print("denoising_steps      ", self.denoising_steps)
+        print("time_distances       ", self.time_distances)
         print("state_normalise      ", self.state_normalise)
 
         print("rnn_policy           ", self.rnn_policy)
@@ -148,6 +167,10 @@ class AgentDiffExp():
         states_t = torch.from_numpy(states).to(self.dtype).to(self.device)
 
 
+        if self.state_normalise:
+            self._update_normalisation(states_t, alpha = 0.99)
+            states_t = self._state_normalise(states_t)
+
         # obtain model output, logits and values, use abstract state space z
         if self.rnn_policy:
             logits_t, values_ext_t, values_int_t, hidden_state_new = self.model.forward(states_t, self.hidden_state_t)
@@ -159,14 +182,17 @@ class AgentDiffExp():
         # environment step  
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
-        rewards_ext_scaled = self.reward_ext_coeff*rewards_ext
+        # optional rewards shaping
+        if self.reward_shaping is not None:
+            rewards_ext_scaled = self.reward_ext_coeff*self.reward_shaping(states, rewards_ext, infos)
+        else:
+            rewards_ext_scaled = self.reward_ext_coeff*rewards_ext
 
-
-        # internal motivation based on diffusion
+    
+        # internal motivaiotn based on diffusion
         rewards_int, _     = self._internal_motivation(states_t, self.alpha_inf, self.alpha_inf, self.denoising_steps)
         rewards_int        = rewards_int.float().detach().cpu().numpy()
 
-        # clipping
         rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
 
         
@@ -190,7 +216,9 @@ class AgentDiffExp():
                     self.saving_enabled = False
 
                 self.trajectory_buffer.compute_returns(self.gamma_ext, self.gamma_int)
+                
                 self.train()
+
                 self.trajectory_buffer.clear()
 
         
@@ -231,18 +259,13 @@ class AgentDiffExp():
         self.model.load_state_dict(torch.load(result_path + "/model.pt", map_location = self.device))
 
     def save_features(self):
-        features_path = self.result_path + "/features/"
-        if not os.path.exists(features_path):
-            os.makedirs(features_path)
-
-        print("saving features to ", features_path, " in step ", self.iterations)
+        print("saving features to ", self.result_path, " in step ", self.iterations)
 
         # obtain features from current buffer
-        # we save total steps, n_envs, feature
-        z_ppo       = []
-        z_im        = []
-        z_denoised  = []
-
+        # we save total steps*n_envs features (e.g. 128x128)
+        z_ppo = []
+        z_im  = []
+        z_denoised = []
         for n in range(self.steps):
             x = self.trajectory_buffer.buffer["states"][n]  
             x = x.to(device=self.device, dtype=self.dtype)
@@ -262,38 +285,30 @@ class AgentDiffExp():
             z_denoised.append(z_hat.detach().cpu().float().numpy())
 
         # save features as numpy array
-        z_ppo       = numpy.array(z_ppo)
-        z_im        = numpy.array(z_im)
-        z_denoised  = numpy.array(z_denoised)
+        z_ppo = numpy.array(z_ppo)
+        z_im  = numpy.array(z_im)
+        z_denoised = numpy.array(z_denoised)
 
-        f_name = features_path + "/z_ppo_" + str(self.iterations) + ".npy"
+        f_name = self.result_path + "/z_ppo_" + str(self.iterations) + ".npy"
         numpy.save(f_name, z_ppo)
 
-        f_name = features_path + "/z_im_" + str(self.iterations) + ".npy"
+        f_name = self.result_path + "/z_im_" + str(self.iterations) + ".npy"
         numpy.save(f_name, z_im)    
 
-        f_name = features_path + "/z_denoised_" + str(self.iterations) + ".npy"
+        f_name = self.result_path + "/z_denoised_" + str(self.iterations) + ".npy"
         numpy.save(f_name, z_denoised)      
 
         # save episode steps count
-        steps = self.trajectory_buffer.buffer["steps"]
-        steps = steps.detach().cpu().int().numpy()
-        f_name = features_path + "/steps_" + str(self.iterations) + ".npy"
+        steps = []
+        for n in range(self.steps): 
+            s = self.trajectory_buffer.buffer["steps"][n]
+            s = s.detach().cpu().int().numpy()
+            steps.append(s) 
+
+        steps = numpy.array(steps)
+
+        f_name = self.result_path + "/steps_" + str(self.iterations) + ".npy"
         numpy.save(f_name, steps)
-
-        # save rewards
-        rewards_ext  = self.trajectory_buffer.buffer["rewards_ext"]
-        rewards_ext  = rewards_ext.detach().cpu().float().numpy()
-
-        rewards_int  = self.trajectory_buffer.buffer["rewards_int"]
-        rewards_int  = rewards_int.detach().cpu().float().numpy()
-
-        f_name = features_path + "/rewards_ext_" + str(self.iterations) + ".npy"
-        numpy.save(f_name, rewards_ext)
-
-        f_name = features_path + "/rewards_int_" + str(self.iterations) + ".npy"
-        numpy.save(f_name, rewards_int)
-        
 
 
         if len(self.room_ids) > 0:
@@ -301,7 +316,7 @@ class AgentDiffExp():
             room_ids = numpy.array(self.room_ids)
             room_ids = room_ids[-count:, :]
 
-            f_name = features_path + "/rooms_" + str(self.iterations) + ".npy"
+            f_name = self.result_path + "/rooms_" + str(self.iterations) + ".npy"
             numpy.save(f_name, room_ids)
 
             self.room_ids = []
@@ -309,12 +324,10 @@ class AgentDiffExp():
             print("room_ids  ", room_ids.shape)
 
 
-        print("z_ppo        ", z_ppo.shape)  
-        print("z_im         ", z_im.shape)  
-        print("z_denoised   ", z_denoised.shape) 
-        print("rewards_ext  ", rewards_ext.shape)  
-        print("rewards_int  ", rewards_int.shape)  
-        print("steps        ", steps.shape)  
+        print("z_ppo  ", z_ppo.shape)  
+        print("z_im   ", z_im.shape)  
+        print("z_denoised   ", z_denoised.shape)  
+        print("steps  ", steps.shape)  
 
         print("features saved\n\n")
 
@@ -364,9 +377,23 @@ class AgentDiffExp():
                 _, loss_diffusion  = self._internal_motivation(states, self.alpha_min, self.alpha_max, 1)
 
                 #self supervised target regularisation
-                states_curr, states_next, actions = self.trajectory_buffer.sample_states_pairs(self.ss_batch_size, self.device)
+                states_seq, labels = self.trajectory_buffer.sample_states_seq(self.ss_batch_size, self.time_distances, self.device)
 
-                loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_curr, states_next, actions)
+                # single frame input for internal motivation
+                # dont use frame stacking, just copy current frame
+                if self.im_single_frame:   
+                    states_seq_tmp = []
+
+                    for n in range(len(states_seq)):                
+                        tmp = torch.zeros_like(states_seq[n])
+                        tmp[:, :] = states_seq[n][:, 0].unsqueeze(1)
+
+                        states_seq_tmp.append(tmp)
+                else:
+                    states_seq_tmp = states_seq     
+
+
+                loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_seq_tmp, labels)
 
                 # total loss    
                 loss = loss_ppo + loss_diffusion + loss_ssl
@@ -407,8 +434,17 @@ class AgentDiffExp():
 
     # state denoising ability novely detection
     def _internal_motivation(self, states, alpha_min, alpha_max, denoising_steps):
+      
+        # single frame input for internal motivation
+        # dont use frame stacking, just copy current frame
+        if self.im_single_frame:
+            states_tmp = torch.zeros_like(states)
+            states_tmp[:, :] = states[:, 0].unsqueeze(1)
+        else:
+            states_tmp = states
+
         # obtain taget features from states and noised states
-        _, z_target  = self.model.forward_features(states)
+        _, z_target  = self.model.forward_features(states_tmp)
         z_target     = self.z_scaling*z_target.detach()
 
         # add noise into features
@@ -516,7 +552,23 @@ class AgentDiffExp():
         loss_entropy = entropy_beta*loss_entropy.mean()
 
         return loss_policy, loss_entropy
+
+
+
+    #update running stats when training enabled
+    def _update_normalisation(self, states, alpha = 0.99):
+        mean = states.mean(dim=(0, 1))
+        self.state_mean = alpha*self.state_mean + (1.0 - alpha)*mean
+
+        var = ((states - mean)**2).mean(dim=(0, 1))
+        self.state_var  = alpha*self.state_var + (1.0 - alpha)*var 
+
+    #normalise mean and variance
+    def _state_normalise(self, states):     
+        states_norm = (states - self.state_mean)/(torch.sqrt(self.state_var) + 10**-6)
+        states_norm = torch.clip(states_norm, -4.0, 4.0)
     
+        return states_norm  
 
     def _process_room_ids(self, infos):
         result = numpy.zeros(len(infos), dtype=int)

@@ -232,7 +232,7 @@ class SIGRegLoss(torch.nn.Module):
         stat = err @ self.weights.to(device)  # (M,)
 
         # 7. scale by sample size (important!)
-        stat = stat * B
+        #stat = stat * B
 
         # 8. average over projections
         return stat.mean()
