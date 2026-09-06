@@ -46,7 +46,6 @@ class AgentDiffExp():
         learning_rate             = config.learning_rate
         self.im_ssl_loss          = config.im_ssl_loss
         self.im_noise             = config.im_noise
-        self.im_single_frame      = config.im_single_frame
         self.alpha_min            = config.alpha_min
         self.alpha_max            = config.alpha_max
         self.alpha_inf            = config.alpha_inf
@@ -123,7 +122,6 @@ class AgentDiffExp():
         print("val_coeff            ", self.val_coeff)
         print("reward_ext_coeff     ", self.reward_ext_coeff)
         print("reward_int_coeff     ", self.reward_int_coeff)
-        print("z_scaling            ", self.z_scaling)
         print("steps                ", self.steps)
         print("batch_size           ", self.batch_size)
         print("ss_batch_size        ", self.ss_batch_size)
@@ -131,12 +129,10 @@ class AgentDiffExp():
         print("learning_rate        ", learning_rate)
         print("im_ssl_loss          ", self.im_ssl_loss)
         print("im_noise             ", self.im_noise)
-        print("im_single_frame      ", self.im_single_frame)
         print("alpha_min            ", self.alpha_min)
         print("alpha_max            ", self.alpha_max)
         print("alpha_inf            ", self.alpha_inf)
         print("denoising_steps      ", self.denoising_steps)
-        print("state_normalise      ", self.state_normalise)
 
         print("rnn_policy           ", self.rnn_policy)
         print("rnn_shape            ", self.rnn_shape)  
@@ -409,7 +405,7 @@ class AgentDiffExp():
     def _internal_motivation(self, states, alpha_min, alpha_max, denoising_steps):
         # obtain taget features from states and noised states
         _, z_target  = self.model.forward_features(states)
-        z_target     = self.z_scaling*z_target.detach()
+        z_target     = z_target.detach()
 
         # add noise into features
         z_noised, noise, alpha = self.im_noise(z_target, alpha_min, alpha_max)
