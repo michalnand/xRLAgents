@@ -50,6 +50,10 @@ class AgentDiffExp():
         self.alpha_max            = config.alpha_max
         self.alpha_inf            = config.alpha_inf
         self.denoising_steps      = config.denoising_steps
+
+        self.w_ppo                = config.w_ppo
+        self.w_ssl                = config.w_ssl
+        self.w_diffusion          = config.w_diffusion
         
         
 
@@ -133,6 +137,10 @@ class AgentDiffExp():
         print("alpha_max            ", self.alpha_max)
         print("alpha_inf            ", self.alpha_inf)
         print("denoising_steps      ", self.denoising_steps)
+
+        print("w_ppo                ", self.w_ppo)
+        print("w_ssl                ", self.w_ssl)
+        print("w_diffusion          ", self.w_diffusion)
 
         print("rnn_policy           ", self.rnn_policy)
         print("rnn_shape            ", self.rnn_shape)  
@@ -365,8 +373,9 @@ class AgentDiffExp():
                 loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_curr, states_next, actions)
 
                 # total loss    
-                loss = loss_ppo + loss_diffusion + loss_ssl
+                loss = self.w_ppo*loss_ppo + self.w_diffusion*loss_diffusion + self.w_ssl*loss_ssl
 
+                
                 self.optimizer.zero_grad()        
                 loss.backward()
 
