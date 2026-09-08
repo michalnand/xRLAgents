@@ -56,6 +56,7 @@ class AgentDiffExpB():
         self.w_diffusion          = config.w_diffusion
         
         self.dist_max             = config.dist_max
+        self.state_normalize      = config.state_normalize
 
         if hasattr(config, "rnn_policy"):
             self.rnn_policy         = config.rnn_policy
@@ -143,9 +144,13 @@ class AgentDiffExpB():
         print("w_diffusion          ", self.w_diffusion)
 
         print("dist_max             ", self.dist_max)
+        print("state_normalize      ", self.state_normalize)  
 
         print("rnn_policy           ", self.rnn_policy)
         print("rnn_shape            ", self.rnn_shape)  
+        
+
+
         
         print("\n\n")
         
@@ -153,6 +158,8 @@ class AgentDiffExpB():
     def step(self, states, training_enabled):     
         states_t = torch.from_numpy(states).to(self.dtype).to(self.device)
 
+        if self.state_normalize:
+            states_t = self._states_normalize(states_t)
 
         # obtain model output, logits and values, use abstract state space z
         if self.rnn_policy:
@@ -400,7 +407,17 @@ class AgentDiffExpB():
 
 
          
-        
+    def _states_normalize(self, states_t):
+
+        anchor = states_t[:, 0, :, :].unsqueeze(1)
+
+        past_frames = states_t[:, 1:, :, :]
+
+        differences = past_frames - anchor
+
+        result = torch.cat([anchor, differences], dim=1)
+    
+        return result
         
 
     # sample action, probs computed from logits
