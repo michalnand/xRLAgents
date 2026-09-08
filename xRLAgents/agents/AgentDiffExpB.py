@@ -372,7 +372,7 @@ class AgentDiffExpB():
                 #self supervised target regularisation
                 states_curr, states_next, distances = self.trajectory_buffer.sample_causal_states(self.ss_batch_size, self.dist_max, self.device)
 
-                distances = (distances/self.dist_max).float()
+                distances = (distances/self.dist_max).float().unsqueeze(1) 
 
                 loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_curr, states_next, distances)
 
