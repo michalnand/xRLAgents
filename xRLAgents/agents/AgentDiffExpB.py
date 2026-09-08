@@ -73,9 +73,9 @@ class AgentDiffExpB():
 
         # create mdoel
         if self.rnn_policy:
-            self.model = Model(self.state_shape, self.actions_count, self.dist_max, self.rnn_shape)
+            self.model = Model(self.state_shape, self.actions_count, self.dist_max + 1, self.rnn_shape)
         else:
-            self.model = Model(self.state_shape, self.actions_count, self.dist_max)
+            self.model = Model(self.state_shape, self.actions_count, self.dist_max + 1)
 
         self.model.to(self.device)
         
@@ -379,8 +379,6 @@ class AgentDiffExpB():
                 #self supervised target regularisation
                 states_curr, states_next, distances = self.trajectory_buffer.sample_causal_states(self.ss_batch_size, self.dist_max, self.device)
 
-                print(distances)
-                distances = (distances/self.dist_max).float().unsqueeze(1) 
 
                 loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_curr, states_next, distances)
 
