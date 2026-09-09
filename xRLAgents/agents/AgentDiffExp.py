@@ -51,7 +51,7 @@ class AgentDiffExp():
         self.alpha_max            = config.alpha_max
         self.alpha_inf            = config.alpha_inf
         self.denoising_steps      = config.denoising_steps
-
+        
         self.w_ppo                = config.w_ppo
         self.w_ssl                = config.w_ssl
         self.w_diffusion          = config.w_diffusion
