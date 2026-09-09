@@ -2,8 +2,8 @@ import torch
 import numpy
 import os
 
-from .TrajectoryBufferIM  import *
-from ..training.ValuesLogger           import *
+from .TrajectoryBufferIM            import *
+from ..training.ValuesLogger        import *
 
 
 
@@ -46,6 +46,7 @@ class AgentDiffExp():
         learning_rate             = config.learning_rate
         self.im_ssl_loss          = config.im_ssl_loss
         self.im_noise             = config.im_noise
+        self.im_single_frame      = config.im_single_frame
         self.alpha_min            = config.alpha_min
         self.alpha_max            = config.alpha_max
         self.alpha_inf            = config.alpha_inf
@@ -55,7 +56,8 @@ class AgentDiffExp():
         self.w_ssl                = config.w_ssl
         self.w_diffusion          = config.w_diffusion
         
-        
+        self.dist_max             = config.dist_max
+        self.state_normalization  = config.state_normalization
 
         if hasattr(config, "rnn_policy"):
             self.rnn_policy         = config.rnn_policy
@@ -72,9 +74,9 @@ class AgentDiffExp():
 
         # create mdoel
         if self.rnn_policy:
-            self.model = Model(self.state_shape, self.actions_count, self.rnn_shape)
+            self.model = Model(self.state_shape, self.actions_count, self.dist_max + 2, self.rnn_shape)
         else:
-            self.model = Model(self.state_shape, self.actions_count)
+            self.model = Model(self.state_shape, self.actions_count, self.dist_max + 2)
 
         self.model.to(self.device)
         
@@ -86,8 +88,16 @@ class AgentDiffExp():
 
         self.trajectory_buffer = TrajectoryBufferIM(self.steps, self.n_envs)
 
-        states = self.envs.reset()
-            
+
+        # reset envs and obtains stats for states normalisation (optional)
+        states      = self.envs.reset()
+        states_tmp  = states[:, 0]
+        
+        self.state_mean = torch.from_numpy(states_tmp.mean(axis=0)).to(self.dtype).to(self.device)
+        self.state_var  = torch.ones(self.state_mean.shape, dtype=self.dtype, device=self.device)
+
+
+        
         if self.rnn_policy:
             self.hidden_state_t = torch.zeros((self.n_envs, ) + self.rnn_shape).to(self.dtype).to(self.device)
 
@@ -133,6 +143,7 @@ class AgentDiffExp():
         print("learning_rate        ", learning_rate)
         print("im_ssl_loss          ", self.im_ssl_loss)
         print("im_noise             ", self.im_noise)
+        print("im_single_frame      ", self.im_single_frame)
         print("alpha_min            ", self.alpha_min)
         print("alpha_max            ", self.alpha_max)
         print("alpha_inf            ", self.alpha_inf)
@@ -142,8 +153,14 @@ class AgentDiffExp():
         print("w_ssl                ", self.w_ssl)
         print("w_diffusion          ", self.w_diffusion)
 
+        print("dist_max             ", self.dist_max)
+        print("state_normalization  ", self.state_normalization)  
+
         print("rnn_policy           ", self.rnn_policy)
         print("rnn_shape            ", self.rnn_shape)  
+        
+
+
         
         print("\n\n")
         
@@ -151,6 +168,19 @@ class AgentDiffExp():
     def step(self, states, training_enabled):     
         states_t = torch.from_numpy(states).to(self.dtype).to(self.device)
 
+
+        if self.state_normalization != None:
+            self._update_normalisation(states_t, alpha = 0.99)
+
+            if self.state_normalization == "ema":
+                states_t = self._states_normalise_ema(states_t)
+            elif self.state_normalization == "diff":
+                states_t = self._states_normalize_diff(states_t)
+            elif self.state_normalization == "diff_ema":
+                states_t = self._states_normalize_diff_ema(states_t)
+            else:
+                raise ValueError("Unsupported state normalization " + str(self.state_normalization))
+                    
 
         # obtain model output, logits and values, use abstract state space z
         if self.rnn_policy:
@@ -368,9 +398,22 @@ class AgentDiffExp():
                 _, loss_diffusion  = self._internal_motivation(states, self.alpha_min, self.alpha_max, 1)
 
                 #self supervised target regularisation
-                states_curr, states_next, actions = self.trajectory_buffer.sample_states_pairs(self.ss_batch_size, self.device)
+                states_curr, states_next, distances = self.trajectory_buffer.sample_causal_states(self.ss_batch_size, self.dist_max, self.device)
 
-                loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_curr, states_next, actions)
+
+                # single frame input for internal motivation
+                # dont use frame stacking, just copy current frame
+                if self.im_single_frame:                                    
+                    states_curr_tmp       = torch.zeros_like(states_curr)
+                    states_curr_tmp[:, :] = states_curr[:, 0].unsqueeze(1)
+
+                    states_next_tmp       = torch.zeros_like(states_next)
+                    states_next_tmp[:, :] = states_next[:, 0].unsqueeze(1)
+                else:
+                    states_curr_tmp = states_curr
+                    states_next_tmp = states_next     
+
+                loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_curr_tmp, states_next_tmp, distances)
 
                 # total loss    
                 loss = self.w_ppo*loss_ppo + self.w_diffusion*loss_diffusion + self.w_ssl*loss_ssl
@@ -396,8 +439,45 @@ class AgentDiffExp():
 
 
          
-        
-        
+   
+
+
+    
+    #update running stats when training enabled
+    def _update_normalisation(self, states, alpha = 0.99):
+        mean = states.mean(dim=(0, 1))
+        self.state_mean = alpha*self.state_mean + (1.0 - alpha)*mean
+
+        var = ((states - mean)**2).mean(dim=(0, 1))
+        self.state_var  = alpha*self.state_var + (1.0 - alpha)*var 
+
+    #normalise mean and variance
+    def _states_normalise_ema(self, states):     
+        states_norm = (states - self.state_mean)/(torch.sqrt(self.state_var) + 10**-6)
+        states_norm = torch.clip(states_norm, -4.0, 4.0)
+    
+        return states_norm  
+
+    def _states_normalize_diff(self, states):
+        anchor = states[:, 0, :, :].unsqueeze(1)
+
+        past_frames = states[:, 1:, :, :]
+        differences = past_frames - anchor
+        result = torch.cat([anchor, differences], dim=1)
+    
+        return result
+
+    def _states_normalize_diff_ema(self, states):
+        states_ema = self._states_normalise_ema(states)
+
+        anchor = states_ema[:, 0, :, :].unsqueeze(1)
+    
+        past_frames = states_ema[:, 1:, :, :]
+        differences = past_frames - anchor
+        result = torch.cat([anchor, differences], dim=1)
+    
+        return result
+
 
     # sample action, probs computed from logits
     def _sample_actions(self, logits):
@@ -412,8 +492,18 @@ class AgentDiffExp():
 
     # state denoising ability novely detection
     def _internal_motivation(self, states, alpha_min, alpha_max, denoising_steps):
+
+        # single frame input for internal motivation
+        # dont use frame stacking, just copy current frame
+        if self.im_single_frame:                                    
+            states_tmp       = torch.zeros_like(states)
+            states_tmp[:, :] = states[:, 0].unsqueeze(1)
+        else:
+            states_tmp = states
+            
+        
         # obtain taget features from states and noised states
-        _, z_target  = self.model.forward_features(states)
+        _, z_target  = self.model.forward_features(states_tmp)
         z_target     = z_target.detach()
 
         # add noise into features
