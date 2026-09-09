@@ -173,7 +173,7 @@ class AgentDiffExpB():
             self._update_normalisation(states_t, alpha = 0.99)
 
             if self.state_normalization == "ema":
-                states_t = self._state_normalise_ema(states_t)
+                states_t = self._states_normalise_ema(states_t)
             elif self.state_normalization == "diff":
                 states_t = self._states_normalize_diff(states_t)
             elif self.state_normalization == "diff_ema":
@@ -181,7 +181,7 @@ class AgentDiffExpB():
             else:
                 raise ValueError("Unsupported state normalization " + str(self.state_normalization))
 
-            
+
             states_t = self._state_normalise(states_t)
         
 
@@ -443,7 +443,7 @@ class AgentDiffExpB():
         self.state_var  = alpha*self.state_var + (1.0 - alpha)*var 
 
     #normalise mean and variance
-    def _state_normalise_ema(self, states):     
+    def _states_normalise_ema(self, states):     
         states_norm = (states - self.state_mean)/(torch.sqrt(self.state_var) + 10**-6)
         states_norm = torch.clip(states_norm, -4.0, 4.0)
     
@@ -459,7 +459,7 @@ class AgentDiffExpB():
         return result
 
     def _states_normalize_diff_ema(self, states):
-        states_ema = _state_normalise_ema(states)
+        states_ema = _states_normalise_ema(states)
 
         anchor = states_ema[:, 0, :, :].unsqueeze(1)
     
