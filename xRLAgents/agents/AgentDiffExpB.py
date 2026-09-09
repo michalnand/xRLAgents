@@ -56,7 +56,7 @@ class AgentDiffExpB():
         self.w_diffusion          = config.w_diffusion
         
         self.dist_max             = config.dist_max
-        self.state_normalize      = config.state_normalize
+        self.state_normalization  = config.state_normalization
 
         if hasattr(config, "rnn_policy"):
             self.rnn_policy         = config.rnn_policy
@@ -87,8 +87,16 @@ class AgentDiffExpB():
 
         self.trajectory_buffer = TrajectoryBufferIM(self.steps, self.n_envs)
 
+
+        # reset envs and obtains stats for states normalisation (optional)
         states = self.envs.reset()
-            
+        states_tmp = states[:, 0]
+        
+        self.state_mean = torch.from_numpy(states_tmp.mean(axis=0)).to(self.dtype).to(self.device)
+        self.state_var  = torch.ones(self.state_mean.shape, dtype=self.dtype, device=self.device)
+
+
+        
         if self.rnn_policy:
             self.hidden_state_t = torch.zeros((self.n_envs, ) + self.rnn_shape).to(self.dtype).to(self.device)
 
@@ -144,7 +152,7 @@ class AgentDiffExpB():
         print("w_diffusion          ", self.w_diffusion)
 
         print("dist_max             ", self.dist_max)
-        print("state_normalize      ", self.state_normalize)  
+        print("state_normalization      ", self.state_normalization)  
 
         print("rnn_policy           ", self.rnn_policy)
         print("rnn_shape            ", self.rnn_shape)  
@@ -158,8 +166,24 @@ class AgentDiffExpB():
     def step(self, states, training_enabled):     
         states_t = torch.from_numpy(states).to(self.dtype).to(self.device)
 
-        if self.state_normalize:
+        if self.state_normalization:
             states_t = self._states_normalize(states_t)
+
+        if self.state_normalization != None:
+            self._update_normalisation(states_t, alpha = 0.99)
+
+            if self.state_normalization == "ema":
+                states_t = self._state_normalise_ema(states_t)
+            elif self.state_normalization == "diff":
+                states_t = self._states_normalize_diff(states_t)
+            elif self.state_normalization == "diff_ema":
+                states_t = self._states_normalize_diff_ema(states_t)
+            else:
+                raise ValueError("Unsupported state normalization " + str(self.state_normalization))
+
+            
+            states_t = self._state_normalise(states_t)
+        
 
         # obtain model output, logits and values, use abstract state space z
         if self.rnn_policy:
@@ -406,18 +430,45 @@ class AgentDiffExpB():
 
 
          
-    def _states_normalize(self, states_t):
+   
 
-        anchor = states_t[:, 0, :, :].unsqueeze(1)
 
-        past_frames = states_t[:, 1:, :, :]
+    
+    #update running stats when training enabled
+    def _update_normalisation(self, states, alpha = 0.99):
+        mean = states.mean(dim=(0, 1))
+        self.state_mean = alpha*self.state_mean + (1.0 - alpha)*mean
 
+        var = ((states - mean)**2).mean(dim=(0, 1))
+        self.state_var  = alpha*self.state_var + (1.0 - alpha)*var 
+
+    #normalise mean and variance
+    def _state_normalise_ema(self, states):     
+        states_norm = (states - self.state_mean)/(torch.sqrt(self.state_var) + 10**-6)
+        states_norm = torch.clip(states_norm, -4.0, 4.0)
+    
+        return states_norm  
+
+    def _states_normalize_diff(self, states):
+        anchor = states[:, 0, :, :].unsqueeze(1)
+
+        past_frames = states[:, 1:, :, :]
         differences = past_frames - anchor
-
         result = torch.cat([anchor, differences], dim=1)
     
         return result
-        
+
+    def _states_normalize_diff_ema(self, states):
+        states_ema = _state_normalise_ema(states)
+
+        anchor = states_ema[:, 0, :, :].unsqueeze(1)
+    
+        past_frames = states_ema[:, 1:, :, :]
+        differences = past_frames - anchor
+        result = torch.cat([anchor, differences], dim=1)
+    
+        return result
+
 
     # sample action, probs computed from logits
     def _sample_actions(self, logits):
