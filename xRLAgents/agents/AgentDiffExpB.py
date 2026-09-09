@@ -166,9 +166,7 @@ class AgentDiffExpB():
     def step(self, states, training_enabled):     
         states_t = torch.from_numpy(states).to(self.dtype).to(self.device)
 
-        if self.state_normalization:
-            states_t = self._states_normalize(states_t)
-
+        
         if self.state_normalization != None:
             self._update_normalisation(states_t, alpha = 0.99)
 
@@ -459,7 +457,7 @@ class AgentDiffExpB():
         return result
 
     def _states_normalize_diff_ema(self, states):
-        states_ema = _states_normalise_ema(states)
+        states_ema = self._states_normalise_ema(states)
 
         anchor = states_ema[:, 0, :, :].unsqueeze(1)
     
