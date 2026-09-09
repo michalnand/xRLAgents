@@ -166,7 +166,7 @@ class AgentDiffExpB():
     def step(self, states, training_enabled):     
         states_t = torch.from_numpy(states).to(self.dtype).to(self.device)
 
-        
+
         if self.state_normalization != None:
             self._update_normalisation(states_t, alpha = 0.99)
 
@@ -178,10 +178,7 @@ class AgentDiffExpB():
                 states_t = self._states_normalize_diff_ema(states_t)
             else:
                 raise ValueError("Unsupported state normalization " + str(self.state_normalization))
-
-
-            states_t = self._state_normalise(states_t)
-        
+                    
 
         # obtain model output, logits and values, use abstract state space z
         if self.rnn_policy:
