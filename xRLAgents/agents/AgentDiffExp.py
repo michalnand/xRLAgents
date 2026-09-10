@@ -95,7 +95,7 @@ class AgentDiffExp():
         self.state_mean = torch.from_numpy(states[:, 0]).to(self.dtype).to(self.device).unsqueeze(1)
         self.state_var  = torch.ones(self.state_mean.shape, dtype=self.dtype, device=self.device)
 
-        print("INIT = ", self.state_mean.shape, self.state_var.shape)
+        #print("INIT = ", self.state_mean.shape, self.state_var.shape)
 
         if self.rnn_policy:
             self.hidden_state_t = torch.zeros((self.n_envs, ) + self.rnn_shape).to(self.dtype).to(self.device)
@@ -456,14 +456,14 @@ class AgentDiffExp():
         var = ((states_tmp - self.state_mean)**2)
         self.state_var  = alpha*self.state_var + (1.0 - alpha)*var 
 
-        print("_update_normalisation = ", self.state_mean.shape, self.state_var.shape)
+        #print("_update_normalisation = ", self.state_mean.shape, self.state_var.shape)
 
     #normalise mean and variance
     def _states_normalise_ema(self, states):     
         states_norm = (states - self.state_mean)/(torch.sqrt(self.state_var) + 10**-6)
         states_norm = torch.clip(states_norm, -4.0, 4.0)
 
-        print("_states_normalise_ema = ", states_norm.shape, states_norm.mean(), states_norm.std(dim=(1, 2, 3)).mean())
+        #print("_states_normalise_ema = ", states_norm.shape, states_norm.mean(), states_norm.std(dim=(1, 2, 3)).mean())
     
         return states_norm  
 
