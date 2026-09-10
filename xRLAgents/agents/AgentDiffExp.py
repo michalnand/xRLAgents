@@ -92,9 +92,9 @@ class AgentDiffExp():
         # reset envs and obtains stats for states normalisation (optional)
         states      = self.envs.reset()
 
-        self.state_mean = torch.from_numpy(states[:, 0]).to(self.dtype).to(self.device)
+        self.state_mean = torch.from_numpy(states[:, 0]).to(self.dtype).to(self.device).unsqueeze(1)
         self.state_var  = torch.ones(self.state_mean.shape, dtype=self.dtype, device=self.device)
-        
+
         print("INIT = ", self.state_mean.shape, self.state_var.shape)
 
         if self.rnn_policy:
