@@ -241,8 +241,8 @@ class AgentDiffExp():
             if self.rnn_policy:
                 self.hidden_state_t[i]  = 0.0
 
-            self.state_mean[e] = torch.from_numpy(states_new[e, 0]).to(self.dtype).to(self.device).unsqueeze(1)
-            self.state_var[e]  = 1  
+            self.state_mean[i] = torch.from_numpy(states_new[i, 0]).to(self.dtype).to(self.device).unsqueeze(1)
+            self.state_var[i]  = 1  
             
                     
 
