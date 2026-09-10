@@ -448,7 +448,7 @@ class AgentDiffExp():
         states_tmp = states[:, 0].unsqueeze(1)
         self.state_mean = alpha*self.state_mean + (1.0 - alpha)*states_tmp
 
-        var = ((states_tmp - mean)**2)
+        var = ((states_tmp - self.state_mean)**2)
         self.state_var  = alpha*self.state_var + (1.0 - alpha)*var 
 
         print("_update_normalisation = ", self.state_mean.shape, self.state_var.shape)
