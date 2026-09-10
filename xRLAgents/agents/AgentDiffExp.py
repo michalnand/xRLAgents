@@ -91,13 +91,12 @@ class AgentDiffExp():
 
         # reset envs and obtains stats for states normalisation (optional)
         states      = self.envs.reset()
-        states_tmp  = states[:, 0]
-        
-        self.state_mean = torch.from_numpy(states_tmp.mean(axis=0)).to(self.dtype).to(self.device)
+
+        self.state_mean = torch.from_numpy(states[:, 0]).to(self.dtype).to(self.device)
         self.state_var  = torch.ones(self.state_mean.shape, dtype=self.dtype, device=self.device)
-
-
         
+        print("INIT = ", self.state_mean.shape, self.state_var.shape)
+
         if self.rnn_policy:
             self.hidden_state_t = torch.zeros((self.n_envs, ) + self.rnn_shape).to(self.dtype).to(self.device)
 
@@ -445,11 +444,14 @@ class AgentDiffExp():
     
     #update running stats when training enabled
     def _update_normalisation(self, states, alpha = 0.99):
-        mean = states.mean(dim=(0, 1))
-        self.state_mean = alpha*self.state_mean + (1.0 - alpha)*mean
 
-        var = ((states - mean)**2).mean(dim=(0, 1))
+        states_tmp = states[:, 0].unsqueeze(1)
+        self.state_mean = alpha*self.state_mean + (1.0 - alpha)*states_tmp
+
+        var = ((states_tmp - mean)**2)
         self.state_var  = alpha*self.state_var + (1.0 - alpha)*var 
+
+        print("_update_normalisation = ", self.state_mean.shape, self.state_var.shape)
 
     #normalise mean and variance
     def _states_normalise_ema(self, states):     
