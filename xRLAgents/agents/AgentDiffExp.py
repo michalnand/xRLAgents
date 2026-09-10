@@ -241,6 +241,11 @@ class AgentDiffExp():
             if self.rnn_policy:
                 self.hidden_state_t[i]  = 0.0
 
+            self.state_mean[e] = torch.from_numpy(states_new[e, 0]).to(self.dtype).to(self.device).unsqueeze(1)
+            self.state_var[e]  = 1  
+            
+                    
+
         if self.rnn_policy:
             self.log_rnn.add("mean", self.hidden_state_t.mean().detach().cpu().float().numpy().item())
             self.log_rnn.add("std", self.hidden_state_t.std().detach().cpu().float().numpy().item())
@@ -458,7 +463,7 @@ class AgentDiffExp():
         states_norm = (states - self.state_mean)/(torch.sqrt(self.state_var) + 10**-6)
         states_norm = torch.clip(states_norm, -4.0, 4.0)
 
-        print("_states_normalise_ema = ", self.states_norm.shape, states_norm.mean(), states_norm.std())
+        print("_states_normalise_ema = ", states_norm.shape, states_norm.mean(), states_norm.std())
     
         return states_norm  
 
