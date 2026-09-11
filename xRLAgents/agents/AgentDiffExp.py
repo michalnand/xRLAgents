@@ -56,7 +56,7 @@ class AgentDiffExp():
         self.w_ssl                = config.w_ssl
         self.w_diffusion          = config.w_diffusion
         
-        self.dist_max             = config.dist_max
+        self.time_distances       = config.time_distances
         self.state_normalization  = config.state_normalization
 
         if hasattr(config, "rnn_policy"):
@@ -74,9 +74,9 @@ class AgentDiffExp():
 
         # create mdoel
         if self.rnn_policy:
-            self.model = Model(self.state_shape, self.actions_count, self.dist_max + 2, self.rnn_shape)
+            self.model = Model(self.state_shape, self.actions_count, self.rnn_shape)
         else:
-            self.model = Model(self.state_shape, self.actions_count, self.dist_max + 2)
+            self.model = Model(self.state_shape, self.actions_count)
 
         self.model.to(self.device)
         
@@ -402,22 +402,24 @@ class AgentDiffExp():
                 _, loss_diffusion  = self._internal_motivation(states, self.alpha_min, self.alpha_max, 1)
 
                 #self supervised target regularisation
-                states_curr, states_next, distances = self.trajectory_buffer.sample_causal_states(self.ss_batch_size, self.dist_max, self.device)
+                states_seq, steps_result = self.trajectory_buffer.sample_states_seq(self.ss_batch_size, self.time_distances, self.device)
 
 
                 # single frame input for internal motivation
                 # dont use frame stacking, just copy current frame
-                if self.im_single_frame:                                    
-                    states_curr_tmp       = torch.zeros_like(states_curr)
-                    states_curr_tmp[:, :] = states_curr[:, 0].unsqueeze(1)
+                if self.im_single_frame:   
+                    states_seq_tmp = []
 
-                    states_next_tmp       = torch.zeros_like(states_next)
-                    states_next_tmp[:, :] = states_next[:, 0].unsqueeze(1)
+                    for n in range(len(states_seq)):                
+                        tmp = torch.zeros_like(states_seq[n])
+                        tmp[:, :] = states_seq[n][:, 0].unsqueeze(1)
+
+                        states_seq_tmp.append(tmp)
                 else:
-                    states_curr_tmp = states_curr
-                    states_next_tmp = states_next     
+                    states_seq_tmp = states_seq     
 
-                loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_curr_tmp, states_next_tmp, distances)
+
+                loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_seq_tmp, steps_result)
 
                 # total loss    
                 loss = self.w_ppo*loss_ppo + self.w_diffusion*loss_diffusion + self.w_ssl*loss_ssl
