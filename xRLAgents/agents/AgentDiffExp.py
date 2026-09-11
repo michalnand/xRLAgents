@@ -152,7 +152,7 @@ class AgentDiffExp():
         print("w_ssl                ", self.w_ssl)
         print("w_diffusion          ", self.w_diffusion)
 
-        print("time_distances       ", time_distances)
+        print("time_distances       ", self.time_distances)
         print("state_normalization  ", self.state_normalization)  
 
         print("rnn_policy           ", self.rnn_policy)
