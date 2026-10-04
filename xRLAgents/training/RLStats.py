@@ -44,20 +44,9 @@ class RLStats:
         if dt <= 0.0:
             dt = 0.0001
 
-        self.steps_per_second = dit/dt
+        self.steps_per_second = round(dit/dt, 3)
 
-        return self.steps_per_second, self.episodes.mean(), self.reward_episode.mean(), self.reward_episode.std(), self.reward_episode.max()
+        return self.steps_per_second, round(self.episodes.mean().item(), 2), round(self.reward_episode.mean().item(), 8), round(self.reward_episode.std().item(), 8), round(self.reward_episode.max().item(), 8)
 
-    def get(self):
-        return self.steps_per_second, self.episodes.mean(), self.reward_episode.mean(), self.reward_episode.std(), self.reward_episode.max()
+  
     
-
-    def get_str(self):
-        result_str = ""
-        result_str+= str(round(self.steps_per_second, 5)) + " "
-        result_str+= str(round(self.episodes, 3)) + " "
-        result_str+= str(round(self.reward_episode.mean(), 6)) + " "
-        result_str+= str(round(self.reward_episode.std(), 6)) + " "
-        result_str+= str(round(self.reward_episode.max(), 6)) + " "
-
-        return result_str
