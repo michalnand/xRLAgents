@@ -85,7 +85,7 @@ class AgentDiffExp():
         states      = self.envs.reset()
         
         # optional normalization
-        self.states_normalization = StateNormalization(self.config.states_normalziation, states)
+        self.states_normalization = StateNormalization(self.config.states_normalization, states)
 
 
         # result loggers
