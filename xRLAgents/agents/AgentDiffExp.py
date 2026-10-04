@@ -61,7 +61,7 @@ class AgentDiffExp():
                 
         self.steps_distance       = self.config.steps_distance
 
-        self.single_frame_im      = self.config.self.single_frame_im
+        self.single_frame_im      = self.config.single_frame_im
 
 
         self.features_eda       = FeaturesEDA(self.result_path + "logs/")
