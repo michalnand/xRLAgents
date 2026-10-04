@@ -61,6 +61,8 @@ class AgentDiffExp():
                 
         self.steps_distance       = self.config.steps_distance
 
+        self.single_frame_im      = self.config.self.single_frame_im
+
 
         self.features_eda       = FeaturesEDA(self.result_path + "logs/")
         self.actions_eda        = ActionsEDA(self.n_envs, self.n_actions, self.result_path + "logs/")
@@ -195,6 +197,8 @@ class AgentDiffExp():
                 #self supervised target regularisation  
                 states_a, states_b, distances = self.trajectory_buffer.sample_causal_states(self.ss_batch_size, self.steps_distance, self.device)
 
+                states_a = self._get_im_state(states_a)
+                states_b = self._get_im_state(states_b) 
             
                 loss_ssl, info_ssl = self.config.im_ssl_loss(self.model, states_a, states_b, distances)
 
@@ -282,7 +286,9 @@ class AgentDiffExp():
     # state denoising ability novely detection
     def _internal_motivation(self, states, alpha_max, denoising_steps):
         # obtain taget features from states and noised states
-        _, z_target  = self.model.forward_features(states)
+        states_tmp   = self._get_im_state(states)
+
+        _, z_target  = self.model.forward_features(states_tmp)
         z_target     = z_target.detach()
 
         # add noise into features
@@ -305,3 +311,14 @@ class AgentDiffExp():
         return novelty.detach(), loss
 
 
+    def _get_im_state(self, states):
+        # single frame input for internal motivation
+        # dont use frame stacking, just copy current frame
+        if self.single_frame_im:                                    
+            result       = torch.zeros_like(states)
+            result[:, :] = states[:, 0].unsqueeze(1)
+        else:
+            result = states
+
+        return result
+                    
