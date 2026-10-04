@@ -101,10 +101,12 @@ class AgentDiffExp():
     def step(self, states):     
         self.iterations+= 1
 
-        states_t = torch.from_numpy(states).to(self.device)
+        states_t = torch.from_numpy(states)
 
         # optional states normalization, if none internally skiped
         states_t = self.states_normalization(states_t)
+
+        states_t = states_t.to(self.device)
     
        
         # obtain model output, logits and values, use abstract state space z
