@@ -221,16 +221,12 @@ class AgentDiffExp():
 
 
         
-             
-       
-    
-
+  
     
 
     # agent save and load model
     def save(self):
-        #torch.save(self.model.state_dict(), result_path + "/model.pt")
-        pass
+        torch.save(self.model.state_dict(), self.result_path + "/model.pt")
 
     def load(self): 
         self.model.load_state_dict(torch.load(self.result_path + "/model.pt", map_location = self.device))

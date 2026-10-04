@@ -106,6 +106,10 @@ class TrajectoryBufferIM:
         indices_next    = indices_curr + self.n_envs*distances
         indices_next    = torch.clip(indices_next, 0, total_size-1) 
 
+        print(indices_curr[0:10])
+        print(indices_next[0:10])
+        print("\n\n")
+
         
         states_curr = self.buffer["states"][indices_curr].to(device)
         states_next = self.buffer["states"][indices_next].to(device)
