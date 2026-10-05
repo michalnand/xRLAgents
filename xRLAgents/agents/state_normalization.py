@@ -6,7 +6,7 @@ class StateNormalization:
         self.mode = mode
 
         self.device     = states_initial.device
-        self.state_mean = torch.from_numpy(states_initial.mean(dim=0)).to(self.device).unsqueeze(0)
+        self.state_mean = torch.from_numpy(states_initial).mean(dim=0).to(self.device).unsqueeze(0)
         self.state_var  = torch.ones(self.state_mean.shape, device=self.device)
         
 
