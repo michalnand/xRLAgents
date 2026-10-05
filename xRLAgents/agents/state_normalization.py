@@ -38,6 +38,8 @@ class StateNormalization:
         states_norm = (states - self.state_mean)/(torch.sqrt(self.state_var) + 10**-6)
         states_norm = torch.clip(states_norm, -4.0, 4.0)
 
+        print(states_norm.mean(), states_norm.var(dim=0).mean())
+
         return states_norm  
 
     def _states_normalize_diff(self, states):
