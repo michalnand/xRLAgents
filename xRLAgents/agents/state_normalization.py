@@ -32,14 +32,12 @@ class StateNormalization:
         self.state_mean = alpha*self.state_mean + (1.0 - alpha)*states.mean(dim=0).unsqueeze(0)
         self.state_var  = alpha*self.state_var + (1.0 - alpha)*states.var(dim=0).unsqueeze(0) 
 
-        print("stats ", self.state_mean.shape, self.state_var.shape)
 
     #normalise mean and variance
     def _states_normalise_ema(self, states):     
         states_norm = (states - self.state_mean)/(torch.sqrt(self.state_var) + 10**-6)
         states_norm = torch.clip(states_norm, -4.0, 4.0)
 
-        print("norm ", states_norm.shape)
         return states_norm  
 
     def _states_normalize_diff(self, states):
