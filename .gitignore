@@ -36,3 +36,7 @@ MANIFEST
 *.pt
 *.npy
 *.log
+
+
+*.jsonl
+*.json

@@ -1,12 +1,6 @@
-from .AgentPPO                  import *    
-from .AgentPPOContinuous        import *
+from .trajectory_buffer_continuous import *
 
-from .EnvsList                  import *
-from .EnvsListParallel          import *
-
-
-from .AgentDiffExp              import *    
-
-    
-from .loss_self_supervised      import *
+from .ppo_agent_base import *
+from .ppo_agent_continuous_hyperparameters import *
+from .ppo_agent_continuous import *
 
