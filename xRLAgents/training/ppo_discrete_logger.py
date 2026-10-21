@@ -37,7 +37,8 @@ class PPODiscreteLogger:
 
     def get(self):
         # compute may contain more complicated computation, get is called every 128 or 1024 steps
-        return self.result_training 
+        temporal_result = self._compute_temporal()
+        return self.result_training  | temporal_result
 
 
     def _stats(self, value, prefix, sat_th, dp):
@@ -51,3 +52,62 @@ class PPODiscreteLogger:
         result[prefix + "_saturation_ratio"]  = round(saturation_ratio.item(), dp)
     
         return result
+
+
+
+    def _compute_temporal(self, dp):
+
+        result = {}
+        
+        if len(self.actions_buffer) < 10:
+            return result
+
+        # [time, environments, action dimensions]
+        actions = numpy.stack(self.actions_buffer, axis=0)
+                
+        total_elements = actions.size
+
+        # 1. Relative counts histogram & normalized entropy
+        unique_actions, counts = numpy.unique(actions, return_counts=True)
+        relative_counts = counts / total_elements
+
+        # Build dictionary: action_x : relative_count_of_action_x
+        result_dict = {"action_"+ str(int(act)): round(float(rc), dp) for act, rc in zip(unique_actions, relative_counts)}
+
+        # Compute Shannon Entropy: H = -sum(p * log2(p))
+        entropy = -numpy.sum(relative_counts * numpy.log2(relative_counts))
+
+        # Normalize entropy into [0, 1] range based on the number of unique actions observed
+        num_unique = len(unique_actions)
+        if num_unique <= 1:
+            norm_entropy = 0.0
+        else:
+            max_entropy     = numpy.log2(num_unique)
+            norm_entropy    = float(entropy / max_entropy) if max_entropy > 0 else 0.0
+
+        result_dict["actions_normalized_entropy"] = round(norm_entropy, dp)
+
+        # 2. Consecutive matching ratios (cropping initial steps automatically via slicing)
+        # m1: actions[n] == actions[n-1] -> shape (999, 128)
+        m1 = actions[1:] == actions[:-1]
+        ratio_1 = float(numpy.mean(m1)) 
+
+        # m2: m1 and actions[n] == actions[n-2] -> shape (998, 128)
+        m2 = m1[1:] & (actions[2:] == actions[:-2])
+        ratio_2 = float(numpy.mean(m2))
+
+        # m3: m2 and actions[n] == actions[n-3] -> shape (997, 128)
+        m3 = m2[1:] & (actions[3:] == actions[:-3])
+        ratio_3 = float(numpy.mean(m3))
+
+        # m4: m3 and actions[n] == actions[n-4] -> shape (996, 128)
+        m4 = m3[1:] & (actions[4:] == actions[:-4])
+        ratio_4 = float(numpy.mean(m4))
+
+
+        result_dict["actions_diff_1_ratio"] = round(ratio_1, dp)
+        result_dict["actions_diff_2_ratio"] = round(ratio_2, dp)
+        result_dict["actions_diff_3_ratio"] = round(ratio_3, dp)
+        result_dict["actions_diff_4_ratio"] = round(ratio_4, dp)
+
+        return result_dict

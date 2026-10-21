@@ -34,6 +34,8 @@ class VectorizedAtariWrapper:
 
 
     def _init_logs_vars(self):
+        self.episodes_count      = numpy.zeros(self.num_envs)
+
         self.episode_score      = numpy.zeros(self.num_envs)
         self.episode_score_curr = numpy.zeros(self.num_envs)
 
@@ -42,6 +44,7 @@ class VectorizedAtariWrapper:
 
         self.episode_steps      = numpy.zeros(self.num_envs)
         self.episode_steps_curr = numpy.zeros(self.num_envs)
+
 
 
     def __len__(self):
@@ -81,6 +84,8 @@ class VectorizedAtariWrapper:
         
         dones_ids = numpy.where(dones)[0]
         for i in dones_ids:
+            self.episodes_count[i]+= 1
+
             self.episode_score[i]  = numpy.array(self.episode_score_curr[i])
             self.episode_reward[i] = numpy.array(self.episode_reward_curr[i])
             self.episode_steps[i]  = numpy.array(self.episode_steps_curr[i])
@@ -95,6 +100,8 @@ class VectorizedAtariWrapper:
     
     def get_metrics(self, dp = 5):
         result = {}
+
+        result["episodes_count"]    = round(self.episodes_count.mean(), dp)
 
         # raw rewards
         result["episode_score_mean"] = round(self.episode_score.mean(), dp)

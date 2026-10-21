@@ -11,7 +11,7 @@ class Config:
 
         self.log_interval   = 128       
 
-        self.n_training_steps = 1000000
+        self.n_training_steps = 500000
 
         self.hyperparameters = xRLAgents.agents.PPOAgentDiscreteDefaultHyperparameters
 
@@ -19,7 +19,7 @@ class Config:
         self.hyperparameters["n_steps"]         = 128
         self.hyperparameters["batch_size"]      = 256
         self.hyperparameters["learning_rate"]   = 0.00025
-        self.hyperparameters["entropy_beta"]    = 0.001
+        self.hyperparameters["entropy_beta"]    = 0.01
 
 
         
