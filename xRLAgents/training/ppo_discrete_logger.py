@@ -22,12 +22,21 @@ class PPODiscreteLogger:
     # called after training episodes done (every 128 steps)
     def udpate_training(self, actions, values, returns, logits_old, logits_new, loss_actor, loss_critic, loss_entropy, dp=6):
         self.result_training = {}
-        self.result_training = self.result_training | self._stats(actions.float(), "actions", 10.0, dp)
-        self.result_training = self.result_training | self._stats(values, "values", 10.0, dp)
-        self.result_training = self.result_training | self._stats(returns, "returns", 4.0, dp) 
-        self.result_training = self.result_training | self._stats(logits_new , "logits", 10.0, dp)
-        self.result_training = self.result_training | self._stats(logits_new - logits_old , "logits_diff", 10.0, dp)
+        self.result_training = self.result_training | self._stats(actions.float(), "actions", dp)
+        self.result_training = self.result_training | self._stats(values, "values", dp)
+        self.result_training = self.result_training | self._stats(returns, "returns", dp) 
+        self.result_training = self.result_training | self._stats(logits_new , "logits", dp)
+        self.result_training = self.result_training | self._stats(logits_new - logits_old , "logits_diff", dp)
 
+        # selected actions probs
+        print(">>>> ", actions.shape, logits_new.shape)
+        actions_probs = torch.nn.functional.softmax(logits_new, dim=1)
+        sel_confidence = actions_probs[range(actions.shape[0]), actions]
+        print(">>>> sel_confidence = ", sel_confidence.shape)
+        self.result_training = self.result_training | self._stats(sel_confidence , "selected_action_confidence", dp)
+
+        actions_entropy = -numpy.sum(actions_probs * numpy.log2(actions_probs + 1e-6))
+        self.result_training = self.result_training | {"actions_entropy" : round(actions_entropy, dp)}
 
         self.result_training["loss_actor"]   = round(torch.mean(loss_actor).item(), dp)
         self.result_training["loss_critic"]  = round(torch.mean(loss_critic).item(), dp)
@@ -41,15 +50,14 @@ class PPODiscreteLogger:
         return self.result_training  | temporal_result
 
 
-    def _stats(self, value, prefix, sat_th, dp):
+    def _stats(self, value, prefix, dp):
         result = {}
         result[prefix + "_mean"]       = round(torch.mean(value).item(), dp)
         result[prefix + "_std"]        = round(torch.std(value).item(), dp)
         result[prefix + "_mag_mean"]   = round(torch.mean(value**2).item(), dp)
         result[prefix + "_mag_std"]    = round(torch.std(value**2).item(), dp)
-
-        saturation_ratio = (torch.abs(value) > sat_th).float().mean()
-        result[prefix + "_saturation_ratio"]  = round(saturation_ratio.item(), dp)
+        result[prefix + "_max"]        = round(torch.max(value).item(), dp)
+        result[prefix + "_min"]        = round(torch.min(value).item(), dp)
     
         return result
 
