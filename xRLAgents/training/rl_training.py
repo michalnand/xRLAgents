@@ -35,12 +35,16 @@ class RLTraining:
         env_logger   = TrainingLogger(self.result_path, "env")
         agent_logger = TrainingLogger(self.result_path, "agent")
 
-        states = []
-        for n in range(len(self.config.envs)):
-            obs, _ = self.config.envs.reset(n)
-            states.append(obs) 
-
-        states = numpy.array(states)
+        
+        if hasattr(self.config.envs, "reset_all"):
+            states, _ = self.config.envs.reset_all()
+        else:
+            states = []
+            for n in range(len(self.config.envs)):
+                obs, _ = self.config.envs.reset(n)
+                states.append(obs) 
+    
+            states = numpy.array(states)
 
         saving_intervals = self.config.n_training_steps//10
 

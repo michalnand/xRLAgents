@@ -215,7 +215,7 @@ def run_drone_eda(experiment_root_path, sample_count=32, skip_first_line=True):
 
     fig, ax = plt.subplots(2, figsize=(9, 5))
     plot_value_line(ax[0], agent, "actions_mag", "red")
-    plot_value_line(ax[1], agent, "actions_std", "royalblue")
+    plot_value_line(ax[1], agent, "var_mean", "royalblue")
     save_plot(fig, output_dir + "/agent_actions_mu_var.png")
 
     fig, ax = plt.subplots(2, figsize=(9, 5))

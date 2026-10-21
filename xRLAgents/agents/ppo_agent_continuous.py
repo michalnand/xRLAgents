@@ -52,7 +52,7 @@ class PPOAgentContinuous(PPOAgentBase):
 
         actions = self._sample_actions(pi_mean, pi_var)
 
-        obs, rewards, terminated, truncated, info = self.envs.step(actions)
+        states_next, rewards, terminated, truncated, info = self.envs.step(actions)
 
         dones = terminated | truncated
 
@@ -61,6 +61,10 @@ class PPOAgentContinuous(PPOAgentBase):
         self.buffer.add(states_t, pi_mean, pi_var, value, actions, rewards, dones)
 
         if self.buffer.is_full():
+            with torch.no_grad():
+                states_t = torch.from_numpy(states_next).float().to(self.device)
+                _, _, value = self.model(states_t)
+
             self.buffer.compute_returns(self.gamma, self.lam, value)
             self._training()
             self.buffer.clear()
@@ -68,7 +72,7 @@ class PPOAgentContinuous(PPOAgentBase):
         self.ppo_logger.update_step(actions)
 
         # episodes ends reset is handled outside
-        return obs, rewards, terminated, truncated, info
+        return states_next, rewards, terminated, truncated, info
 
     def step_inference(self, states):
         states_t = torch.from_numpy(states).float().to(self.device)
@@ -76,7 +80,7 @@ class PPOAgentContinuous(PPOAgentBase):
         with torch.no_grad():
             pi_mean, pi_var, value = self.model(states_t)
 
-        actions = self._sample_actions(pi_mean, pi_var)
+        actions = pi_mean.cpu().numpy().astype(numpy.float32)
 
         obs, rewards, terminated, truncated, info = self.envs.step(actions)
 
@@ -133,7 +137,6 @@ class PPOAgentContinuous(PPOAgentBase):
     def _log_prob(self, actions, mu, var):
         return (-((actions - mu)**2) / (2.0*var) - 0.5*torch.log(2.0*math.pi*var)).sum(dim=1)
 
-   
     def get_metrics(self):
         return self.ppo_logger.get()
 
