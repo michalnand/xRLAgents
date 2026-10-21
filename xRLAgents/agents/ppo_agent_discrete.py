@@ -59,6 +59,8 @@ class PPOAgentDiscrete(PPOAgentBase):
         # add to buffer
         self.buffer.add(states_t, logits, value, actions, rewards, dones)
 
+        self.ppo_logger.update_step(actions)
+
         if self.buffer.is_full():
             with torch.no_grad():
                 states_t = torch.from_numpy(states_next).float().to(self.device)
