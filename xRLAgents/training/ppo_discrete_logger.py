@@ -48,6 +48,10 @@ class PPODiscreteLogger:
         return self.result_training  | temporal_result
 
 
+    def get_default_log_flags(self):
+        return {"agent" : ["actions_confidence", "actions_entropy", "actions_diff_1_ratio",  "loss_actor", "loss_critic", "loss_entropy"]}
+
+
     def _stats(self, value, prefix, dp):
         result = {}
         result[prefix + "_mean"]       = round(torch.mean(value).item(), dp)

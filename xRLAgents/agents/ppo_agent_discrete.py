@@ -150,3 +150,7 @@ class PPOAgentDiscrete(PPOAgentBase):
     def get_metrics(self):
         return self.ppo_logger.get()
 
+
+    def get_default_log_flags(self):
+        return self.ppo_logger.get_default_log_flags()
+

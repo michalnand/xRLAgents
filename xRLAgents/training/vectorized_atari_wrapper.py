@@ -122,4 +122,9 @@ class VectorizedAtariWrapper:
         result["episode_steps_max"]  = round(self.episode_steps.max(), dp)
 
         return result
+
+
+    def get_default_log_flags(self):
+        return {"env" : ["episode_score_mean", "episode_reward_mean", "episode_steps_mean"]}
+    
        

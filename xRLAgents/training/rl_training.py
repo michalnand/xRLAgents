@@ -22,7 +22,15 @@ class RLTraining:
         # store hyperparameters, extract from config
         param_logger(self.config, self.result_path)
 
-        
+        default_metrics = {}
+        default_metrics = default_metrics | {"run " : ["steps_per_second", "eta_min", "cpu_usage", "memory_usage"]}
+        default_metrics = default_metrics | self.config.agent.get_default_log_flags()
+        default_metrics = default_metrics | self.config.envs.get_default_log_flags()
+
+        result_file_name = os.path.join(self.result_path, "default_metrics.json")
+        with open(result_file_name, "w") as f:
+            json.dump(default_metrics, f, indent=4)
+
         # main logs
         self.run_log      = TrainingLogger(self.result_path, "run")
         self.env_logger   = TrainingLogger(self.result_path, "env")
