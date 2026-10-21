@@ -28,13 +28,11 @@ class Config:
         # create envs
         if render:
             render_mode = "human"
-            trace = True
         else:
             render_mode = None
-            trace = False
 
         env_name = "SpaceInvaders-v5"
-        self.envs = xRLAgents.VectorizedAtariWrapper(env_name, self.num_envs)
+        self.envs = xRLAgents.VectorizedAtariWrapper(env_name, self.num_envs, render_mode)
         
         # CNN model model
         Model = xRLAgents.cnn_ac_discrete_model.CNNActorCriticDiscrete

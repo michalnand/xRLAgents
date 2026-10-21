@@ -4,7 +4,7 @@ import time
 
 
 class VectorizedAtariWrapper:
-    def __init__(self, env_name = "MontezumaRevenge-v5", num_envs=128):
+    def __init__(self, env_name = "MontezumaRevenge-v5", num_envs=128, render_mode=None):
 
         self.num_envs    = num_envs
         
@@ -22,6 +22,7 @@ class VectorizedAtariWrapper:
             reward_clip=False,
             max_episode_steps=4500,
             episodic_life=False,
+            render_mode=render_mode,
         )
 
         # The overall batch observation shape: (128, 4, 96, 96)
@@ -52,6 +53,10 @@ class VectorizedAtariWrapper:
     
     def __getitem__(self, idx):
         return self.envs[idx]
+
+
+    def render(self, env_id=0):
+        return self.envs.render(env_id)
 
 
     def reset_all(self):
