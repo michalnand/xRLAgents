@@ -29,14 +29,11 @@ class PPODiscreteLogger:
         self.result_training = self.result_training | self._stats(logits_new - logits_old , "logits_diff", dp)
 
         # selected actions probs
-        print(">>>> ", actions.shape, logits_new.shape)
         actions_probs = torch.nn.functional.softmax(logits_new, dim=1)
         sel_confidence = actions_probs[range(actions.shape[0]), actions]
-        print(">>>> sel_confidence = ", sel_confidence.shape)
         self.result_training = self.result_training | self._stats(sel_confidence , "actions_confidence", dp)
 
-        actions_entropy = -torch.sum(actions_probs * torch.log2(actions_probs + 1e-6), dim=1)
-        print("entropy = ", actions_entropy.shape)
+        actions_entropy = -torch.sum(actions_probs * torch.log2(actions_probs + 1e-4), dim=1)
         self.result_training = self.result_training | {"actions_entropy" : round(actions_entropy.mean().item(), dp)}
 
         self.result_training["loss_actor"]   = round(torch.mean(loss_actor).item(), dp)
