@@ -37,7 +37,7 @@ class PPODiscreteLogger:
 
     def get(self):
         # compute may contain more complicated computation, get is called every 128 or 1024 steps
-        temporal_result = self._compute_temporal()
+        temporal_result = self._compute_temporal(6)
         return self.result_training  | temporal_result
 
 
