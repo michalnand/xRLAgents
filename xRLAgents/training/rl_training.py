@@ -81,7 +81,7 @@ class RLTraining:
                 # agent log
                 log = self._add_step(n, self.config.agent.get_metrics())
                 agent_logger.add_raw(log)
-                agent_logger.save()
+                agent_logger.save(verbose=True)
 
                 # technical log
                 steps_per_second = self.log_interval/(time_now - time_prev)
