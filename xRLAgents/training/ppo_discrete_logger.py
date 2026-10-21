@@ -33,7 +33,7 @@ class PPODiscreteLogger:
         actions_probs = torch.nn.functional.softmax(logits_new, dim=1)
         sel_confidence = actions_probs[range(actions.shape[0]), actions]
         print(">>>> sel_confidence = ", sel_confidence.shape)
-        self.result_training = self.result_training | self._stats(sel_confidence , "selected_action_confidence", dp)
+        self.result_training = self.result_training | self._stats(sel_confidence , "actions_confidence", dp)
 
         actions_entropy = -torch.sum(actions_probs * torch.log2(actions_probs + 1e-6), dim=1)
         print("entropy = ", actions_entropy.shape)
