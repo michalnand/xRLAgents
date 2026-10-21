@@ -95,7 +95,7 @@ class RLTraining:
                 self.run_log.add("cpu_usage",     float(python_process.cpu_percent()/num_cores), 1)
                 self.run_log.add("memory_usage",  float(python_process.memory_info().rss)/1000000000, 6)
 
-                self.run_log.save()
+                self.run_log.save(verbose=True)
 
             if (n%saving_intervals) == 0:
                 self.config.agent.save(self.result_path)
