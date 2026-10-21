@@ -76,7 +76,7 @@ class RLTraining:
                 # environment log
                 log = self._add_step(n, self.config.envs.get_metrics())
                 env_logger.add_raw(log)
-                env_logger.save()
+                env_logger.save(verbose=True)
 
                 # agent log
                 log = self._add_step(n, self.config.agent.get_metrics())
