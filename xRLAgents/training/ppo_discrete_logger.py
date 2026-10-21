@@ -35,8 +35,9 @@ class PPODiscreteLogger:
         print(">>>> sel_confidence = ", sel_confidence.shape)
         self.result_training = self.result_training | self._stats(sel_confidence , "selected_action_confidence", dp)
 
-        actions_entropy = -numpy.sum(actions_probs * numpy.log2(actions_probs + 1e-6))
-        self.result_training = self.result_training | {"actions_entropy" : round(actions_entropy, dp)}
+        actions_entropy = -torch.sum(actions_probs * torch.log2(actions_probs + 1e-6), dim=1)
+        print("entropy = ", actions_entropy.shape)
+        self.result_training = self.result_training | {"actions_entropy" : round(actions_entropy.mean().item(), dp)}
 
         self.result_training["loss_actor"]   = round(torch.mean(loss_actor).item(), dp)
         self.result_training["loss_critic"]  = round(torch.mean(loss_critic).item(), dp)
