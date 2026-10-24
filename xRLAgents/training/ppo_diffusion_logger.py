@@ -28,6 +28,12 @@ class PPODiffusionLogger:
         self.rewards_int_stats = numpy.zeros((num_bins, ))
         self.actions_stats     = numpy.zeros((num_bins, num_actions))
 
+        self.rewards_episode_ext_curr = numpy.zeros((num_envs, ))
+        self.rewards_episode_ext      = numpy.zeros((num_envs, ))
+        self.episodes      = numpy.zeros((num_envs, ))
+
+        result_summary  = {}
+
         self.spectral_samples = None 
         self.spectral_ptr     = 0
 
@@ -51,6 +57,8 @@ class PPODiffusionLogger:
             self.spectral_samples[self.spectral_ptr] = z[n]
             self.spectral_ptr = (self.spectral_ptr+1)%self.num_spectral_samples
 
+        self.rewards_episode_ext_curr+= rewards_ext
+
         for n in dones_idx:
 
             if len(self.rewards_ext_buffer[n]) > 32:
@@ -68,6 +76,27 @@ class PPODiffusionLogger:
             self.rewards_ext_buffer[n]  = []
             self.rewards_int_buffer[n]  = []
             self.actions_buffer[n]      = []
+
+            self.rewards_episode_ext = numpy.array(self.rewards_episode_ext_curr)
+            self.rewards_episode_ext_curr[n] = 0
+            self.episodes[n]+= 1
+
+        self.result_summary = {}
+        self.result_summary["episodes_mean"]    = round(self.episodes.mean(), 6)
+        self.result_summary["episodes_std"]     = round(self.episodes.std(), 6)
+        self.result_summary["rewards_ext_mean"] = round(rewards_ext.mean(), 6)
+        self.result_summary["rewards_ext_std"]  = round(rewards_ext.std(), 6)
+        
+        self.result_summary["rewards_ext_episode_mean"] = round((self.rewards_episode_ext).mean(), 6)
+        self.result_summary["rewards_ext_episode_std"]  = round((self.rewards_episode_ext).std(), 6)
+        self.result_summary["rewards_ext_episode_max"]  = round(numpy.max(self.rewards_episode_ext), 6)
+        
+        self.result_summary["rewards_int_mean"] = round(rewards_int.mean(), 6)
+        self.result_summary["rewards_int_std"]  = round(rewards_int.std(), 6)
+        self.result_summary["rewards_int_max"]  = round(numpy.max(rewards_int), 6)
+
+        self.result_summary["z_mag_mean"]       = round((z**2).mean(), 6)
+        self.result_summary["z_mag_std"]        = round((z**2).std(), 6)
 
 
 
@@ -91,6 +120,7 @@ class PPODiffusionLogger:
     def get(self):
 
         result_log = []
+        result_log.append({"summary" : self.result_summary})
         result_log.append({"ppo" : self.result_ppo})
         result_log.append({"ssl" : self.result_ssl})
         result_log.append({"im" : self.result_im})
