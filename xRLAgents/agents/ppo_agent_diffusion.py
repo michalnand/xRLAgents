@@ -127,7 +127,7 @@ class PPOAgentDiffusion(PPOAgentBase):
         states_t = torch.from_numpy(states).float()
 
         if self.state_normalization:
-            self._update_normalization()
+            self._update_normalization(states_t)
             states_t = self._normalize_states(states_t)
 
         states_t = states_t.float().to(self.device)
