@@ -63,9 +63,7 @@ class PPODiffusionLogger:
                 tmp = self._list_to_action_histogram(self.actions_buffer[n], self.num_bins, self.num_actions)
                 self.actions_stats = (1.0 - self.k_coeff)*self.actions_stats + self.k_coeff*tmp
 
-                print(n)
-                print(self.actions_buffer[n])
-                print("\n\n")
+
 
             self.rewards_ext_buffer[n]  = []
             self.rewards_int_buffer[n]  = []
