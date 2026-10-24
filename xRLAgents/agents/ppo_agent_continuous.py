@@ -86,6 +86,12 @@ class PPOAgentContinuous(PPOAgentBase):
 
         return obs, rewards, terminated, truncated, info
 
+
+    def get_default_log_flags(self):
+        return self.ppo_logger.get_default_log_flags()
+        
+        
+
  
     def _training(self):
 

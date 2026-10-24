@@ -189,7 +189,7 @@ class PPODiffusionLogger:
         
         # 2. Compute SVD (full_matrices=False is optimal since num_samples > num_features)
         _, S, _ = numpy.linalg.svd(X_processed, full_matrices=False)
-        
+            
         num_samples = X.shape[0]
 
         # 3. Compute PCA eigenvalues (variance of each principal component)

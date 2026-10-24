@@ -7,7 +7,7 @@ class Config:
     def __init__(self, num_envs = 128, render=False):
 
         # hyper parameters
-        self.result_path    = "results/experiment_02/"
+        self.result_path    = "results/experiment_01/"
         self.num_envs       = num_envs
 
         self.log_interval   = 128       

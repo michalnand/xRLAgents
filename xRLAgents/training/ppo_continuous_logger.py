@@ -39,6 +39,9 @@ class PPOContinuousLogger:
         self.result_buffer = self._compute_temporal()
         return self.result_training | self.result_buffer
 
+    def get_default_log_flags(self):
+        return {"agent" : ["actions_mag_mean", "actions_mag_std", "actions_saturation_ratio",  "var_mag_mean", "var_mag_std"]}
+
 
     def _stats(self, value, prefix, sat_th, dp):
         result = {}

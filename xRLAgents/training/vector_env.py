@@ -53,6 +53,8 @@ class VectorEnv:
 
         return self._compute_metrics_summary(logs, dp)
         
+    def get_default_log_flags(self):
+        return {"env" : ["reward_episode_mean", "reward_episode_std", "reward_episode_median"]}
 
 
     def _compute_metrics_summary(self, log_list, dp):

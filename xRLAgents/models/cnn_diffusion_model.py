@@ -87,7 +87,7 @@ class ModelDiffusion(torch.nn.Module):
         torch.nn.init.orthogonal_(self.lin_1.weight, 0.5)
         torch.nn.init.zeros_(self.lin_1.bias)
         
-        torch.nn.init.orthogonal_(self.lin_2.weight, 0.5)
+        torch.nn.init.orthogonal_(self.lin_2.weight, 0.01)
         torch.nn.init.zeros_(self.lin_2.bias)
 
         

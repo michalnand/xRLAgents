@@ -251,11 +251,20 @@ class RaceAviary(BaseAviary):
 
         # shaping = change of the potential; after a pass it restarts from the new target gate
         potential = self._potential()
-        reward = GATE_PASSED if passed else potential - self.prev_potential
+
+        if passed:
+            reward = GATE_PASSED  
+        else:
+            reward = potential - self.prev_potential
+    
         self.prev_potential = potential
+
+        yaw_rate = self.ang_v[0][2]
+        reward-= YAW_RATE_PENALTY*np.abs(yaw_rate)
 
         if self._computeTerminated():
             reward -= CRASH_PENALTY
+
         return float(reward)
 
     def _computeTerminated(self):
