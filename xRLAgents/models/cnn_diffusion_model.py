@@ -115,7 +115,7 @@ class CNNActorCriticDiffusion(torch.nn.Module):
         self.actor   = ModelMLP(n_features, n_mlp, n_actions)
         self.critic  = ModelMLP(n_features, n_mlp, 2)
 
-        self.diffusion  = ModelDiffusion(n_features, 2*n_mlp)
+        self.diffusion  = ModelDiffusion(n_features, 4*n_mlp)
         self.distance   = ModelMLP(n_features, n_mlp, 1)
 
     def forward(self, x):
