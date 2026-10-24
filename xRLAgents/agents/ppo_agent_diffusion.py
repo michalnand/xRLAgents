@@ -69,9 +69,9 @@ class PPOAgentDiffusion(PPOAgentBase):
 
         states, _ = envs.reset_all()
         if self.state_normalization:
-            states           = torch.from_numpy(states).float()
+            states           = torch.from_numpy(states).float().to(self.device)
             self.states_mean = states.mean(dim=0)
-            self.states_std  = torch.ones_like(self.states_mean)
+            self.states_std  = torch.ones_like(self.states_mean).to(self.device)
 
 
 
@@ -124,14 +124,12 @@ class PPOAgentDiffusion(PPOAgentBase):
         return result
 
     def step(self, states):
-        states_t = torch.from_numpy(states).float()
+        states_t = torch.from_numpy(states).float().to(self.device)
 
         if self.state_normalization:
             self._update_normalization(states_t)
             states_t = self._normalize_states(states_t)
-
-        states_t = states_t.float().to(self.device)
-
+        
 
         with torch.no_grad():
             logits, value_ext, value_int = self.model(states_t)
