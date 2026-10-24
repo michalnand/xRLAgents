@@ -124,10 +124,6 @@ class PPODiffusionLogger:
     def _map_list_to_fixed_array(self, lst, target_length=256):
         n = len(lst)
 
-        print("\n\n\n")
-        print(50*"=")
-        print("_map_list_to_fixed_array = ", n)
-        
         # 1. Map each element's position linearly from 0 to target_length - 1 and round to nearest integer
         float_indices = numpy.linspace(0, target_length - 1, n)
         target_indices = numpy.round(float_indices).astype(int)
