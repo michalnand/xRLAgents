@@ -82,21 +82,21 @@ class PPODiffusionLogger:
             self.episodes[n]+= 1
 
         self.result_summary = {}
-        self.result_summary["episodes_mean"]    = round(self.episodes.mean(), 6)
-        self.result_summary["episodes_std"]     = round(self.episodes.std(), 6)
-        self.result_summary["rewards_ext_mean"] = round(rewards_ext.mean(), 6)
-        self.result_summary["rewards_ext_std"]  = round(rewards_ext.std(), 6)
+        self.result_summary["episodes_mean"]    = float(round(self.episodes.mean(), 6))
+        self.result_summary["episodes_std"]     = float(round(self.episodes.std(), 6))
+        self.result_summary["rewards_ext_mean"] = float(round(rewards_ext.mean(), 6))
+        self.result_summary["rewards_ext_std"]  = float(round(rewards_ext.std(), 6))
         
-        self.result_summary["rewards_ext_episode_mean"] = round((self.rewards_episode_ext).mean(), 6)
-        self.result_summary["rewards_ext_episode_std"]  = round((self.rewards_episode_ext).std(), 6)
-        self.result_summary["rewards_ext_episode_max"]  = round(numpy.max(self.rewards_episode_ext), 6)
+        self.result_summary["rewards_ext_episode_mean"] = float(round((self.rewards_episode_ext).mean(), 6))
+        self.result_summary["rewards_ext_episode_std"]  = float(round((self.rewards_episode_ext).std(), 6))
+        self.result_summary["rewards_ext_episode_max"]  = float(round(numpy.max(self.rewards_episode_ext), 6))
         
-        self.result_summary["rewards_int_mean"] = round(rewards_int.mean(), 6)
-        self.result_summary["rewards_int_std"]  = round(rewards_int.std(), 6)
-        self.result_summary["rewards_int_max"]  = round(numpy.max(rewards_int), 6)
+        self.result_summary["rewards_int_mean"] = float(round(rewards_int.mean(), 6))
+        self.result_summary["rewards_int_std"]  = float(round(rewards_int.std(), 6))
+        self.result_summary["rewards_int_max"]  = float(round(numpy.max(rewards_int), 6))
 
-        self.result_summary["z_mag_mean"]       = round((z**2).mean(), 6)
-        self.result_summary["z_mag_std"]        = round((z**2).std(), 6)
+        self.result_summary["z_mag_mean"]       = float(round((z**2).mean(), 6))
+        self.result_summary["z_mag_std"]        = float(round((z**2).std(), 6))
 
 
 
