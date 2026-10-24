@@ -80,9 +80,9 @@ class PPOAgentDiscrete(PPOAgentBase):
         with torch.no_grad():
             logits, value = self.model(states_t)
 
-        logits = logits.cpu().detach().float().numpy()
-
-        actions = numpy.argmax(logits, axis=1)
+        #logits = logits.cpu().detach().float().numpy()
+        #actions = numpy.argmax(logits, axis=1)
+        actions = self._sample_actions(logits)
 
         obs, rewards, terminated, truncated, info = self.envs.step(actions)
 

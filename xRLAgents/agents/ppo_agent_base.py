@@ -28,4 +28,4 @@ class PPOAgentBase:
         torch.save(self.model, result_path + "/checkpoints/model.pt")
 
     def load(self, result_path):
-        self.model.load_state_dict(torch.load(result_path + "/checkpoints/model_weights.pt", weights_only=True))
+        self.model.load_state_dict(torch.load(result_path + "/checkpoints/model_weights.pt", weights_only=True, map_location=self.device))

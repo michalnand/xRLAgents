@@ -34,7 +34,9 @@ class RLTraining:
         # main logs
         self.run_log      = TrainingLogger(self.result_path, "run")
         self.env_logger   = TrainingLogger(self.result_path, "env")
-        self.agent_logger = TrainingLogger(self.result_path, "agent")
+        
+
+        self.agent_loggers = {}
         
 
 
@@ -87,9 +89,33 @@ class RLTraining:
                 env_logger.save(verbose=True)
 
                 # agent log
-                log = self._add_step(n, self.config.agent.get_metrics())
-                agent_logger.add_raw(log)
-                agent_logger.save(verbose=True)
+                agent_logs = self.config.agent.get_metrics()
+                
+                if isinstance(agent_logs, list):
+                    for log_n in range(len(agent_logs)):
+                        agent_log = agent_logs[log_n]   
+                        log_name = str(list(agent_log.keys())[0])
+                        
+                        # create log if not exists yet
+                        if log_name not in self.agent_loggers:
+                            self.agent_loggers[log_name] = TrainingLogger(self.result_path, log_name)
+
+                        # save, add step
+                        log = self._add_step(n, agent_log)
+                        self.agent_loggers[log_name].add_raw(log)
+                        self.agent_loggers[log_name].save(verbose=False)
+    
+
+                # single log required only, agent returns only single log
+                else:
+                    # create generic logger if not exists
+                    if "agent" not in self.agent_loggers:
+                        self.agent_loggers["agent"] = TrainingLogger(self.result_path, "agent")
+
+                    # save
+                    log = self._add_step(n, agent_logs)
+                    self.agent_loggers["agent"].add_raw(log)
+                    self.agent_loggers["agent"].save(verbose=True)
 
                 # technical log
                 steps_per_second = self.log_interval/(time_now - time_prev)

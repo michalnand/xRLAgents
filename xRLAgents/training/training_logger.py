@@ -20,6 +20,8 @@ class TrainingLogger:
         f = open(self.result_file_name, "w")
         f.close()
 
+        print("creating logger ", self.result_file_name)
+
     def add(self, name, value, dp = None):
         if dp is not None:
             self.result_curr[name] = round(value, dp)
@@ -43,6 +45,7 @@ class TrainingLogger:
 
 
     def save(self, clear = False, verbose = False ):
+        print("saving log ", self.result_file_name)
         f = open(self.result_file_name, "a+")
         str_result = json.dumps(self.result_curr)
         f.write(str_result + "\n")

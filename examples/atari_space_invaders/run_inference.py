@@ -10,7 +10,7 @@ if __name__ == "__main__":
     result_path = config.result_path
 
     print("loading agent from ", result_path)
-    #config.agent.load(result_path)
+    config.agent.load(result_path)
 
     states, _ = config.envs.reset_all()
     
