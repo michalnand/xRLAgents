@@ -71,7 +71,7 @@ class PPOAgentDiffusion(PPOAgentBase):
         if self.state_normalization:
             states           = torch.from_numpy(states).float()
             self.states_mean = states.mean(dim=0)
-            self.states_var  = torch.ones_like(self.states_mean)
+            self.states_std  = torch.ones_like(self.states_mean)
 
 
 
@@ -113,14 +113,12 @@ class PPOAgentDiffusion(PPOAgentBase):
             
         return reward_im, z_target, loss, metrics
 
-
-    def _normalize_states(self, states, alpha = 0.99):
+    def _update_normalization(self, states, alpha = 0.99):
         self.states_mean = alpha*self.states_mean + (1 - alpha)*states.mean(dim=0)
-
-        var              = (states - self.states_mean.unsqueeze(0))**2
-        self.states_var  = alpha*self.states_var  + (1 - alpha)*var.mean(dim=0)
-
-        result = (states - self.states_mean.unsqueeze(0))/(self.states_var.unsqueeze(0) + 1e-6)
+        self.states_std  = alpha*self.states_std  + (1 - alpha)*states.std(dim=0)
+    
+    def _normalize_states(self, states):
+        result = (states - self.states_mean.unsqueeze(0))/(self.states_std.unsqueeze(0) + 1e-6)
         result = torch.clip(result, -4.0, 4.0)
 
         return result
@@ -129,6 +127,7 @@ class PPOAgentDiffusion(PPOAgentBase):
         states_t = torch.from_numpy(states).float()
 
         if self.state_normalization:
+            self._update_normalization()
             states_t = self._normalize_states(states_t)
 
         states_t = states_t.float().to(self.device)
@@ -166,9 +165,10 @@ class PPOAgentDiffusion(PPOAgentBase):
         if self.buffer.is_full():
             with torch.no_grad():
                 states_t = torch.from_numpy(states_next).float().to(self.device)
+                states_t = self._normalize_states(states_t)
                 _, value_ext, value_int = self.model(states_t)
 
-            self.buffer.compute_returns(self.gamma_ext, self.gamma_int, lam = 0.95, last_value_ext=value_ext, last_value_int=value_int)
+            self.buffer.compute_returns(self.gamma_ext, self.gamma_int, lam = self.lam, last_value_ext=value_ext, last_value_int=value_int)
 
             self._training()
             self.buffer.clear()
@@ -178,10 +178,16 @@ class PPOAgentDiffusion(PPOAgentBase):
         return states_next, rewards_ext, terminated, truncated, info
 
     def step_inference(self, states):
-        states_t = torch.from_numpy(states).float().to(self.device)
+        states_t = torch.from_numpy(states).float()
+
+        if self.state_normalization:
+            states_t = self._normalize_states(states_t)
+
+        states_t = states_t.float().to(self.device)
+
 
         with torch.no_grad():
-            logits, value_ext, value_int, z = self.model(states_t)
+            logits, value_ext, value_int = self.model(states_t)
 
         actions = self._sample_actions(logits)
 
@@ -198,8 +204,8 @@ class PPOAgentDiffusion(PPOAgentBase):
             states, logits_old, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.buffer.sample_batch(self.ppo_batch_size, self.device)
 
             # main PPO loss
-            loss_actor, loss_entropy, loss_critic = self._ppo_loss(states, logits_old,  actions, returns_ext, returns_int, advantages_ext, advantages_int)
-           
+            loss_actor, loss_critic, loss_entropy = self._ppo_loss(states, logits_old,  actions, returns_ext, returns_int, advantages_ext, advantages_int)
+            
             states_a, states_b, distances = self.buffer.sample_batch_pairs(self.ssl_batch_size, self.states_max_distance, self.device)
 
             # copy first frame
@@ -210,7 +216,7 @@ class PPOAgentDiffusion(PPOAgentBase):
                 states_b_tmp        = torch.zeros_like(states_b)
                 states_b_tmp[:, :]  = states_b[:, 0].unsqueeze(1)
             else:
-                states_a_tmp = states_a
+                states_a_tmp = states_a 
                 states_b_tmp = states_b
             
             # self supervised regularization

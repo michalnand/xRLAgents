@@ -5,7 +5,7 @@ GATE_PASSED     = 1.0       # per gate
 PROGRESS        = 1.0       # x metres moved toward the next gate centre, every step
 ALIGN           = 1.0       # x change of gate alignment (0..1, 1 = on the gate's axis), every step
 CRASH_PENALTY   = 2.0       # once, on crash (floor, flip or gate frame)
-YAW_RATE_PENALTY= 0.001
+YAW_RATE_PENALTY= 0.0001
 
 # Episode   
 EPISODE_LEN_SEC = 30.0
