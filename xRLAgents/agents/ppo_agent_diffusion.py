@@ -225,7 +225,7 @@ class PPOAgentDiffusion(PPOAgentBase):
             
 
             # final loss
-            loss = loss_actor + loss_entropy + loss_critic + loss_distance + 0.1*loss_ssl + loss_im
+            loss = loss_actor + loss_entropy + loss_critic + loss_distance + loss_ssl + loss_im
             
             self.optimizer.zero_grad()
 
