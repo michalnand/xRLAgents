@@ -159,10 +159,13 @@ class AgentDiffExp():
     def step(self, states, training_enabled):     
         states_t = torch.from_numpy(states).to(self.dtype).to(self.device)
 
-
+        print("OBS raw = ", states_t.mean(), states_t.min(), states_t.max())
         if self.state_normalise:
             self._update_normalisation(states_t, alpha = 0.99)
             states_t = self._state_normalise(states_t)
+
+        print("OBS noem = ", states_t.mean(), states_t.min(), states_t.max())
+        print("\n\n")
 
         # obtain model output, logits and values, use abstract state space z
         if self.rnn_policy:
