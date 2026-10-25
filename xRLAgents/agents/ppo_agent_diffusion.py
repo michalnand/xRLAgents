@@ -221,7 +221,7 @@ class PPOAgentDiffusion(PPOAgentBase):
             loss_distance, loss_ssl, loss_ssl_metrics = self._ssl_loss(states_a_tmp, states_b_tmp, distances, n == (num_batches-1))
 
             
-            # diffusion model IM
+            # diffusion model IM    
             states = self.buffer.sample_states(self.ssl_batch_size, self.device)  
             _, _, loss_im, loss_im_metrics = self._compute_im(states, self.noise_level_train, n == (num_batches-1))
             

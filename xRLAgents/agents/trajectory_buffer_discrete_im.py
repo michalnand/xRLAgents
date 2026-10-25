@@ -91,11 +91,11 @@ class TrajectoryBufferDiscreteIM:
        
         return states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int
 
-    def sample_batch_pairs(self, batch_size, device):
+    def sample_states(self, batch_size, device):
         indices         = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size, ))
         states          = self.states[indices].to(device)
 
-        return states
+        return states   
 
     def sample_batch_pairs(self, batch_size, max_distance, device):
         indices         = torch.randint(0, self.envs_count*(self.buffer_size - max_distance), size=(batch_size, ))
