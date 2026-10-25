@@ -75,6 +75,8 @@ class VectorizedAtariWrapper:
         obs, rewards, terminated, truncated, infos = self.env.step(actions)
 
         obs = numpy.array(obs/255.0, dtype=numpy.float32)
+
+        print("OBS = ", obs.mean(), obs.min(), obs.max())
     
         rewards_clip = numpy.clip(rewards, 0.0, 1.0)
 
