@@ -29,7 +29,7 @@ class RLTrainer:
 
         # main training loop
         for n in range(n_steps):
-            states_new, rewards, dones, infos = self.agent.step(states)
+            states_new, rewards, dones, infos = self.agent.step(states, True)
             
             # add to log
             if hasattr(self.agent, "get_logs"):
