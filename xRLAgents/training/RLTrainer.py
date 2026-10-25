@@ -50,10 +50,10 @@ class RLTrainer:
 
 
             if (n%(n_steps//10)) == 0:
-                self.agent.save()
+                self.agent.save(self.result_path)
 
                 if hasattr(self.envs, "save"):
-                    self.envs.save(self.result_path)
+                    self.envs.save()
                     
                 print("saving model at step ", n)
 
