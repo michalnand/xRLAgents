@@ -105,6 +105,8 @@ class TrajectoryBufferDiscreteIM:
         states_now      = self.states[indices].to(device)
         states_next     = self.states[indices_next].to(device)
 
+        distances       = distances.to(device)
+
         return states_now, states_next, distances
                
 
