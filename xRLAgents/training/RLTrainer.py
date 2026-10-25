@@ -53,7 +53,7 @@ class RLTrainer:
                 self.agent.save()
 
                 if hasattr(self.envs, "save"):
-                    self.envs.save()
+                    self.envs.save(self.result_path)
                     
                 print("saving model at step ", n)
 
