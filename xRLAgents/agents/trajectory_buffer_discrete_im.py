@@ -48,13 +48,14 @@ class TrajectoryBufferDiscreteIM:
         self.ptr = 0  
  
  
-    def compute_returns(self, gamma_ext, gamma_int, lam = 0.95, last_value_ext=None, last_value_int=None):
+    def compute_returns(self, gamma_ext, gamma_int, lam = 0.95, last_value_ext=None, last_value_int=None, normalize=True):
         self.returns_ext, self.advantages_ext  = self._gae(self.rewards_ext, self.values_ext, self.dones, gamma_ext, lam, last_value_ext)
         self.returns_int, self.advantages_int  = self._gae(self.rewards_int, self.values_int, self.dones, gamma_int, lam, last_value_int)
 
         # normalize advantages over the whole buffer
-        self.advantages_ext = (self.advantages_ext - self.advantages_ext.mean()) / (self.advantages_ext.std() + 1e-8)
-        self.advantages_int = (self.advantages_int - self.advantages_int.mean()) / (self.advantages_int.std() + 1e-8)
+        if normalize:
+            self.advantages_ext = (self.advantages_ext - self.advantages_ext.mean()) / (self.advantages_ext.std() + 1e-8)
+            self.advantages_int = (self.advantages_int - self.advantages_int.mean()) / (self.advantages_int.std() + 1e-8)
 
         #reshape buffer for faster batch sampling
         n = self.buffer_size*self.envs_count

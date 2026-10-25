@@ -41,7 +41,7 @@ class PPOAgentDiffusion(PPOAgentBase):
         self.val_coeff      = hyperparameters["val_coeff"]
         self.entropy_beta   = hyperparameters["entropy_beta"]
         self.n_ppo_steps    = hyperparameters["n_steps"]
-        self.n_ppo_episodes = hyperparameters["n_episodes"]
+        self.n_ppo_epochs = hyperparameters["n_epochs"]
         self.ppo_batch_size     = hyperparameters["ppo_batch_size"]
         self.ssl_batch_size     = hyperparameters["ssl_batch_size"]
         self.max_grad_norm  = hyperparameters["max_grad_norm"]
@@ -77,8 +77,15 @@ class PPOAgentDiffusion(PPOAgentBase):
 
     def _compute_im(self, states, noise_max_level, return_metrics):
 
+        # copy first frame
+        if self.single_frame_im:
+            states_tmp        = torch.zeros_like(states)
+            states_tmp[:, :]  = states[:, 0].unsqueeze(1)
+        else:
+            states_tmp = states
+
         # obtain features
-        _, z_target = self.model.forward_features(states)
+        _, z_target = self.model.forward_features(states_tmp)
         z_target = z_target.detach()
 
         # add noise
@@ -141,15 +148,7 @@ class PPOAgentDiffusion(PPOAgentBase):
         dones = terminated | truncated
 
         with torch.no_grad():
-
-            # copy first frame
-            if self.single_frame_im:
-                states_tmp        = torch.zeros_like(states_t)
-                states_tmp[:, :]  = states_t[:, 0].unsqueeze(1)
-            else:
-                states_tmp = states_t
-
-            rewards_int, z_im, _, _ = self._compute_im(states_tmp, self.noise_level_inference, False)
+            rewards_int, z_im, _, _ = self._compute_im(states_t, self.noise_level_inference, False)
             
 
         rewards_ext_scaled = numpy.clip(self.reward_ext_coeff*rewards_ext, 0, 1)
@@ -166,7 +165,7 @@ class PPOAgentDiffusion(PPOAgentBase):
                 states_t = self._normalize_states(states_t)
                 _, value_ext, value_int = self.model(states_t)
 
-            self.buffer.compute_returns(self.gamma_ext, self.gamma_int, lam = self.lam, last_value_ext=value_ext, last_value_int=value_int)
+            self.buffer.compute_returns(self.gamma_ext, self.gamma_int, lam = self.lam, last_value_ext=value_ext, last_value_int=value_int, normalize=False)
 
             self._training()
             self.buffer.clear()
@@ -196,7 +195,7 @@ class PPOAgentDiffusion(PPOAgentBase):
  
     def _training(self):
 
-        num_batches = (self.n_ppo_episodes*self.envs_count*self.n_ppo_steps)//self.ppo_batch_size
+        num_batches = (self.n_ppo_epochs*self.envs_count*self.n_ppo_steps)//self.ppo_batch_size
 
         for n in range(num_batches):
             states, logits_old, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.buffer.sample_batch(self.ppo_batch_size, self.device)
@@ -216,17 +215,19 @@ class PPOAgentDiffusion(PPOAgentBase):
             else:
                 states_a_tmp = states_a 
                 states_b_tmp = states_b
+
             
             # self supervised regularization
             loss_distance, loss_ssl, loss_ssl_metrics = self._ssl_loss(states_a_tmp, states_b_tmp, distances, n == (num_batches-1))
 
             
             # diffusion model IM
-            _, _, loss_im, loss_im_metrics = self._compute_im(states_a_tmp, self.noise_level_train, n == (num_batches-1))
+            states, _  = self.buffer.sample_states(self.ssl_batch_size, self.device)  
+            _, _, loss_im, loss_im_metrics = self._compute_im(states, self.noise_level_train, n == (num_batches-1))
             
 
             # final loss
-            loss = loss_actor + loss_entropy + loss_critic + loss_distance + loss_ssl + loss_im
+            loss = loss_actor + loss_entropy + loss_critic + loss_distance + 0.1*loss_ssl + loss_im
             
             self.optimizer.zero_grad()
 
@@ -277,7 +278,6 @@ class PPOAgentDiffusion(PPOAgentBase):
         return loss_distance, loss_ssl, metrics
 
     
-
     def _ppo_loss(self, states, logits_old,  actions, returns_ext, returns_int, advantages_ext, advantages_int):
         logits_new, values_ext, values_int = self.model(states)
 
@@ -288,9 +288,15 @@ class PPOAgentDiffusion(PPOAgentBase):
         ratio     = torch.exp(log_ratio)
 
 
-        # PPO clipped surrogate
         advantages  = self.adv_ext_coeff*advantages_ext + self.adv_int_coeff*advantages_int
-        p1          = ratio*advantages
+        advantages  = advantages.detach() 
+
+        #advantages normalisation 
+        advantages_norm  = (advantages - advantages.mean())/(advantages.std() + 1e-8)
+
+
+        # PPO clipped surrogate
+        p1          = ratio*advantages_norm
         p2          = torch.clamp(ratio, 1.0 - self.eps_clip, 1.0 + self.eps_clip)*advantages
         loss_actor  = -torch.min(p1, p2).mean()
 
