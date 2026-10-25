@@ -66,7 +66,7 @@ class AgentDiffExp():
 
        
         self.n_envs         = len(envs)
-        self.state_shape    = self.envs.observation_space.shape
+        self.state_shape    = self.envs.obs_shape
 
         self.actions_count  = self.envs.action_space.n
 
