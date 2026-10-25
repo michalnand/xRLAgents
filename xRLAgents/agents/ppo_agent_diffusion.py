@@ -13,7 +13,7 @@ from .loss_self_supervised import SIGRegLoss
 
 class PPOAgentDiffusion(PPOAgentBase):
 
-    def __init__(self, envs, Model, hyperparameters = PPOAgentDiscreteDefaultHyperparameters, device = "cpu"):
+    def __init__(self, envs, Model, ssl_loss_func, hyperparameters = PPOAgentDiscreteDefaultHyperparameters, device = "cpu"):
 
         super().__init__()
 
@@ -53,19 +53,17 @@ class PPOAgentDiffusion(PPOAgentBase):
         self.state_normalization = hyperparameters["state_normalization"]
         self.single_frame_im = hyperparameters["single_frame_im"]
 
+        self.ssl_loss_func = ssl_loss_func
+
 
         self.model = Model(self.state_shape, self.num_actions).to(self.device)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=hyperparameters["learning_rate"], eps=1e-5)
 
         self.buffer = TrajectoryBufferDiscreteIM(hyperparameters["n_steps"], self.state_shape, self.num_actions, self.envs_count)
 
-        self.loss_ssl_func = SIGRegLoss()
-
         self.ppo_logger = PPODiffusionLogger(len(self.envs), self.num_actions)
 
-
         self.print_params()
-
 
         states, _ = envs.reset_all()
         if self.state_normalization:
@@ -218,9 +216,9 @@ class PPOAgentDiffusion(PPOAgentBase):
 
             
             # self supervised regularization
-            loss_distance, loss_ssl, loss_ssl_metrics = self._ssl_loss(states_a_tmp, states_b_tmp, distances, n == (num_batches-1))
+            loss_distance, loss_ssl, loss_ssl_metrics = self.ssl_loss_func(self.model, states_a_tmp, states_b_tmp, distances, n == (num_batches-1))
 
-            
+
             # diffusion model IM    
             states = self.buffer.sample_states(self.ssl_batch_size, self.device)  
             _, _, loss_im, loss_im_metrics = self._compute_im(states, self.noise_level_train, n == (num_batches-1))
@@ -238,44 +236,6 @@ class PPOAgentDiffusion(PPOAgentBase):
 
         self.ppo_logger.update_training(loss_actor, loss_entropy, loss_critic, returns_ext, returns_int, advantages_ext, advantages_int, loss_ssl_metrics, loss_im_metrics)
 
-
-    def _ssl_loss(self, states_a, states_b, distance, return_metrics):
-        distance = distance.float().to(self.device)
-
-        _, za = self.model.forward_features(states_a)
-        _, zb = self.model.forward_features(states_b)
-
-        dist_pred_pos = self.model.forward_distance(za - zb)
-        dist_pred_neg = self.model.forward_distance(zb - za)
-
-        loss_distance_pos = ((distance  - dist_pred_pos)**2).mean()
-        loss_distance_neg = ((-distance - dist_pred_neg)**2).mean()
-
-        loss_distance = loss_distance_pos + loss_distance_neg
-
-        loss_ssl = self.loss_ssl_func(za) + self.loss_ssl_func(zb)
-
-        metrics = {}
-        if return_metrics:
-            shuffled_idx             = torch.randperm(states_a.shape[0])
-
-            metrics["loss_ssl"]      = loss_ssl.item()
-            metrics["loss_distance"] = loss_distance.item()
-            
-            metrics["z_mag_mean"]    = (za**2).mean().item()
-            metrics["z_mag_std"]     = (za**2).std().item()
-            metrics["z_mean"]        = za.mean().item()
-            metrics["z_std"]         = za.std().item()
-
-            # similar states distances (mean + std)
-            metrics["dz_sim_mag_mean"]  = ((za - zb)**2).mean().item()
-            metrics["dz_sim_mag_std"]   = ((za - zb)**2).std().item()
-
-            # different states distances (mean + std)
-            metrics["dz_shuffled_mag_mean"]  = ((za - zb[shuffled_idx])**2).mean().item()
-            metrics["dz_shuffled_mag_std"]   = ((za - zb[shuffled_idx])**2).std().item()
-
-        return loss_distance, loss_ssl, metrics
 
     
     def _ppo_loss(self, states, logits_old,  actions, returns_ext, returns_int, advantages_ext, advantages_int):
