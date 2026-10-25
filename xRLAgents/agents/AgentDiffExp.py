@@ -159,13 +159,10 @@ class AgentDiffExp():
     def step(self, states, training_enabled):     
         states_t = torch.from_numpy(states).to(self.dtype).to(self.device)
 
-        print("OBS raw = ", states_t.mean(), states_t.min(), states_t.max())
         if self.state_normalise:
             self._update_normalisation(states_t, alpha = 0.99)
             states_t = self._state_normalise(states_t)
 
-        print("OBS noem = ", states_t.mean(), states_t.min(), states_t.max())
-        print("\n\n")
 
         # obtain model output, logits and values, use abstract state space z
         if self.rnn_policy:
@@ -390,7 +387,13 @@ class AgentDiffExp():
 
             #self supervised target regularisation
             states_seq, labels = self.trajectory_buffer.sample_states_seq(self.ss_batch_size, self.time_distances, self.device)
+            
+            print("OBS norm = ", states_seq.mean(), states_seq.min(), states_seq.max())
+            print("\n\n")
+                        
             loss_ssl, info_ssl = self.im_ssl_loss(self.model, states_seq, labels)
+
+            
             
             loss = loss_diffusion + loss_ssl
 
