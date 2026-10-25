@@ -73,33 +73,6 @@ class PPOAgentDiffusion(PPOAgentBase):
 
 
 
-  # state denoising ability novely detection
-    def _internal_motivation(self, states, alpha_min, alpha_max, denoising_steps):
-      
-        # obtain taget features from states and noised states
-        z_target  = self.model.forward_im_features(states).detach()
-
-        # add noise into features
-        z_noised, noise, alpha = self.im_noise(z_target, alpha_min, alpha_max)
-
-        z_denoised = z_noised.to(self.dtype).detach().clone()
-    
-        # denoising by diffusion process
-        for n in range(denoising_steps):
-            noise_hat = self.model.forward_im_diffusion(z_denoised)
-            z_denoised = z_denoised - noise_hat
-
-        # denoising novelty
-        novelty    = ((z_target - z_denoised)**2).mean(dim=1)
-
-        # MSE noise loss prediction
-        noise_pred = z_noised - z_denoised
-        loss = ((noise - noise_pred)**2).mean()
-        
-        return novelty.detach(), loss
-
-
-
 
 
 
@@ -134,19 +107,6 @@ class PPOAgentDiffusion(PPOAgentBase):
 
         # MSE loss
         loss = (noise_target - noise_pred).square().mean()
-
-
-        # denoising novelty
-        novelty    = ((z_target - z_denoised_pred)**2).mean(dim=1)
-
-        # MSE noise loss prediction
-        noise_pred = z_noised - z_denoised_pred
-        loss = ((noise - noise_pred)**2).mean()
-        
-        return novelty.detach(), loss
-
-
-
 
 
         metrics = {}
