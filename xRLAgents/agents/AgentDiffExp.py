@@ -91,13 +91,13 @@ class AgentDiffExp():
             self.state_mean  = torch.zeros((self.state_shape[1], self.state_shape[2]), dtype=self.dtype, device=self.device)
 
             
-            states, _ = self.envs.reset()
+            states = self.envs.reset()
             self.state_mean = torch.from_numpy(states[:, 0]).to(self.dtype).to(self.device)
 
             self.state_mean/= self.n_envs
             self.state_var = torch.ones(self.state_mean.shape, dtype=self.dtype, device=self.device)
         else:
-            states, _ = self.envs.reset()
+            states = self.envs.reset()
 
         
         if self.rnn_policy:
