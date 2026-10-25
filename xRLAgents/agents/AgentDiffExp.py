@@ -542,7 +542,8 @@ class AgentDiffExp():
         self.state_var  = alpha*self.state_var + (1.0 - alpha)*var 
 
     #normalise mean and variance
-    def _state_normalise(self, states):     
+    def _state_normalise(self, states):   
+        print(states.shape, self.state_mean.shape, self.state_var.shape)  
         states_norm = (states - self.state_mean)/(torch.sqrt(self.state_var) + 10**-6)
         states_norm = torch.clip(states_norm, -4.0, 4.0)
     
