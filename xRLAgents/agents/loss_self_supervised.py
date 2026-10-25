@@ -40,18 +40,7 @@ def loss_covariance(za, zb):
 
     return loss
 
-    
-# skewness loss 
-def loss_skew_func(x, target_skew = 0.98, dim=-1):
-    mean    = x.mean(keepdim=True, dim=dim)
-    std     = x.std(keepdim =True, dim=dim) + 1e-6 
-    loss    = ((x - mean) / std)**3
-    loss    = loss.mean(dim=dim)
-
-    loss = torch.mean((target_skew - loss)**2)
-
-    return loss
-
+   
 
 def loss_vicreg_func(za, zb):
     # invariance loss
@@ -186,38 +175,121 @@ def images_ssim(batch_a: torch.Tensor, batch_b: torch.Tensor, kernel_size=7):
 
     return ssim_matrix
 
-
-
     
-def loss_sigreg_func(z, t_range = 5.0, num_t_points=17, num_projections=16):
-    N, K = z.shape
 
-    t = torch.linspace(-t_range, t_range, num_t_points, device=z.device) 
-    phi_target = torch.exp(-0.5 * t**2)
+class SIGRegLoss(torch.nn.Module):
+    """
+    SIGReg for generic features (no temporal dimension)
+    Input: (B, D)
+    """
+    def __init__(self, knots=17, num_proj=512):
+        super().__init__()
+        self.num_proj = num_proj    
+
+        # integration grid
+        t = torch.linspace(0, 3, knots, dtype=torch.float32)
+        dt = 3 / (knots - 1)
+
+        weights = torch.full((knots,), 2 * dt, dtype=torch.float32)
+        weights[[0, -1]] = dt  # trapezoidal rule
+
+        # Gaussian characteristic function
+        phi = torch.exp(-t.square() / 2.0)
+
+        # windowing (same as paper)
+        window = torch.exp(-t.square() / 2.0)
+
+        self.register_buffer("t", t)
+        self.register_buffer("phi", phi)
+        self.register_buffer("weights", weights * window)
+
+    def forward(self, z):
+        """
+        z: (B, D)
+        """
+        B, D = z.shape
+
+        device = z.device
+
+        # 1. sample random projection directions
+        A = torch.randn(D, self.num_proj, device=device)
+        A = A / (A.norm(dim=0, keepdim=True) + 1e-8)
+
+        # 2. project → (B, M)
+        proj = z @ A
+
+        # 3. expand for t grid → (B, M, K)
+        x_t = proj.unsqueeze(-1) * self.t.to(device)
+
+        # 4. empirical characteristic function
+        cos_term = torch.cos(x_t).mean(dim=0)  # (M, K)
+        sin_term = torch.sin(x_t).mean(dim=0)  # (M, K)
+
+        # 5. compute Epps–Pulley error
+        err = (cos_term - self.phi.to(device)).pow(2) + sin_term.pow(2)
+
+        # 6. integrate over t
+        stat = err @ self.weights.to(device)  # (M,)
+
+        # 7. scale by sample size (important!)
+        stat = stat * B
+
+        # 8. average over projections
+        return stat.mean()
+
+
+
+def loss_spectral_temporal_per_delta_func(Z, delta, lambda_offdiag=1.0):
+    """
+    Computes spectral temporal loss for a single lag delta.
     
-    # 1, Sample random directions
-    A = torch.randn(K, num_projections, device=z.device)
-    A = A / A.norm(dim=0, keepdim=True)  # normalize columns
+    Args:
+        Z: Tensor of shape (T, B, D)
+        delta: temporal lag (int)
+        
+    Returns:
+        scalar loss for this delta
+    """
+     
+    T, B, D = Z.shape
 
-    # 2, Project embeddings
-    # (N, M)
-    projections = z @ A
+    if delta >= T:
+        raise ValueError("delta must be smaller than sequence length")
+    
+   
 
-    # 3, Compute empirical characteristic function
-    # shape: (N, M, T)
-    x_t = projections.unsqueeze(-1) * t
+    Z_t  = Z[0:T-delta]
+    Z_tp = Z[delta:T]
 
-    # e^{i t x}
-    ecf = torch.exp(1j * x_t).mean(dim=0)  # (M, T)
+    X = Z_t.reshape(-1, D)
+    Y = Z_tp.reshape(-1, D)
 
-    # 4, Weighted L2 distance
-    diff = ecf - phi_target  # broadcast over M
-    error = (diff.abs() ** 2) * phi_target  # Gaussian window
+    # center
+    X = X - X.mean(0, keepdim=True)
+    Y = Y - Y.mean(0, keepdim=True)
 
-    # integrate over t
-    integral = torch.trapz(error, t, dim=1)
+    # normalize variance (important!)
+    X = X / (X.std(0, keepdim=True) + 1e-4)
+    Y = Y / (Y.std(0, keepdim=True) + 1e-4)
 
-    # scale by N (as in paper)
-    loss = N * integral.mean()
+    N = X.shape[0]
 
-    return loss.real
+    C = (X.T @ Y) / N
+
+    diag = torch.diagonal(C)
+    off_diag = C - torch.diag(diag)
+
+    loss_diag = ((1 - diag) ** 2).mean()
+    loss_off = (off_diag ** 2).mean()
+
+    return loss_diag + lambda_offdiag * loss_off
+
+
+def loss_spectral_temporal_func(Z, deltas=[1, 2, 4, 8]):
+    """
+    Multi-scale spectral temporal loss.
+    """
+    total = 0.0
+    for delta in deltas:
+        total += loss_spectral_temporal_per_delta_func(Z, delta)
+    return total / len(deltas)

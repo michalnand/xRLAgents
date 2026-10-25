@@ -75,6 +75,7 @@ class VectorizedAtariWrapper:
         obs, rewards, terminated, truncated, infos = self.env.step(actions)
 
         obs = numpy.array(obs/255.0, dtype=numpy.float32)
+
     
         rewards_clip = numpy.clip(rewards, 0.0, 1.0)
 
@@ -89,6 +90,7 @@ class VectorizedAtariWrapper:
             self._update_rooms_counter(dones, infos["ram"])
 
 
+      
       
         # udpate logs
         self.env_log.add("reward_episode_mean", self.episode_score.mean(), 1.0)
