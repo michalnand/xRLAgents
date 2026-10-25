@@ -9,7 +9,7 @@ PPOAgentDiffusionDefaultHyperparameters = {
     "ppo_batch_size"    :  512,  
     "ssl_batch_size"    :  128,  
     
-    "n_epoch"           : 4, 
+    "n_epochs"          : 4, 
     "learning_rate"     : 0.0001,
     
     "eps_clip"          : 0.1,
