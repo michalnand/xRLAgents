@@ -222,7 +222,7 @@ class PPOAgentDiffusion(PPOAgentBase):
 
             
             # diffusion model IM
-            states, _  = self.buffer.sample_states(self.ssl_batch_size, self.device)  
+            states = self.buffer.sample_states(self.ssl_batch_size, self.device)  
             _, _, loss_im, loss_im_metrics = self._compute_im(states, self.noise_level_train, n == (num_batches-1))
             
 
