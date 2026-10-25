@@ -68,8 +68,39 @@ class PPOAgentDiffusion(PPOAgentBase):
         states, _ = envs.reset_all()
         if self.state_normalization:
             states           = torch.from_numpy(states).float().to(self.device)
-            self.states_mean = states.mean(dim=0)
+            self.states_mean = states[:, 0].mean(dim=0)
             self.states_std  = torch.ones_like(self.states_mean).to(self.device)
+
+
+
+  # state denoising ability novely detection
+    def _internal_motivation(self, states, alpha_min, alpha_max, denoising_steps):
+      
+        # obtain taget features from states and noised states
+        z_target  = self.model.forward_im_features(states).detach()
+
+        # add noise into features
+        z_noised, noise, alpha = self.im_noise(z_target, alpha_min, alpha_max)
+
+        z_denoised = z_noised.to(self.dtype).detach().clone()
+    
+        # denoising by diffusion process
+        for n in range(denoising_steps):
+            noise_hat = self.model.forward_im_diffusion(z_denoised)
+            z_denoised = z_denoised - noise_hat
+
+        # denoising novelty
+        novelty    = ((z_target - z_denoised)**2).mean(dim=1)
+
+        # MSE noise loss prediction
+        noise_pred = z_noised - z_denoised
+        loss = ((noise - noise_pred)**2).mean()
+        
+        return novelty.detach(), loss
+
+
+
+
 
 
 
@@ -105,6 +136,19 @@ class PPOAgentDiffusion(PPOAgentBase):
         loss = (noise_target - noise_pred).square().mean()
 
 
+        # denoising novelty
+        novelty    = ((z_target - z_denoised_pred)**2).mean(dim=1)
+
+        # MSE noise loss prediction
+        noise_pred = z_noised - z_denoised_pred
+        loss = ((noise - noise_pred)**2).mean()
+        
+        return novelty.detach(), loss
+
+
+
+
+
         metrics = {}
         if return_metrics:
             metrics["loss_im"]               = loss.item()
@@ -118,15 +162,21 @@ class PPOAgentDiffusion(PPOAgentBase):
             
         return reward_im, z_target, loss, metrics
 
-    def _update_normalization(self, states, alpha = 0.99):
-        self.states_mean = alpha*self.states_mean + (1 - alpha)*states.mean(dim=0)
-        self.states_std  = alpha*self.states_std  + (1 - alpha)*states.std(dim=0)
     
-    def _normalize_states(self, states):
-        result = (states - self.states_mean.unsqueeze(0))/(self.states_std.unsqueeze(0) + 1e-6)
-        result = torch.clip(result, -4.0, 4.0)
+    #update running stats when training enabled
+    def _update_normalization(self, states, alpha = 0.99):
+        mean = states.mean(dim=(0, 1))
+        self.states_mean = alpha*self.states_mean + (1.0 - alpha)*mean
 
-        return result
+        var = ((states - mean)**2).mean(dim=(0, 1))
+        self.states_var  = alpha*self.states_var + (1.0 - alpha)*var 
+
+    #normalize mean and variance
+    def _state_normalzse(self, states):     
+        states_norm = (states - self.states_mean)/(torch.sqrt(self.states_var) + 10**-6)
+        states_norm = torch.clip(states_norm, -4.0, 4.0)
+    
+        return states_norm  
 
     def step(self, states):
         states_t = torch.from_numpy(states).float().to(self.device)
