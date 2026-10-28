@@ -159,7 +159,7 @@ class PPOAgentDiffusion(PPOAgentBase):
             rewards_int, z_im, _, _ = self._compute_im(states_t, self.noise_level_inference, False)
             
 
-        rewards_ext_scaled = numpy.clip(self.reward_ext_coeff*rewards_ext, 0, 1)
+        rewards_ext_scaled = self.reward_ext_coeff*rewards_ext
         rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int.detach().cpu().numpy(), 0, 1)
         
         self.buffer.add(states_t, logits, value_ext, value_int, actions, rewards_ext_scaled, rewards_int_scaled, dones)
@@ -168,16 +168,15 @@ class PPOAgentDiffusion(PPOAgentBase):
         self.ppo_logger.update_step(actions, rewards_ext, rewards_int.detach().cpu().numpy(), dones, z_im.detach().float().cpu().numpy())
 
         if self.buffer.is_full():
-            '''
+            
             with torch.no_grad():
                 states_t = torch.from_numpy(states_next).float().to(self.device)
                 states_t = self._states_normalize(states_t)
                 _, value_ext, value_int = self.model(states_t)
 
             self.buffer.compute_returns(self.gamma_ext, self.gamma_int, lam = self.lam, last_value_ext=value_ext, last_value_int=value_int, normalize=False)
-            '''
-
-            self.buffer.compute_returns(self.gamma_ext, self.gamma_int, lam = self.lam, normalize=False)
+            
+            #self.buffer.compute_returns(self.gamma_ext, self.gamma_int, lam = self.lam, normalize=False)
 
             self._training()
             self.buffer.clear()
@@ -271,7 +270,7 @@ class PPOAgentDiffusion(PPOAgentBase):
 
         # PPO clipped surrogate
         p1          = ratio*advantages_norm
-        p2          = torch.clamp(ratio, 1.0 - self.eps_clip, 1.0 + self.eps_clip)*advantages
+        p2          = torch.clamp(ratio, 1.0 - self.eps_clip, 1.0 + self.eps_clip)*advantages_norm
         loss_actor  = -torch.min(p1, p2).mean()
 
         # compute entropy loss, to avoid greedy strategy

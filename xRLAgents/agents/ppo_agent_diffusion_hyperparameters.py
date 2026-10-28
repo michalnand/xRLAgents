@@ -1,5 +1,5 @@
 PPOAgentDiffusionDefaultHyperparameters = {
-    "reward_ext_coeff"  :  1.0,
+    "reward_ext_coeff"  :  2.0,
     "reward_int_coeff"  :  1.0,
 
     "gamma_ext"         :  0.998, 
