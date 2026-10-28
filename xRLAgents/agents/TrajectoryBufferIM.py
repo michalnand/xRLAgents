@@ -10,7 +10,7 @@ class TrajectoryBufferIM:
         self.clear()   
 
     def clear(self):
-        self.buffer = {} 
+        self.buffer = {}
         self.ptr    = 0
     
     def add(self, **kwargs):
@@ -92,39 +92,8 @@ class TrajectoryBufferIM:
         idx = torch.randint(0, total_size, (batch_size,), device=self.device)
 
         result = self.buffer["states"][idx].to(device)
-        steps  = self.buffer["steps"][idx].to(device)
 
-        return result, steps
-    
-
-    def sample_causal_states(self, batch_size, d_max, device):
-
-        total_size  = self.buffer_size*self.n_envs  
-
-        indices_curr    = torch.randint(0, total_size, (batch_size,), device=self.device)
-        distances       = torch.randint(0, d_max + 1, size=(batch_size,), device=self.device)
-        indices_next    = indices_curr + self.n_envs*distances
-        indices_next    = torch.clip(indices_next, 0, total_size-1) 
-
-        
-        states_curr = self.buffer["states"][indices_curr].to(device)
-        states_next = self.buffer["states"][indices_next].to(device)
-
-        return states_curr, states_next, distances.to(device)
-    
-
-    def sample_states_pairs(self, batch_size, device):
-
-        total_size  = self.buffer_size*self.n_envs  
-
-        indices_curr    = torch.randint(0, total_size, (batch_size,), device=self.device)
-        indices_next    = torch.clip(indices_curr + self.n_envs, 0, total_size-1)   
-
-        states_curr = self.buffer["states"][indices_curr].to(device)
-        states_next = self.buffer["states"][indices_next].to(device)
-        actions     = self.buffer["actions"][indices_curr].to(device)
-
-        return states_curr, states_next, actions
+        return result
     
 
     def sample_states_seq(self, batch_size, time_distances, device, dtype = None):
@@ -151,28 +120,6 @@ class TrajectoryBufferIM:
 
        
         return states_result, steps_result
-    
-
-    def sample_states_seq_fixed(self, batch_size, seq_len, device, dtype = None):
-        if dtype is None:
-            dtype = torch.float32
-
-        total_size = self.buffer_size*self.n_envs
-
-        states_result   = []
-
-        indices_now     = torch.randint(0, self.n_envs*self.buffer_size, size=(batch_size, ))
-
-        for n in range(seq_len):   
-            indices = indices_now + n*self.n_envs
-            indices = torch.clip(indices, 0, total_size-1)
-
-            states = (self.buffer["states"][indices]).to(dtype=dtype, device=device)
-            steps  = (self.buffer["steps"][indices]).to(device=device) 
-
-            states_result.append(states)        
-
-        return states_result
       
     def _gae(self, rewards, values, dones, gamma, lam):
         buffer_size = rewards.shape[0]
