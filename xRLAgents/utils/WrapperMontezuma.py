@@ -1,0 +1,481 @@
+import ale_py
+import gymnasium as gym
+import numpy
+
+from PIL import Image, ImageFilter
+
+import cv2
+import matplotlib.pyplot as plt
+
+
+class VideoRecorder(gym.Wrapper):
+    def __init__(self, env, file_name = "records/video/video.mp4"):
+        super(VideoRecorder, self).__init__(env)
+
+        self.height  = env.observation_space.shape[0]
+        self.width   = env.observation_space.shape[1]
+
+        fourcc = cv2.VideoWriter_fourcc(*'XVID') 
+        self.writer = cv2.VideoWriter(file_name, fourcc, 50.0, (self.width, self.height)) 
+        self.frame_counter = 0 
+
+    def step(self, action):
+        state, reward, done, truncated, info = self.env.step(action)
+        
+        #if self.frame_counter%2 == 0:
+        im_bgr = cv2.cvtColor(state, cv2.COLOR_RGB2BGR)
+
+        resized = cv2.resize(im_bgr, (self.width, self.height), interpolation = cv2.INTER_AREA)
+
+        self.writer.write(resized) 
+
+        self.frame_counter+= 1
+
+        if self.frame_counter%32 == 0:
+            filename = "records/images/" + str(self.frame_counter//32) + ".png"
+            cv2.imwrite(filename, im_bgr)
+
+        return state, reward, done, truncated, info
+
+    def reset(self, seed = None, options = None):
+        return self.env.reset()
+
+class RemoveTrunc(gym.Wrapper):
+    def __init__(self, env=None):
+        super(RemoveTrunc, self).__init__(env)
+
+    def reset(self, seed = None, options = None):
+        return self.env.reset()
+    
+    def step(self, action):
+        state, reward, done, truncated, info = self.env.step(action)
+        return state, reward, done, info
+
+class NopOpsEnv(gym.Wrapper):
+    def __init__(self, env=None, max_count=30):
+        super(NopOpsEnv, self).__init__(env)
+        self.max_count = max_count
+
+    def reset(self, seed = None, options = None):
+        self.env.reset()
+
+        noops = numpy.random.randint(1, self.max_count + 1)
+         
+        for _ in range(noops):
+            obs, _, done, _ = self.env.step(0)
+
+            if done:
+                obs = self.env.reset()
+           
+        return obs, {}
+
+    def step(self, action):
+        return self.env.step(action)
+
+class StickyActionEnv(gym.Wrapper):
+    def __init__(self, env, p=0.25):
+        super(StickyActionEnv, self).__init__(env)
+        self.p = p
+        self.last_action = 0
+
+    def step(self, action):
+        if numpy.random.uniform() < self.p:
+            action = self.last_action
+
+        self.last_action = action
+        return self.env.step(action)
+
+    def reset(self, seed = None, options = None):
+        self.last_action = 0
+        return self.env.reset()
+ 
+
+
+class MaxAndSkipEnv(gym.Wrapper):
+    def __init__(self, env, n_skip = 4):
+        gym.Wrapper.__init__(self, env)
+        self.successive_frame = numpy.zeros((2,) + self.env.observation_space.shape, dtype=numpy.uint8)
+        self.n_skip = n_skip
+
+    
+    def reset(self, seed=None, options=None):
+        obs, info = self.env.reset(seed=seed, options=options)
+        self.successive_frame[:] = 0
+        
+        return obs, info
+
+    def step(self, action):
+        total_reward    = 0
+        done            = False
+        info            = {}
+
+        for t in range(self.n_skip):
+            state, reward, done, info = self.env.step(action)
+
+            if t == self.n_skip-2:
+                self.successive_frame[0] = state
+            elif t == self.n_skip-1:    
+                self.successive_frame[1] = state
+            
+            total_reward += reward
+
+            if done:
+                break
+
+        state = self.successive_frame.max(axis=0)
+
+        return state, total_reward, done, info
+
+
+
+class ResizeEnv(gym.Wrapper):
+    def __init__(self, env, height = 96, width = 96, frame_stacking = 4, player_position = False, enhance=False):
+        gym.Wrapper.__init__(self, env)
+        self.height = height
+        self.width  = width
+        self.frame_stacking = frame_stacking
+        self.player_position= player_position
+        self.enhance        = enhance
+
+        self.px = 0
+        self.py = 0
+
+        state_shape = (self.frame_stacking, self.height, self.width)
+        self.dtype  = numpy.float32
+
+        self.observation_space = gym.spaces.Box(low=0.0, high=1.0, shape=state_shape, dtype=self.dtype)
+        self.state = numpy.zeros(state_shape, dtype=self.dtype)
+
+    def reset(self, seed = None, options = None):    
+        state, info = self.env.reset()
+
+        info["px"] = self.px
+        info["py"] = self.py    
+
+        return self._observation(state), info
+    
+    def step(self, action):    
+        state, reward, done, info = self.env.step(action)
+
+        info["px"] = self.px
+        info["py"] = self.py    
+
+        return self._observation(state), reward, done, info
+    
+
+    def _observation(self, state):
+        img = Image.fromarray(state)
+
+        if self.player_position:
+            _, self.px, self.py = self._get_player_position(numpy.array(img))
+
+            '''
+            cv_img = numpy.array(img, dtype=numpy.uint8)
+            cv_img = cv2.circle(cv_img, center=(self.px, self.py), radius=5, color=(0, 0, 255), thickness=-1)
+            cv_img = cv2.cvtColor(cv_img, cv2.COLOR_RGB2BGR)
+
+            cv2.imshow("window ", cv_img)
+            cv2.waitKey(50)
+            '''
+               
+
+        img = img.convert('L')
+        img = img.resize((self.width, self.height))
+
+        img = numpy.array(img)
+        if self.enhance:
+            img = self._enhance(img)
+
+
+        self.state    = numpy.roll(self.state, 1, axis=0)
+        self.state[0] = (numpy.array(img).astype(self.dtype)/255.0).copy()
+        
+        return self.state
+
+    def _get_player_position(self, frame):
+        mask = frame[:, :, 0] > 190 
+        
+        mask = numpy.logical_and(mask, frame[:, :, 1] < 190)
+        mask = numpy.logical_and(mask, frame[:, :, 2] < 190)
+        
+
+        #mask = frame[:, :, 0] > 150   
+        #mask = numpy.logical_and(mask, frame[:, :, 1] < 80)
+        #mask = numpy.logical_and(mask, frame[:, :, 2] < 80)
+
+        if numpy.any(mask):
+            # Get coordinates of matches
+            ys, xs = numpy.where(mask)
+
+            # Use centroid of detected region
+            x = int(xs.mean())
+            y = int(ys.mean())
+        else:
+            x = 0
+            y = 0
+
+        return numpy.array(mask, dtype=numpy.uint8), x, y
+    
+    def _enhance(self, img):
+        img = numpy.array(img, dtype=int)
+        img = numpy.array(97*img + 17, dtype=numpy.uint8)
+        return img
+    
+class MaxSteps(gym.Wrapper):
+    def __init__(self, env, max_steps):
+        gym.Wrapper.__init__(self, env)
+        self.max_steps = max_steps
+        self.steps     = 0
+
+    def reset(self, seed = None, options = None):
+        self.steps     = 0
+        return self.env.reset()
+
+    def step(self, action):
+       
+        state, reward, done, info = self.env.step(action)
+        
+        self.steps+= 1
+        if self.steps >= self.max_steps:
+            done = True
+
+        return state, reward, done, info
+
+
+
+class Rewards(gym.Wrapper):
+    def __init__(self, env):    
+        gym.Wrapper.__init__(self, env)
+        
+    def reset(self, seed = None, options = None):
+        return self.env.reset()
+
+    def step(self, action):
+       
+        state, reward, done, info = self.env.step(action)
+
+        info["raw_reward"] = reward
+        
+        if reward > 0:
+            reward = 1.0
+        else:
+            reward = 0.0
+            
+        return state, reward, done, info
+
+
+
+    
+
+class ExploredRoomsEnv(gym.Wrapper):
+    '''
+    room_address for games : 
+    montezuma revenge : 3
+    pitfall           : 1
+    '''
+    def __init__(self, env, room_address = 3):
+        gym.Wrapper.__init__(self, env)
+        self.room_address = room_address
+
+        self.explored_rooms         = {}
+        self.explored_rooms_episode = {}
+
+    def step(self, action):
+        obs, reward, done, info = self.env.step(action)
+
+        room_id = self._get_current_room_id()
+
+        if room_id not in self.explored_rooms:
+            self.explored_rooms[room_id] = 1
+        else:
+            self.explored_rooms[room_id]+= 1
+
+        if room_id not in self.explored_rooms_episode:
+            self.explored_rooms_episode[room_id] = 1
+        else:
+            self.explored_rooms_episode[room_id]+= 1
+
+        info["room_id"]                 = room_id
+        info["explored_rooms"]          = len(self.explored_rooms)
+        info["explored_rooms_episode"]  = len(self.explored_rooms_episode)
+
+        #print("room_id = ", room_id, len(self.explored_rooms))
+
+        return obs, reward, done, info
+    
+    def reset(self, seed = None, options = None):
+        self.explored_rooms_episode = {}
+        return self.env.reset()
+
+    def _get_current_room_id(self):
+        ram = self.env.unwrapped.ale.getRAM()
+        return int(ram[self.room_address])
+
+
+
+
+
+class StateManager(gym.Wrapper):
+    """
+    Adds save_state() and load_state() to the Atari environment.
+    Uses ALE clone_state / restore_state under the hood.
+    """
+    def __init__(self, env):
+        super().__init__(env)
+
+    def save_state(self):
+        """
+        Returns a copy of the current ALE state (can be pickled or stored).
+        """
+        state = self.env.unwrapped.clone_state()
+        return state
+
+    def load_state(self, state):
+        """
+        Restores a given ALE state (or the last saved one if state=None).
+        """
+        self.env.unwrapped.restore_state(state)
+
+     
+
+def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
+
+    ale = env.unwrapped.ale
+    ale.setFloat("repeat_action_probability", 0.0)
+    ale.setInt("frame_skip", 1) 
+
+    #env = VideoRecorder(env)
+    env = RemoveTrunc(env)
+    env = NopOpsEnv(env)    
+    env = StickyActionEnv(env)
+    env = MaxAndSkipEnv(env)
+    env = ResizeEnv(env, height, width, frame_stacking)
+    
+    env = MaxSteps(env, max_steps)
+    env = Rewards(env)
+
+    # room_address 3 for montezuma, 1 for pitfall
+    env = ExploredRoomsEnv(env, room_address = 3) 
+
+    env = StateManager(env)  
+
+    return env
+
+
+
+  
+
+def WrapperMontezumaShaped(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
+
+    ale = env.unwrapped.ale
+    ale.setFloat("repeat_action_probability", 0.0)
+    ale.setInt("frame_skip", 1) 
+
+    #env = VideoRecorder(env)
+    env = RemoveTrunc(env)
+    env = NopOpsEnv(env)    
+    env = StickyActionEnv(env)
+    env = MaxAndSkipEnv(env)
+    env = ResizeEnv(env, height, width, frame_stacking)
+    
+    env = MaxSteps(env, max_steps)
+    env = Rewards(env, True)
+
+    # room_address 3 for montezuma, 1 for pitfall
+    env = ExploredRoomsEnv(env, room_address = 3) 
+
+    env = StateManager(env)  
+
+    return env
+
+
+  
+
+def WrapperPitfallShaped(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
+
+    ale = env.unwrapped.ale
+    ale.setFloat("repeat_action_probability", 0.0)
+    ale.setInt("frame_skip", 1) 
+
+    #env = VideoRecorder(env)
+    env = RemoveTrunc(env)
+    env = NopOpsEnv(env)    
+    env = StickyActionEnv(env)
+    env = MaxAndSkipEnv(env)
+    env = ResizeEnv(env, height, width, frame_stacking, True, False)
+    
+    env = MaxSteps(env, max_steps)
+    env = Rewards(env)
+
+    # room_address 3 for montezuma, 1 for pitfall
+    env = ExploredRoomsEnv(env, room_address = 1) 
+
+    env = StateManager(env)  
+
+    return env  
+
+
+
+
+def WrapperPitfallShapedEnhanced(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
+
+    ale = env.unwrapped.ale
+    ale.setFloat("repeat_action_probability", 0.0)
+    ale.setInt("frame_skip", 1) 
+
+    #env = VideoRecorder(env)
+    env = RemoveTrunc(env)
+    env = NopOpsEnv(env)    
+    env = StickyActionEnv(env)
+    env = MaxAndSkipEnv(env)
+    env = ResizeEnv(env, height, width, frame_stacking, True, True)
+    
+    env = MaxSteps(env, max_steps)
+    env = Rewards(env)
+
+    # room_address 3 for montezuma, 1 for pitfall
+    env = ExploredRoomsEnv(env, room_address = 1) 
+
+    env = StateManager(env)  
+
+    return env  
+
+
+
+
+
+if __name__ == "__main__":
+
+    env = gym.make("ALE/MontezumaRevenge-v5")
+    #env = gym.make("ALE/Pitfall-v5")
+    env = WrapperPitfallShapedEnhanced(env)
+    
+    state, info = env.reset()
+    
+
+    px_now = 0
+    px_prev = 0
+    while True:
+        action = numpy.random.randint(0, env.action_space.n)
+        state, reward, done, info = env.step(action)
+
+        px_prev = px_now
+        px_now  = info["px"]
+        dx      = px_now - px_prev
+
+        py      = info["py"] - 110
+
+        if dx > 0 and py < 0:
+            print(1)
+        else:
+            print(-1)
+
+        cv2.imshow("w", state[0])
+        cv2.waitKey(1)
+
+        print(info)
+
+        if done:
+            env.reset()
+    
+    

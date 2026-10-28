@@ -1,7 +1,6 @@
 import torch
 
 
-
 class ModelFeatures(torch.nn.Module):
     def __init__(self, input_shape, n_features):
         super(ModelFeatures, self).__init__()

@@ -9,7 +9,6 @@ from .ppo_agent_discrete_hyperparameters    import *
 
 from ..training.ppo_diffusion_logger         import *
 
-from .loss_self_supervised import SIGRegLoss
 
 class PPOAgentDiffusion(PPOAgentBase):
 
@@ -107,7 +106,7 @@ class PPOAgentDiffusion(PPOAgentBase):
 
         # MSE loss
         loss = (noise_target - noise_pred).square().mean()
-        
+
 
         metrics = {}
         if return_metrics:
