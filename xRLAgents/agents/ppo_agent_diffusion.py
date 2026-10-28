@@ -131,7 +131,6 @@ class PPOAgentDiffusion(PPOAgentBase):
         var = ((states[:, 0, :, :] - mean)**2).mean(dim=(0, 1))
         self.states_var  = alpha*self.states_var + (1.0 - alpha)*var 
 
-        print(">>>> ", self.states_mean.shape, self.states_var.shape)
 
     #normalize mean and variance
     def _states_normalize(self, states):     
