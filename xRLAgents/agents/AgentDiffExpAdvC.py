@@ -187,7 +187,7 @@ class AgentDiffExpAdvC():
             logits_t, values_ext_t, values_int_t = self.model.forward(states_t)
 
         actions = self._sample_actions(logits_t)
-      
+        
         # environment step  
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 

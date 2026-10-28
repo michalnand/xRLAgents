@@ -439,7 +439,7 @@ class AgentDiffExpC():
             states_tmp = torch.zeros_like(states)
             states_tmp[:, :] = states[:, 0].unsqueeze(1)
         else:
-            states_tmp = states
+            states_tmp = states 
 
         # obtain taget features from states and noised states
         _, z_target  = self.model.forward_features(states_tmp)
