@@ -5,7 +5,7 @@ from .TrajectoryBufferIM  import *
 from ..training.ValuesLogger           import *
 
 
-    
+
 class AgentDiffExp(): 
     def __init__(self, envs, Config, Model):
         self.envs = envs
@@ -66,7 +66,7 @@ class AgentDiffExp():
 
        
         self.n_envs         = len(envs)
-        self.state_shape    = self.envs.observation_space.shape
+        self.state_shape    = self.envs.obs_shape.shape
 
         self.actions_count  = self.envs.action_space.n
 
