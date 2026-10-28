@@ -68,9 +68,9 @@ class AgentDiffExpC():
 
        
         self.n_envs         = len(envs)
-        self.state_shape    = self.envs.observation_space
+        self.state_shape    = self.envs.observation_shape
 
-        self.actions_count  = self.envs.actions_count
+        self.actions_count  = self.envs.num_actions
 
         # create mdoel
         if self.rnn_policy:
