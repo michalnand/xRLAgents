@@ -88,7 +88,7 @@ class AgentDiffExp():
 
         # optional, for state mean and variance normalisation
 
-        states = self.envs.reset(e)
+        states = self.envs.reset()
 
         if self.state_normalise:
             self.state_mean  = torch.zeros((self.state_shape[1], self.state_shape[2]), dtype=self.dtype, device=self.device)
@@ -97,7 +97,7 @@ class AgentDiffExp():
             self.state_mean = torch.mean(states_t, dim=(0, 1)).to(self.device)
            
             self.state_var = torch.ones(self.state_mean.shape, dtype=self.dtype, device=self.device)
-        
+
         
         if self.rnn_policy:
             self.hidden_state_t = torch.zeros((self.n_envs, ) + self.rnn_shape).to(self.dtype).to(self.device)
