@@ -30,10 +30,7 @@ class VectorizedAtariWrapper:
         self.observation_shape = self.env.observation_space
         # The total number of discrete actions available (e.g., 18 for Atari)
         self.num_actions = int(self.env.action_space.n)
-
-        print(">>>> ", self.observation_shape)
-        print(">>>> ", self.observation_shape.shape)
-
+        
         
         self.env_log = ValuesLogger("env")
         self.steps = 0
