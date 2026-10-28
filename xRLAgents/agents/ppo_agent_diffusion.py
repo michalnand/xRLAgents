@@ -125,11 +125,13 @@ class PPOAgentDiffusion(PPOAgentBase):
     
     #update running stats when training enabled
     def _update_normalization(self, states, alpha = 0.99):
-        mean = states.mean(dim=(0, 1))
+        mean = states[:, 0, :, :].mean(dim=(0, 1))
         self.states_mean = alpha*self.states_mean + (1.0 - alpha)*mean
 
-        var = ((states - mean)**2).mean(dim=(0, 1))
+        var = ((states[:, 0, :, :] - mean)**2).mean(dim=(0, 1))
         self.states_var  = alpha*self.states_var + (1.0 - alpha)*var 
+
+        print(">>>> ", self.states_mean.shape, self.states_var.shape)
 
     #normalize mean and variance
     def _states_normalize(self, states):     
@@ -171,7 +173,8 @@ class PPOAgentDiffusion(PPOAgentBase):
             
             with torch.no_grad():
                 states_t = torch.from_numpy(states_next).float().to(self.device)
-                states_t = self._states_normalize(states_t)
+                if self.state_normalization:
+                    states_t = self._states_normalize(states_t)
                 _, value_ext, value_int = self.model(states_t)
 
             self.buffer.compute_returns(self.gamma_ext, self.gamma_int, lam = self.lam, last_value_ext=value_ext, last_value_int=value_int, normalize=False)
