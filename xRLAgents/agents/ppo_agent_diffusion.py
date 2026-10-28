@@ -107,7 +107,7 @@ class PPOAgentDiffusion(PPOAgentBase):
 
         # MSE loss
         loss = (noise_target - noise_pred).square().mean()
-
+        
 
         metrics = {}
         if return_metrics:
@@ -182,6 +182,8 @@ class PPOAgentDiffusion(PPOAgentBase):
 
             self._training()
             self.buffer.clear()
+
+        print("rewards_int = ", rewards_int.mean(), rewards_int.std())
 
 
         # episodes ends reset is handled outside
