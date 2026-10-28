@@ -107,8 +107,6 @@ class TrajectoryBufferDiscreteIM:
 
         distances       = distances.to(device)
 
-        print(distances)
-
         return states_now, states_next, distances
                
 

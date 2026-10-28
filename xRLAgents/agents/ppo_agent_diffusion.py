@@ -228,6 +228,13 @@ class PPOAgentDiffusion(PPOAgentBase):
                 states_a_tmp = states_a 
                 states_b_tmp = states_b
 
+
+            distance_m = ((states_a_tmp - states_b_tmp)**2).mean(dim=(1, 2, 3))
+
+            print("distances ")
+            print(distances[0:10])
+            print(distance_m[0:10])
+
             
             # self supervised regularization
             loss_distance, loss_ssl, loss_ssl_metrics = self.ssl_loss_func(self.model, states_a_tmp, states_b_tmp, distances, n == (num_batches-1))
