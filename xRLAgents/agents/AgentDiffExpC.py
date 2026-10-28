@@ -89,7 +89,7 @@ class AgentDiffExpC():
         self.trajectory_buffer = TrajectoryBufferIM(self.steps, self.n_envs)
 
         # optional, for state mean and variance normalisation
-        states =  self.envs.reset(e)
+        states =  self.envs.reset()
         if self.state_normalise:
             states_t = torch.from_numpy(states)
             self.state_mean = states_t.mean(dim=(0, 1)).float().to(self.device)
