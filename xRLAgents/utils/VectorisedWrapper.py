@@ -26,7 +26,8 @@ class VectorizedAtariWrapper:
         )
 
         # The overall batch observation shape: (128, 4, 96, 96)
-        self.obs_shape = list(self.env.observation_space)
+        self.obs_shape = self.env.observation_space
+        print(self.obs_shape)
 
         # The total number of discrete actions available (e.g., 18 for Atari)
         self.action_dim = int(self.env.action_space.n)
