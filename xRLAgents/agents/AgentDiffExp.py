@@ -87,18 +87,17 @@ class AgentDiffExp():
         self.trajectory_buffer = TrajectoryBufferIM(self.steps, self.n_envs)
 
         # optional, for state mean and variance normalisation
+
+        states = self.envs.reset(e)
+
         if self.state_normalise:
             self.state_mean  = torch.zeros((self.state_shape[1], self.state_shape[2]), dtype=self.dtype, device=self.device)
 
-            for e in range(self.n_envs):
-                state, _ = self.envs.reset(e)
-                self.state_mean+= torch.from_numpy(state[0]).to(self.dtype).to(self.device)
-
-            self.state_mean/= self.n_envs
+            states_t        = torch.from_numpy(states).float()
+            self.state_mean = torch.mean(states_t, dim=(0, 1)).to(self.device)
+           
             self.state_var = torch.ones(self.state_mean.shape, dtype=self.dtype, device=self.device)
-        else:
-            for e in range(self.n_envs):
-                state, _ = self.envs.reset(e)
+        
         
         if self.rnn_policy:
             self.hidden_state_t = torch.zeros((self.n_envs, ) + self.rnn_shape).to(self.dtype).to(self.device)
