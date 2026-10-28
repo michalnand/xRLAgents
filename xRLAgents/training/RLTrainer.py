@@ -29,7 +29,7 @@ class RLTrainer:
 
         # main training loop
         for n in range(n_steps):
-            states_new, rewards, dones, infos = self.agent.step(states)
+            states_new, rewards, dones, infos = self.agent.step(states, True)
             
             # add to log
             if hasattr(self.agent, "get_logs"):
@@ -53,7 +53,7 @@ class RLTrainer:
                 self.agent.save()
 
                 if hasattr(self.envs, "save"):
-                    self.envs.save()
+                    self.envs.save(self.result_path)
                     
                 print("saving model at step ", n)
 
