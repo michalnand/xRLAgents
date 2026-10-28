@@ -155,7 +155,7 @@ class AgentDiffExpC():
         print("\n\n")
         
      
-    def step(self, states, training_enabled):     
+    def step(self, states, training_enabled = True):     
         states_t = torch.from_numpy(states).to(self.dtype).to(self.device)
 
 
