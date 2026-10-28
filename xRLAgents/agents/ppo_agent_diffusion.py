@@ -168,12 +168,16 @@ class PPOAgentDiffusion(PPOAgentBase):
         self.ppo_logger.update_step(actions, rewards_ext, rewards_int.detach().cpu().numpy(), dones, z_im.detach().float().cpu().numpy())
 
         if self.buffer.is_full():
+            '''
             with torch.no_grad():
                 states_t = torch.from_numpy(states_next).float().to(self.device)
                 states_t = self._states_normalize(states_t)
                 _, value_ext, value_int = self.model(states_t)
 
             self.buffer.compute_returns(self.gamma_ext, self.gamma_int, lam = self.lam, last_value_ext=value_ext, last_value_int=value_int, normalize=False)
+            '''
+
+            self.buffer.compute_returns(self.gamma_ext, self.gamma_int, lam = self.lam, normalize=False)
 
             self._training()
             self.buffer.clear()
