@@ -184,7 +184,7 @@ class PPOAgentDiffusion(PPOAgentBase):
 
             self.buffer.compute_returns(self.gamma_ext, self.gamma_int, lam = self.lam, last_value_ext=value_ext, last_value_int=value_int, normalize=False)
             
-            self._training()
+            #self._training()
             self.buffer.clear()
 
             print_time = True
@@ -194,7 +194,7 @@ class PPOAgentDiffusion(PPOAgentBase):
         t5 = time.time()
 
         if print_time:
-            print("total sps = ", 1.0/(t5 - t1))
+            print("total sps = ", 1.0/(t5 - t0))
 
         # episodes ends reset is handled outside
         return states_next, rewards_ext, terminated, truncated, info
