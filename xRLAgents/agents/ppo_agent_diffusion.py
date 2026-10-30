@@ -241,7 +241,7 @@ class PPOAgentDiffusion(PPOAgentBase):
                 states_a_tmp = states_a 
                 states_b_tmp = states_b
 
-
+            '''
             # self supervised regularization
             loss_distance, loss_ssl, loss_ssl_metrics = self.ssl_loss_func(self.model, states_a_tmp, states_b_tmp, distances, n == (num_batches-1))
 
@@ -249,10 +249,10 @@ class PPOAgentDiffusion(PPOAgentBase):
             # diffusion model IM    
             states = self.buffer.sample_states(self.ssl_batch_size, self.device)  
             _, _, loss_im, loss_im_metrics = self._compute_im(states, self.noise_level_train, n == (num_batches-1))
-            
+            '''
 
             # final loss
-            loss = loss_actor + loss_entropy + loss_critic + loss_distance + loss_ssl + loss_im
+            loss = loss_actor + loss_entropy + loss_critic # + loss_distance + loss_ssl + loss_im
             
             self.optimizer.zero_grad()
 
