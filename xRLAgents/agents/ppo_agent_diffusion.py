@@ -226,9 +226,8 @@ class PPOAgentDiffusion(PPOAgentBase):
             states, logits_old, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.buffer.sample_batch(self.ppo_batch_size, self.device)
 
             # main PPO loss
-            #loss_actor, loss_critic, loss_entropy = self._ppo_loss(states, logits_old,  actions, returns_ext, returns_int, advantages_ext, advantages_int)
+            loss_actor, loss_critic, loss_entropy = self._ppo_loss(states, logits_old,  actions, returns_ext, returns_int, advantages_ext, advantages_int)
 
-            print(states.type(),logits_old.type(),actions.type(),returns_ext.type(), returns_int.type(), advantages_ext.type(), advantages_int.type() )
             
             states_a, states_b, distances = self.buffer.sample_batch_pairs(self.ssl_batch_size, self.states_max_distance, self.device)
 
@@ -243,6 +242,7 @@ class PPOAgentDiffusion(PPOAgentBase):
                 states_a_tmp = states_a 
                 states_b_tmp = states_b
 
+
             # self supervised regularization
             loss_distance, loss_ssl, loss_ssl_metrics = self.ssl_loss_func(self.model, states_a_tmp, states_b_tmp, distances, n == (num_batches-1))
 
@@ -254,8 +254,10 @@ class PPOAgentDiffusion(PPOAgentBase):
 
             
             # final loss
-            #loss = loss_actor + loss_entropy + loss_critic + loss_distance + loss_ssl + loss_im
-            loss = loss_distance + loss_ssl + loss_im
+            loss = loss_actor + loss_entropy + loss_critic + loss_distance + loss_ssl + loss_im
+
+
+            print("loss type ", loss.type())
             
             self.optimizer.zero_grad()
 
