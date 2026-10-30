@@ -261,7 +261,7 @@ class PPOAgentDiffusion(PPOAgentBase):
             self.optimizer.step()
 
 
-        self.ppo_logger.update_training(loss_actor, loss_entropy, loss_critic, returns_ext, returns_int, advantages_ext, advantages_int, loss_ssl_metrics, loss_im_metrics)
+        #self.ppo_logger.update_training(loss_actor, loss_entropy, loss_critic, returns_ext, returns_int, advantages_ext, advantages_int, loss_ssl_metrics, loss_im_metrics)
 
 
     
