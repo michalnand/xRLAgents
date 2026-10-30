@@ -3,11 +3,11 @@ import math
 import numpy
 import torch
 
-from .trajectory_buffer_discrete_im            import *
+from .trajectory_buffer_discrete_im         import *
 from .ppo_agent_base                        import *
 from .ppo_agent_discrete_hyperparameters    import *
 
-from ..training.ppo_diffusion_logger         import *
+from ..training.ppo_diffusion_logger        import *
 
 import time
 
@@ -172,7 +172,8 @@ class PPOAgentDiffusion(PPOAgentBase):
         self.buffer.add(states_t, logits, value_ext, value_int, actions, rewards_ext_scaled, rewards_int_scaled, dones)
 
 
-        #self.ppo_logger.update_step(actions, rewards_ext, rewards_int.detach().cpu().numpy(), dones, z_im.detach().float().cpu().numpy())
+        self.ppo_logger.update_step(actions, rewards_ext, rewards_int.detach().cpu().numpy(), dones, z_im.detach().float().cpu().numpy())
+
         if self.buffer.is_full():
             with torch.no_grad():
                 states_t = torch.from_numpy(states_next).float().to(self.device)
@@ -263,7 +264,7 @@ class PPOAgentDiffusion(PPOAgentBase):
             
 
 
-        #self.ppo_logger.update_training(loss_actor, loss_entropy, loss_critic, returns_ext, returns_int, advantages_ext, advantages_int, loss_ssl_metrics, loss_im_metrics)
+        self.ppo_logger.update_training(loss_actor, loss_entropy, loss_critic, returns_ext, returns_int, advantages_ext, advantages_int, loss_ssl_metrics, loss_im_metrics)
 
 
     

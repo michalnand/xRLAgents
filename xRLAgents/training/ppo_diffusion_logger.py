@@ -38,11 +38,11 @@ class PPODiffusionLogger:
         self.result_im  = {}
 
 
-
         self.spectral_samples = None 
         self.spectral_ptr     = 0
 
         self.k_coeff = 0.1
+
 
     # called every agent step (will other variables history helps ? - mu, var, value ?)
     def update_step(self, actions, rewards_ext, rewards_int, dones, z):
@@ -123,9 +123,6 @@ class PPODiffusionLogger:
 
 
     def get(self):
-
-        return {}
-
         result_log = []
         result_log.append({"summary" : self.result_summary})
         result_log.append({"ppo" : self.result_ppo})

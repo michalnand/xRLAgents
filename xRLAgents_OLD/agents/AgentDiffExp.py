@@ -12,10 +12,8 @@ class AgentDiffExp():
         self.envs = envs
  
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
         
         config = Config()
-
 
         if hasattr(config, "dtype"):
             self.dtype = config.dtype
