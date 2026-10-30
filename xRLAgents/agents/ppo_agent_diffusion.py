@@ -182,7 +182,7 @@ class PPOAgentDiffusion(PPOAgentBase):
 
             self.buffer.compute_returns(self.gamma_ext, self.gamma_int, lam = self.lam, last_value_ext=value_ext, last_value_int=value_int, normalize=False)
             
-            #self._training()
+            self._training()
             self.buffer.clear()
 
             print_time = True
