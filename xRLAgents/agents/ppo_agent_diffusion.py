@@ -223,7 +223,7 @@ class PPOAgentDiffusion(PPOAgentBase):
         num_batches = (self.n_ppo_epochs*self.envs_count*self.n_ppo_steps)//self.ppo_batch_size
 
 
-        samples_count = self.steps*self.n_envs
+        samples_count = self.n_ppo_steps*self.envs_count
         batch_count = samples_count//self.batch_size
 
 
