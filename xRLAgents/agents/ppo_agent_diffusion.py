@@ -224,26 +224,23 @@ class PPOAgentDiffusion(PPOAgentBase):
 
 
         for n in range(num_batches):
-            if n == 0:
-                states, logits_old, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.buffer.sample_batch(self.ppo_batch_size, self.device)
+            states, logits_old, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.buffer.sample_batch(self.ppo_batch_size, self.device)
 
             # main PPO loss
             loss_actor, loss_critic, loss_entropy = self._ppo_loss(states, logits_old,  actions, returns_ext, returns_int, advantages_ext, advantages_int)
+        
+            states_a, states_b, distances = self.buffer.sample_batch_pairs(self.ssl_batch_size, self.states_max_distance, self.device)
 
+            # copy first frame
+            if self.single_frame_im:
+                states_a_tmp        = torch.zeros_like(states_a)
+                states_a_tmp[:, :]  = states_a[:, 0].unsqueeze(1)
 
-            if n == 0:
-                states_a, states_b, distances = self.buffer.sample_batch_pairs(self.ssl_batch_size, self.states_max_distance, self.device)
-
-                # copy first frame
-                if self.single_frame_im:
-                    states_a_tmp        = torch.zeros_like(states_a)
-                    states_a_tmp[:, :]  = states_a[:, 0].unsqueeze(1)
-
-                    states_b_tmp        = torch.zeros_like(states_b)
-                    states_b_tmp[:, :]  = states_b[:, 0].unsqueeze(1)
-                else:
-                    states_a_tmp = states_a 
-                    states_b_tmp = states_b
+                states_b_tmp        = torch.zeros_like(states_b)
+                states_b_tmp[:, :]  = states_b[:, 0].unsqueeze(1)
+            else:
+                states_a_tmp = states_a 
+                states_b_tmp = states_b
 
 
             # self supervised regularization
@@ -251,8 +248,7 @@ class PPOAgentDiffusion(PPOAgentBase):
 
 
             # diffusion model IM    
-            if n == 0:
-                states_im = self.buffer.sample_states(self.ssl_batch_size, self.device)  
+            states_im = self.buffer.sample_states(self.ssl_batch_size, self.device)  
             _, _, loss_im, loss_im_metrics = self._compute_im(states_im, self.noise_level_train, n == (num_batches-1))
         
             
