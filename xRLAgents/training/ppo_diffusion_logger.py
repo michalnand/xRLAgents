@@ -32,7 +32,12 @@ class PPODiffusionLogger:
         self.rewards_episode_ext      = numpy.zeros((num_envs, ))
         self.episodes      = numpy.zeros((num_envs, ))
 
-        result_summary  = {}
+        self.result_summary  = {}
+        self.result_ppo  = {}
+        self.result_ssl  = {}
+        self.result_im  = {}
+
+        
 
         self.spectral_samples = None 
         self.spectral_ptr     = 0
