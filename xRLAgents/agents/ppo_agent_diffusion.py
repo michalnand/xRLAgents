@@ -165,7 +165,7 @@ class PPOAgentDiffusion(PPOAgentBase):
         self.buffer.add(states_t, logits, value_ext, value_int, actions, rewards_ext_scaled, rewards_int_scaled, dones)
 
 
-        self.ppo_logger.update_step(actions, rewards_ext, rewards_int.detach().cpu().numpy(), dones, z_im.detach().float().cpu().numpy())
+        #self.ppo_logger.update_step(actions, rewards_ext, rewards_int.detach().cpu().numpy(), dones, z_im.detach().float().cpu().numpy())
 
         if self.buffer.is_full():
             
@@ -179,7 +179,7 @@ class PPOAgentDiffusion(PPOAgentBase):
             
             self._training()
             self.buffer.clear()
-        
+
 
         # episodes ends reset is handled outside
         return states_next, rewards_ext, terminated, truncated, info
