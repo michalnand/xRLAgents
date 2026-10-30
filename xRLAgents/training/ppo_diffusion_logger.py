@@ -37,7 +37,7 @@ class PPODiffusionLogger:
         self.result_ssl  = {}
         self.result_im  = {}
 
-        
+
 
         self.spectral_samples = None 
         self.spectral_ptr     = 0
@@ -123,6 +123,8 @@ class PPODiffusionLogger:
 
 
     def get(self):
+
+        return {}
 
         result_log = []
         result_log.append({"summary" : self.result_summary})
