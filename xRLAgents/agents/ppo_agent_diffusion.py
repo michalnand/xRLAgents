@@ -223,11 +223,12 @@ class PPOAgentDiffusion(PPOAgentBase):
         num_batches = (self.n_ppo_epochs*self.envs_count*self.n_ppo_steps)//self.ppo_batch_size
 
         for n in range(num_batches):
-            #states, logits_old, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.buffer.sample_batch(self.ppo_batch_size, self.device)
+            states, logits_old, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.buffer.sample_batch(self.ppo_batch_size, self.device)
 
             # main PPO loss
             #loss_actor, loss_critic, loss_entropy = self._ppo_loss(states, logits_old,  actions, returns_ext, returns_int, advantages_ext, advantages_int)
 
+            print(states.type(),logits_old.type(),actions.type(),returns_ext.type(), returns_int.type(), advantages_ext.type(), advantages_int.type() )
             
             states_a, states_b, distances = self.buffer.sample_batch_pairs(self.ssl_batch_size, self.states_max_distance, self.device)
 
