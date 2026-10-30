@@ -9,7 +9,6 @@ from .ppo_agent_discrete_hyperparameters    import *
 
 from ..training.ppo_diffusion_logger        import *
 
-import time
 
 class PPOAgentDiffusion(PPOAgentBase):
 
@@ -140,7 +139,6 @@ class PPOAgentDiffusion(PPOAgentBase):
         return states_norm  
 
     def step(self, states):
-        t0 = time.time()
         states_t = torch.from_numpy(states).float().to(self.device)
 
         if self.state_normalization:
@@ -153,18 +151,15 @@ class PPOAgentDiffusion(PPOAgentBase):
 
         actions = self._sample_actions(logits)
 
-        t1 = time.time()
 
         states_next, rewards_ext, terminated, truncated, info = self.envs.step(actions)
 
         dones = terminated | truncated
 
-        t2 = time.time()
 
         with torch.no_grad():
             rewards_int, z_im, _, _ = self._compute_im(states_t, self.noise_level_inference, False)
             
-        t3 = time.time()
 
         rewards_ext_scaled = self.reward_ext_coeff*rewards_ext
         rewards_int_scaled = numpy.clip(self.reward_int_coeff*rewards_int.detach().cpu().numpy(), 0, 1)
@@ -186,17 +181,7 @@ class PPOAgentDiffusion(PPOAgentBase):
             self._training()
             self.buffer.clear()
 
-            print_time = True
-        else:
-            print_time = False
-
-        t5 = time.time()
-
-        if print_time:
-            print("\n\n\n")
-            print(self.device)
-            print("total sps = ", 1.0/(t5 - t0))
-
+        
         # episodes ends reset is handled outside
         return states_next, rewards_ext, terminated, truncated, info
 
