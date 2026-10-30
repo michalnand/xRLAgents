@@ -179,9 +179,7 @@ class PPOAgentDiffusion(PPOAgentBase):
             
             self._training()
             self.buffer.clear()
-
-        print("rewards_int = ", rewards_int.mean(), rewards_int.std())
-
+        
 
         # episodes ends reset is handled outside
         return states_next, rewards_ext, terminated, truncated, info
