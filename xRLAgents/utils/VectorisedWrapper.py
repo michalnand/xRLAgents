@@ -90,7 +90,6 @@ class VectorizedAtariWrapper:
 
 
       
-      
         # udpate logs
         self.env_log.add("reward_episode_mean", self.episode_score.mean(), 1.0)
         self.env_log.add("reward_episode_std",  self.episode_score.std(), 1.0)

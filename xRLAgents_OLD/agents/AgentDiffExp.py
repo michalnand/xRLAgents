@@ -80,7 +80,7 @@ class AgentDiffExp():
 
         self.model.to(self.device)
         
-        self.model = self.model.to(dtype=self.dtype, device="cuda")
+        self.model = self.model.to(dtype=self.dtype, device=self.device)
 
 
         # initialise optimizer and trajectory buffer

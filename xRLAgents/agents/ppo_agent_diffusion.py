@@ -50,7 +50,7 @@ class PPOAgentDiffusion(PPOAgentBase):
         self.states_max_distance    = hyperparameters["states_max_distance"]
 
         self.state_normalization = hyperparameters["state_normalization"]
-        self.single_frame_im = hyperparameters["single_frame_im"]
+        self.single_frame_im    = hyperparameters["single_frame_im"]
 
         self.ssl_loss_func = ssl_loss_func
 
@@ -124,10 +124,10 @@ class PPOAgentDiffusion(PPOAgentBase):
     
     #update running stats when training enabled
     def _update_normalization(self, states, alpha = 0.99):
-        mean = states[:, 0, :, :].mean(dim=(0, 1))
+        mean = states[:, 0, :, :].mean(dim=0)
         self.states_mean = alpha*self.states_mean + (1.0 - alpha)*mean
 
-        var = ((states[:, 0, :, :] - mean)**2).mean(dim=(0, 1))
+        var = ((states[:, 0, :, :] - mean)**2).mean(dim=0)
         self.states_var  = alpha*self.states_var + (1.0 - alpha)*var 
 
 
@@ -177,8 +177,6 @@ class PPOAgentDiffusion(PPOAgentBase):
 
             self.buffer.compute_returns(self.gamma_ext, self.gamma_int, lam = self.lam, last_value_ext=value_ext, last_value_int=value_int, normalize=False)
             
-            #self.buffer.compute_returns(self.gamma_ext, self.gamma_int, lam = self.lam, normalize=False)
-
             self._training()
             self.buffer.clear()
 
@@ -192,7 +190,7 @@ class PPOAgentDiffusion(PPOAgentBase):
         states_t = torch.from_numpy(states).float()
 
         if self.state_normalization:
-            states_t = self._normalize_states(states_t)
+            states_t = self._states_normalize(states_t)
 
         states_t = states_t.float().to(self.device)
 

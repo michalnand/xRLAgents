@@ -5,7 +5,7 @@ import time
 from ..training.ValuesLogger           import *
 
 class VectorizedAtariWrapper:
-    def __init__(self, env_name = "MontezumaRevenge-v5", num_envs=128, room_id_adr = 3):
+    def __init__(self, env_name = "MontezumaRevenge-v5", num_envs=128, room_id_adr = 3, render_mode=None):
 
         self.num_envs    = num_envs
         self.room_id_adr = room_id_adr
@@ -23,6 +23,7 @@ class VectorizedAtariWrapper:
             reward_clip=False,
             max_episode_steps=4500,
             episodic_life=False,
+            render_mode=render_mode
         )
 
         # The overall batch observation shape: (128, 4, 96, 96)
@@ -89,6 +90,7 @@ class VectorizedAtariWrapper:
             self._update_rooms_counter(dones, infos["ram"])
 
 
+      
       
         # udpate logs
         self.env_log.add("reward_episode_mean", self.episode_score.mean(), 1.0)
