@@ -1,6 +1,0 @@
-gymnasium
-matplotlib
-numpy
-opencv_python
-Pillow
-torch
