@@ -14,18 +14,6 @@ dependencies = [
   "envpool"
 ]
 
-
-[project.optional-dependencies]
-all = [
-  "numpy",
-  "torch"
-]
- 
-
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["xRLAgents", "xRLAgents.*"]
-
-[tool.black]
-line-length = 88
-target-version = ['py313']
+where = ["xRLAgents"]
+include = ["*"]
