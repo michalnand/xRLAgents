@@ -3,7 +3,7 @@ import numpy
 
 class PPODiffusionLogger:
 
-    def __init__(self, num_envs, num_actions, num_bins = 256, num_spectral_samples = 8192):
+    def __init__(self, num_envs, num_actions, num_bins = 512, num_spectral_samples = 8192):
         self.num_envs       = num_envs
         self.num_actions    = num_actions
         self.num_bins       = num_bins
@@ -67,13 +67,13 @@ class PPODiffusionLogger:
         for n in dones_idx:
 
             if len(self.rewards_ext_buffer[n]) > 32:
-                tmp = self._map_list_to_fixed_array(self.rewards_ext_buffer[n], self.num_bins)
+                tmp = self._map_list_to_histogram(self.rewards_ext_buffer[n], self.num_bins)
                 self.rewards_ext_stats = (1.0 - self.k_coeff)*self.rewards_ext_stats + self.k_coeff*tmp
 
-                tmp = self._map_list_to_fixed_array(self.rewards_int_buffer[n], self.num_bins)
+                tmp = self._map_list_to_histogram(self.rewards_int_buffer[n], self.num_bins)
                 self.rewards_int_stats = (1.0 - self.k_coeff)*self.rewards_int_stats + self.k_coeff*tmp
 
-                tmp = self._list_to_action_histogram(self.actions_buffer[n], self.num_bins, self.num_actions)
+                tmp = self._list_to_action_histogram(self.actions_buffer[n], num_actions=self.num_actions, num_bins=self.num_bins)
                 self.actions_stats = (1.0 - self.k_coeff)*self.actions_stats + self.k_coeff*tmp
 
 
@@ -153,47 +153,58 @@ class PPODiffusionLogger:
 
 
 
-    def _map_list_to_fixed_array(self, lst, target_length=256):
-        n = len(lst)
-
-        # 1. Map each element's position linearly from 0 to target_length - 1 and round to nearest integer
-        float_indices = numpy.linspace(0, target_length - 1, n)
-        target_indices = numpy.round(float_indices).astype(int)
+   
+    def _map_list_to_histogram(self, lst, num_bins=512, max_list_length=4500):  
+        # 1. Truncate list and convert to a numpy array
+        arr = numpy.asarray(lst[:max_list_length], dtype=float)
+        n = len(arr)
         
-        # 2. Accumulate sums and counts for averaging overlapping indices
-        sums    = numpy.bincount(target_indices, weights=lst, minlength=target_length)
-        sums    = sums.astype(numpy.float32)
-
-        counts  = numpy.bincount(target_indices, minlength=target_length)
-        counts  = counts.astype(numpy.float32)
-
+        # 2. Vectorized calculation of bin indices based on max_list_length scale
+        max_bin_idx = num_bins - 1
+        indices = numpy.arange(n)
+        bin_indices = numpy.round(indices * max_bin_idx / max_list_length).astype(int)
+        bin_indices = numpy.clip(bin_indices, 0, max_bin_idx)
         
-        # 3. Compute average, setting empty bins (where count == 0) to 0
-        result = numpy.divide(sums, counts, out=numpy.full(target_length, 0, dtype=numpy.float32), where=counts > 0)
+        # 3. Vectorized accumulation using numpy.bincount
+        sums    = numpy.bincount(bin_indices, weights=arr, minlength=num_bins)
+        counts  = numpy.bincount(bin_indices, minlength=num_bins)
+        
+        # 4. Compute simple averaging for populated bins, leaving unreached bins as 0.0
+        result = numpy.zeros(num_bins, dtype=float)
+        valid_bins = counts > 0
+        result[valid_bins] = sums[valid_bins] / counts[valid_bins]
         
         return result
 
 
-    def _list_to_action_histogram(self, lst, target_length=256, num_actions=None, normalize=False): 
-        n = len(lst)       
-        actions = numpy.asarray(lst, dtype=int)
+
+    def _list_to_action_histogram(self, actions, num_actions=18, num_bins=100, max_list_length=4500):        
+        # 1. Truncate list and convert to numpy integer array
+        arr = numpy.asarray(actions[:max_list_length], dtype=int)
+        n = len(arr)
+        
+        if n == 0:
+            return numpy.zeros((num_bins, num_actions), dtype=float)
             
-        # 1. Map each element's position linearly from 0 to target_length - 1
-        float_indices   = numpy.linspace(0, target_length - 1, n)
-        target_indices  = numpy.round(float_indices).astype(int)
+        # 2. Vectorized calculation of time bin indices based on max_list_length scale
+        max_bin_idx = num_bins - 1
+        indices = numpy.arange(n)
+        bin_indices = numpy.round(indices * max_bin_idx / max_list_length).astype(int)
+        bin_indices = numpy.clip(bin_indices, 0, max_bin_idx)
         
-        # 2. Combine 2D coordinates into a 1D flat index for bincount
-        #    Formula: flat_index = row * num_cols + col
-        flat_indices = target_indices * num_actions + actions
+        # Ensure action values are safely within valid bounds [0, num_actions - 1]
+        action_values = numpy.clip(arr, 0, num_actions - 1)
         
-        # 3. Compute counts using bincount and reshape to (target_length, num_actions)
-        counts = numpy.bincount(flat_indices, minlength=target_length * num_actions)
+        # 3. Efficient 2D accumulation using flattened bincount and reshape
+        flat_indices = bin_indices * num_actions + action_values
+        counts = numpy.bincount(flat_indices, minlength=num_bins * num_actions).reshape(num_bins, num_actions).astype(float)
+        
+        # 4. Normalize per row: sum of actions in each row must equal 1 (handle empty rows safely)
+        row_sums = counts.sum(axis=1, keepdims=True)
+        result = numpy.divide(counts, row_sums, out=numpy.zeros_like(counts), where=row_sums > 0)
+        
+        return result
 
-        result = counts.reshape(target_length, num_actions)
-
-        result = result/(result.sum(axis=1, keepdims=True) + 1e-10)
-
-        return result   
 
     def _numpy_array_to_list(self, x, dp = 4):
         tmp = numpy.round(x, dp)
@@ -209,7 +220,7 @@ class PPODiffusionLogger:
         Computes the log10-scaled PCA eigenvalue spectrum and explained variance.
 
         Parameters:
-        - X (np.ndarray): Input matrix of shape (num_samples, num_features), float32.
+        - X (numpy.ndarray): Input matrix of shape (num_samples, num_features), float32.
         - center (bool): Whether to mean-center the features (recommended for PCA).
 
         Returns:
