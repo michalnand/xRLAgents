@@ -309,3 +309,17 @@ class PPOAgentDiffusion(PPOAgentBase):
     def get_default_log_flags(self):
         return self.ppo_logger.get_default_log_flags()
 
+
+    def save(self, result_path):
+        super().save(result_path)
+
+        torch.save(self.states_mean, result_path + "/checkpoints/states_mean.pt")
+        torch.save(self.states_var, result_path + "/checkpoints/states_var.pt")
+
+    def load(self, result_path):
+        super().load(result_path)
+
+        self.states_mean  = torch.load(result_path + "/checkpoints/states_mean.pt")
+        self.states_var   = torch.load(result_path + "/checkpoints/states_var.pt")
+    
+
