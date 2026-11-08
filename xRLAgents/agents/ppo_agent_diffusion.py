@@ -52,7 +52,6 @@ class PPOAgentDiffusion(PPOAgentBase):
         self.state_normalization = hyperparameters["state_normalization"]
         self.single_frame_im    = hyperparameters["single_frame_im"]
 
-        self.state_normalization = True
 
         self.ssl_loss_func = ssl_loss_func
 
@@ -148,6 +147,9 @@ class PPOAgentDiffusion(PPOAgentBase):
         if self.state_normalization:
             self._update_normalization(states_t)
             states_t = self._states_normalize(states_t)
+        else:
+            states_t = (states_t - states_t.mean(dim=(1, 2, 3), keepdim=True))/(states_t.std(dim=(1, 2, 3), keepdim=True) + 1e-8)
+            states_t = torch.clip(states_t, -4.0, 4.0)
 
         print(states_t.shape, states_t.min(), states_t.max(), states_t.mean(), states_t.std(), ((states_t[:, 0] - states_t[:, 1])**2).mean())
 
