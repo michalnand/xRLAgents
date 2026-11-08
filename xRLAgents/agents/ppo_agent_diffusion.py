@@ -52,6 +52,8 @@ class PPOAgentDiffusion(PPOAgentBase):
         self.state_normalization = hyperparameters["state_normalization"]
         self.single_frame_im    = hyperparameters["single_frame_im"]
 
+        self.state_normalization = True
+
         self.ssl_loss_func = ssl_loss_func
 
 
