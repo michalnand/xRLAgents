@@ -121,6 +121,8 @@ class PPOAgentDiffusion(PPOAgentBase):
             
         return reward_im, z_target, loss, metrics
 
+
+
     
     #update running stats when training enabled
     def _update_normalization(self, states, alpha = 0.99):
@@ -145,7 +147,7 @@ class PPOAgentDiffusion(PPOAgentBase):
             self._update_normalization(states_t)
             states_t = self._states_normalize(states_t)
         
-
+        
         with torch.no_grad():
             logits, value_ext, value_int = self.model(states_t)
 
@@ -197,11 +199,16 @@ class PPOAgentDiffusion(PPOAgentBase):
         with torch.no_grad():
             logits, value_ext, value_int = self.model(states_t)
 
+        with torch.no_grad():
+            _, z, _, _ = self._compute_im(states_t, 0, False)
+        
+        z = z.detach().float().cpu().numpy()
+
         actions = self._sample_actions(logits)
 
         obs, rewards, terminated, truncated, info = self.envs.step(actions)
 
-        return obs, rewards, terminated, truncated, info
+        return obs, rewards, terminated, truncated, info, z
 
  
     def _training(self):
@@ -313,13 +320,15 @@ class PPOAgentDiffusion(PPOAgentBase):
     def save(self, result_path):
         super().save(result_path)
 
-        torch.save(self.states_mean, result_path + "/checkpoints/states_mean.pt")
-        torch.save(self.states_var, result_path + "/checkpoints/states_var.pt")
+        if self.state_normalization:
+            torch.save(self.states_mean, result_path + "/checkpoints/states_mean.pt")
+            torch.save(self.states_var, result_path + "/checkpoints/states_var.pt")
 
     def load(self, result_path):
         super().load(result_path)
 
-        self.states_mean  = torch.load(result_path + "/checkpoints/states_mean.pt")
-        self.states_var   = torch.load(result_path + "/checkpoints/states_var.pt")
-    
+        if self.state_normalization:
+            self.states_mean  = torch.load(result_path + "/checkpoints/states_mean.pt", map_location=self.device)
+            self.states_var   = torch.load(result_path + "/checkpoints/states_var.pt", map_location=self.device)
+        
 

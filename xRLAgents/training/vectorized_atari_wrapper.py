@@ -69,6 +69,8 @@ class VectorizedAtariWrapper:
         # Step all 128 environments instantly in C++
         obs, rewards, terminated, truncated, infos = self.envs.step(actions)
 
+        self.rewards = rewards
+
         obs = numpy.array(obs/255.0, dtype=numpy.float32)
     
         rewards_clip = numpy.clip(rewards, 0.0, 1.0)
