@@ -141,6 +141,12 @@ class PPOAgentDiffusion(PPOAgentBase):
 
         return states_norm  
 
+    def _states_normalize_mean_std(self, states):
+        states_norm = (states - states.mean(dim=(1, 2, 3), keepdim=True))/(states.std(dim=(1, 2, 3), keepdim=True) + 1e-8)
+        states_norm = torch.clip(states_norm, -4.0, 4.0)
+        return states_norm
+
+
     def step(self, states):
         states_t = torch.from_numpy(states).float().to(self.device)
 
@@ -148,9 +154,8 @@ class PPOAgentDiffusion(PPOAgentBase):
             self._update_normalization(states_t)
             states_t = self._states_normalize(states_t)
         else:
-            states_t = (states_t - states_t.mean(dim=(1, 2, 3), keepdim=True))/(states_t.std(dim=(1, 2, 3), keepdim=True) + 1e-8)
-            states_t = torch.clip(states_t, -4.0, 4.0)
-
+            states_t = self._states_normalize_mean_std(states_t)
+            
         print(states_t.shape, states_t.min(), states_t.max(), states_t.mean(), states_t.std(), ((states_t[:, 0] - states_t[:, 1])**2).mean())
 
         with torch.no_grad():
@@ -181,6 +186,9 @@ class PPOAgentDiffusion(PPOAgentBase):
                 states_t = torch.from_numpy(states_next).float().to(self.device)
                 if self.state_normalization:
                     states_t = self._states_normalize(states_t)
+                else:
+                    states_t = self._states_normalize_mean_std(states_t)    
+
                 _, value_ext, value_int = self.model(states_t)
 
             self.buffer.compute_returns(self.gamma_ext, self.gamma_int, lam = self.lam, last_value_ext=value_ext, last_value_int=value_int, normalize=False)
