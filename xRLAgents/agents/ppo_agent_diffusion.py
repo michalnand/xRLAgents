@@ -155,9 +155,8 @@ class PPOAgentDiffusion(PPOAgentBase):
             states_t = self._states_normalize(states_t)
         else:
             states_t = self._states_normalize_mean_std(states_t)
-            
-        print(states_t.shape, states_t.min(), states_t.max(), states_t.mean(), states_t.std(), ((states_t[:, 0] - states_t[:, 1])**2).mean())
 
+            
         with torch.no_grad():
             logits, value_ext, value_int = self.model(states_t)
 
