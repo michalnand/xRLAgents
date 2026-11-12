@@ -231,7 +231,7 @@ class PPOAgentDiffusionSkills(PPOAgentBase):
                 else:
                     states_t = self._states_normalize_mean_std(states_t)    
 
-                _, value_ext, value_int = self.model(states_t)
+                _, value_ext, value_int = self.model(states_t, self.current_skill)
 
             self.buffer.compute_returns(self.gamma_ext, self.gamma_int, lam = self.lam, last_value_ext=value_ext, last_value_int=value_int, normalize=False)
             
