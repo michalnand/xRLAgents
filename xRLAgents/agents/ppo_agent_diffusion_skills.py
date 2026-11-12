@@ -130,7 +130,7 @@ class PPOAgentDiffusionSkills(PPOAgentBase):
         skill_log_probs = torch.nn.functional.log_softmax(skill_pred_logits, dim=-1)
 
         # reward function from log ptobs        
-        reward_b_im = skill_log_probs[torch.arange(batch_size, device=skills_gt.device),skills_gt] + torch.log(self.num_skills)
+        reward_b_im = skill_log_probs[torch.arange(batch_size, device=skills_gt.device),skills_gt] + numpy.log(self.num_skills)
 
 
         skill_accuracy_tmp = (torch.argmax(skill_pred_logits, dim=-1) == skills_gt).float()
