@@ -321,6 +321,8 @@ class PPOAgentDiffusionSkills(PPOAgentBase):
         self.ppo_logger.update_training(loss_actor, loss_entropy, loss_critic, returns_ext, returns_int, advantages_ext, advantages_int, loss_ssl_metrics, loss_im_metrics)
 
 
+        print("IM metrics")
+        print(loss_im_metrics)
     
     def _ppo_loss(self, states, skills, logits_old,  actions, returns_ext, returns_int, advantages_ext, advantages_int):
         logits_new, values_ext, values_int = self.model(states, skills)
