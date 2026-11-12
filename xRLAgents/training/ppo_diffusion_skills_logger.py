@@ -18,15 +18,18 @@ class PPODiffusionSkillsLogger:
         self.actions_buffer     = []
         self.rewards_ext_buffer = []
         self.rewards_int_a_buffer = []
+        self.rewards_int_b_buffer = []
 
         for n in range(self.num_envs):
             self.actions_buffer.append([])
             self.rewards_ext_buffer.append([])
             self.rewards_int_a_buffer.append([])
+            self.rewards_int_b_buffer.append([])
 
-        self.rewards_ext_stats = numpy.zeros((num_bins, ))
-        self.rewards_int_stats = numpy.zeros((num_bins, ))
-        self.actions_stats     = numpy.zeros((num_bins, num_actions))
+        self.rewards_ext_stats      = numpy.zeros((num_bins, ))
+        self.rewards_int_a_stats    = numpy.zeros((num_bins, ))
+        self.rewards_int_b_stats    = numpy.zeros((num_bins, ))
+        self.actions_stats          = numpy.zeros((num_bins, num_actions))
 
         self.rewards_episode_ext_curr = numpy.zeros((num_envs, ))
         self.rewards_episode_ext      = numpy.zeros((num_envs, ))
@@ -45,11 +48,11 @@ class PPODiffusionSkillsLogger:
 
 
     # called every agent step (will other variables history helps ? - mu, var, value ?)
-    def update_step(self, actions, rewards_ext, rewards_a_int, rewards_b_int, dones, z):
+    def update_step(self, actions, rewards_ext, rewards_int_a, rewards_int_b, dones, z):
         for n in range(self.num_envs):
             self.rewards_ext_buffer[n].append(rewards_ext[n])
-            self.rewards_int_a_buffer[n].append(rewards_a_int[n])
-            self.rewards_int_b_buffer[n].append(rewards_b_int[n])
+            self.rewards_int_a_buffer[n].append(rewards_int_a[n])
+            self.rewards_int_b_buffer[n].append(rewards_int_b[n])
             self.actions_buffer[n].append(actions[n])
 
 
@@ -72,16 +75,20 @@ class PPODiffusionSkillsLogger:
                 self.rewards_ext_stats = (1.0 - self.k_coeff)*self.rewards_ext_stats + self.k_coeff*tmp
 
                 tmp = self._map_list_to_histogram(self.rewards_int_a_buffer[n], self.num_bins)
-                self.rewards_int_stats = (1.0 - self.k_coeff)*self.rewards_int_stats + self.k_coeff*tmp
+                self.rewards_int_a_stats = (1.0 - self.k_coeff)*self.rewards_int_a_stats + self.k_coeff*tmp
+
+                tmp = self._map_list_to_histogram(self.rewards_int_b_buffer[n], self.num_bins)
+                self.rewards_int_b_stats = (1.0 - self.k_coeff)*self.rewards_int_b_stats + self.k_coeff*tmp
 
                 tmp = self._list_to_action_histogram(self.actions_buffer[n], num_actions=self.num_actions, num_bins=self.num_bins)
                 self.actions_stats = (1.0 - self.k_coeff)*self.actions_stats + self.k_coeff*tmp
 
 
 
-            self.rewards_ext_buffer[n]  = []
-            self.rewards_int_a_buffer[n]  = []
-            self.actions_buffer[n]      = []
+            self.rewards_ext_buffer[n]      = []
+            self.rewards_int_a_buffer[n]    = []
+            self.rewards_int_b_buffer[n]    = []
+            self.actions_buffer[n]          = []
 
             self.rewards_episode_ext = numpy.array(self.rewards_episode_ext_curr)
             self.rewards_episode_ext_curr[n] = 0
@@ -97,9 +104,13 @@ class PPODiffusionSkillsLogger:
         self.result_summary["rewards_ext_episode_std"]  = float(round((self.rewards_episode_ext).std(), 6))
         self.result_summary["rewards_ext_episode_max"]  = float(round(numpy.max(self.rewards_episode_ext), 6))
         
-        self.result_summary["rewards_int_mean"] = float(round(rewards_int.mean(), 6))
-        self.result_summary["rewards_int_std"]  = float(round(rewards_int.std(), 6))
-        self.result_summary["rewards_int_max"]  = float(round(numpy.max(rewards_int), 6))
+        self.result_summary["rewards_int_a_mean"] = float(round(rewards_int_a.mean(), 6))
+        self.result_summary["rewards_int_a_std"]  = float(round(rewards_int_a.std(), 6))
+        self.result_summary["rewards_int_a_max"]  = float(round(numpy.max(rewards_int_a), 6))
+
+        self.result_summary["rewards_int_b_mean"] = float(round(rewards_int_b.mean(), 6))
+        self.result_summary["rewards_int_b_std"]  = float(round(rewards_int_b.std(), 6))
+        self.result_summary["rewards_int_b_max"]  = float(round(numpy.max(rewards_int_b), 6))
 
         self.result_summary["z_mag_mean"]       = float(round((z**2).mean(), 6))
         self.result_summary["z_mag_std"]        = float(round((z**2).std(), 6))
@@ -129,10 +140,11 @@ class PPODiffusionSkillsLogger:
         result_log.append({"ppo" : self.result_ppo})
         result_log.append({"ssl" : self.result_ssl})
         result_log.append({"im" : self.result_im})
-        result_log.append({"rewards_ext" : self._numpy_array_to_list(self.rewards_ext_stats)})
-        result_log.append({"rewards_int" : self._numpy_array_to_list(self.rewards_int_stats)})
-        result_log.append({"actions"     : self._numpy_array_to_list(self.actions_stats)})
-        result_log.append({"features"    : self._compute_log_svd_spectrum(self.spectral_samples)})
+        result_log.append({"rewards_ext"    : self._numpy_array_to_list(self.rewards_ext_stats)})
+        result_log.append({"rewards_int_a"  : self._numpy_array_to_list(self.rewards_int_a_stats)})
+        result_log.append({"rewards_int_b"  : self._numpy_array_to_list(self.rewards_int_b_stats)})
+        result_log.append({"actions"        : self._numpy_array_to_list(self.actions_stats)})
+        result_log.append({"features"       : self._compute_log_svd_spectrum(self.spectral_samples)})
 
         return result_log
 
