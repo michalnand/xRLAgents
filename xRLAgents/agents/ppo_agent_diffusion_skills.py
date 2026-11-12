@@ -75,7 +75,9 @@ class PPOAgentDiffusionSkills(PPOAgentBase):
             self.states_var  = torch.ones_like(self.states_mean).to(self.device)
 
 
-        self.current_skill = torch.random.randint(0, self.num_skills, (len(self.envs), ), dtype=torch.long, device=self.device)
+        self.current_skill = torch.randint(0, self.num_skills, (len(self.envs), ), dtype=torch.long, device=self.device)
+
+        print(self.current_skill)
 
 
 
