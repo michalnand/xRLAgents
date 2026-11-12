@@ -240,6 +240,7 @@ class PPOAgentDiffusionSkills(PPOAgentBase):
 
         # random new skill if episode is done
         dones_indices = numpy.where(dones)[0]
+        print("dones_indices = ", dones_indices)
         for n in range(dones_indices):
             self.current_skill[n] = torch.random.randint(0, self.num_skills)
 
