@@ -150,16 +150,18 @@ class PPOAgentDiffusionB(PPOAgentBase):
         for n in rewarded_indices:
             key = int(rewards_ext[n])
 
-            if key in self.episodic_rewards_stats_buffer[n]:
+            ptr = self.reward_buffer_ptr[n]
+
+            if key in self.episodic_rewards_stats_buffer[ptr]:
                 # increment existing
-                self.episodic_rewards_stats_buffer[n][key]+= 1
+                self.episodic_rewards_stats_buffer[ptr][key]+= 1
             else:
-                # add new key
-                self.episodic_rewards_stats_buffer[n][key] = 1
+                # add new key   
+                self.episodic_rewards_stats_buffer[ptr][key] = 1
 
-            result[n] = self._expectation_reward(self.episodic_rewards_stats_buffer[n], key)
+            result[n] = self._expectation_reward(self.episodic_rewards_stats_buffer[ptr], key)
 
-            self.reward_buffer_ptr[n] = (self.reward_buffer_ptr[n] + 1)%len(self.episodic_rewards_stats_buffer)
+            self.reward_buffer_ptr[n] = (ptr + 1)%len(self.episodic_rewards_stats_buffer)
 
 
         # reset ptr when episode done
