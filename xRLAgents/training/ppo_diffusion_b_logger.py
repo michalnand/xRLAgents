@@ -53,6 +53,9 @@ class PPODiffusionBLogger:
             self.actions_buffer[n].append(actions[n])
 
 
+        print(episodic_rewards_stats_buffer)
+
+
         dones_idx = numpy.where(dones)[0]
 
         if self.spectral_samples is None:
