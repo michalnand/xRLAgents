@@ -101,9 +101,13 @@ class PPODiffusionBLogger:
         self.result_summary["rewards_ext_episode_std"]  = float(round((self.rewards_episode_ext).std(), 6))
         self.result_summary["rewards_ext_episode_max"]  = float(round(numpy.max(self.rewards_episode_ext), 6))
         
-        self.result_summary["rewards_int_mean"] = float(round(rewards_int.mean(), 6))
-        self.result_summary["rewards_int_std"]  = float(round(rewards_int.std(), 6))
-        self.result_summary["rewards_int_max"]  = float(round(numpy.max(rewards_int), 6))
+        self.result_summary["rewards_int_a_mean"] = float(round(rewards_int_a.mean(), 6))
+        self.result_summary["rewards_int_a_std"]  = float(round(rewards_int_a.std(), 6))
+        self.result_summary["rewards_int_a_max"]  = float(round(numpy.max(rewards_int_a), 6))
+
+        self.result_summary["rewards_int_b_mean"] = float(round(rewards_int_b.mean(), 6))
+        self.result_summary["rewards_int_b_std"]  = float(round(rewards_int_b.std(), 6))
+        self.result_summary["rewards_int_b_max"]  = float(round(numpy.max(rewards_int_b), 6))
 
         self.result_summary["z_mag_mean"]       = float(round((z**2).mean(), 6))
         self.result_summary["z_mag_std"]        = float(round((z**2).std(), 6))
