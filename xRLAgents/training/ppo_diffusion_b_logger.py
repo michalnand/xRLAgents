@@ -17,6 +17,8 @@ class PPODiffusionBLogger:
 
         self.result_summary  = {}
 
+        self.result_episodic_rewards_stats = []
+
         self.actions_buffer     = []
         self.rewards_ext_buffer = []
         self.rewards_int_a_buffer = []
