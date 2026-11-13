@@ -137,7 +137,6 @@ class PPODiffusionBLogger:
 
 
     def get(self):
-        print(self.result_episodic_rewards_stats)
         result_log = []
         result_log.append({"summary" : self.result_summary})
         result_log.append({"ppo" : self.result_ppo})

@@ -220,9 +220,6 @@ class PPOAgentDiffusionB(PPOAgentBase):
 
 
         rewards_ext_raw = numpy.array(info["reward"], dtype=int)
-
-
-        rewards_ext_raw =  numpy.random.randint(0, 5, (128, ))
         
 
         rewards_int_a = rewards_int_a.detach().cpu().numpy()
