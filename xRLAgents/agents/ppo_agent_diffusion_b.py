@@ -159,7 +159,7 @@ class PPOAgentDiffusionB(PPOAgentBase):
 
             result[n] = self._expectation_reward(self.episodic_rewards_stats_buffer[n], key)
 
-            self.reward_buffer_ptr[n] = (self.reward_buffer_ptr[n] + 1)%self.episodic_rewards_stats_buffer.shape[0]
+            self.reward_buffer_ptr[n] = (self.reward_buffer_ptr[n] + 1)%len(self.episodic_rewards_stats_buffer)
 
 
         # reset ptr when episode done
@@ -218,6 +218,9 @@ class PPOAgentDiffusionB(PPOAgentBase):
 
 
         rewards_ext_raw = numpy.array(info["reward"], dtype=int)
+
+
+        rewards_ext_raw =  numpy.random.randint(0, 5, (128, ))
         
 
         rewards_int_a = rewards_int_a.detach().cpu().numpy()
