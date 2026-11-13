@@ -131,12 +131,11 @@ class PPODiffusionBLogger:
 
         self.result_episodic_rewards_stats = list(episodic_rewards_stats_buffer)
 
-        print(self.result_episodic_rewards_stats)
-
 
 
 
     def get(self):
+        print(self.result_episodic_rewards_stats)
         result_log = []
         result_log.append({"summary" : self.result_summary})
         result_log.append({"ppo" : self.result_ppo})
@@ -147,6 +146,9 @@ class PPODiffusionBLogger:
         result_log.append({"rewards_int_b" : self._numpy_array_to_list(self.rewards_int_b_stats)})
         result_log.append({"actions"     : self._numpy_array_to_list(self.actions_stats)})
         result_log.append({"features"    : self._compute_log_svd_spectrum(self.spectral_samples)})
+        result_log.append({"episodic_rewards_stats" : self.result_episodic_rewards_stats})
+
+        
 
         return result_log
 
