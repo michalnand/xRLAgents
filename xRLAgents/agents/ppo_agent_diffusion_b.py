@@ -215,10 +215,8 @@ class PPOAgentDiffusionB(PPOAgentBase):
         with torch.no_grad():
             rewards_int_a, z_im, _, _ = self._compute_im_diffusion(states_t, self.noise_level_inference, False)
 
-        print("info = ")
-        print(info)
-        print("\n\n")
-        rewards_ext_raw = info
+        
+        rewards_ext_raw = numpy.array(info["reward"], dtype=int)
         rewards_int_b = self._compute_im_diversity(rewards_ext_raw, dones)
 
         rewards_ext_scaled = self.reward_ext_coeff*rewards_ext
