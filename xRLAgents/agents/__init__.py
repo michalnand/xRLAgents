@@ -14,5 +14,8 @@ from .ppo_agent_discrete                    import *
 from .ppo_agent_diffusion_hyperparameters   import *
 from .ppo_agent_diffusion                   import *
 
+from .ppo_agent_diffusion_b_hyperparameters   import *
+from .ppo_agent_diffusion_b                   import *
+
 from .ppo_agent_diffusion_skills_hyperparameters   import *
 from .ppo_agent_diffusion_skills                   import *

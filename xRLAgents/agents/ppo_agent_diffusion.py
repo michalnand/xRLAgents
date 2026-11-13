@@ -5,14 +5,14 @@ import torch
 
 from .trajectory_buffer_discrete_im         import *
 from .ppo_agent_base                        import *
-from .ppo_agent_discrete_hyperparameters    import *
+from .ppo_agent_diffusion_hyperparameters   import *
 
 from ..training.ppo_diffusion_logger        import *
 
 
 class PPOAgentDiffusion(PPOAgentBase):
 
-    def __init__(self, envs, Model, ssl_loss_func, hyperparameters = PPOAgentDiscreteDefaultHyperparameters, device = "cpu"):
+    def __init__(self, envs, Model, ssl_loss_func, hyperparameters = PPOAgentDiffusionDefaultHyperparameters, device = "cpu"):
 
         super().__init__()
 
