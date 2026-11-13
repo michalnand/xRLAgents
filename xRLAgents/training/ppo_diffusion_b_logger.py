@@ -45,15 +45,13 @@ class PPODiffusionBLogger:
 
 
     # called every agent step (will other variables history helps ? - mu, var, value ?)
-    def update_step(self, actions, rewards_ext, rewards_int_a, rewards_int_b, dones, z, episodic_rewards_stats_buffer):
+    def update_step(self, actions, rewards_ext, rewards_int_a, rewards_int_b, dones, z):
         for n in range(self.num_envs):
             self.rewards_ext_buffer[n].append(rewards_ext[n])
             self.rewards_int_a_buffer[n].append(rewards_int_a[n])
             self.rewards_int_b_buffer[n].append(rewards_int_b[n])
             self.actions_buffer[n].append(actions[n])
 
-
-        print(episodic_rewards_stats_buffer)
 
 
         dones_idx = numpy.where(dones)[0]
@@ -117,7 +115,7 @@ class PPODiffusionBLogger:
 
 
 
-    def update_training(self, loss_actor, loss_entropy, loss_critic, returns_ext, returns_int, advantages_ext, advantages_int, ssl_metrics, im_metrics, dp=6):
+    def update_training(self, loss_actor, loss_entropy, loss_critic, returns_ext, returns_int, advantages_ext, advantages_int, ssl_metrics, im_metrics, episodic_rewards_stats_buffer, dp=6):
         self.result_ppo = {}
         self.result_ppo["loss_actor"]   = round(torch.mean(loss_actor).item(), dp)
         self.result_ppo["loss_entropy"] = round(torch.mean(loss_entropy).item(), dp)
@@ -128,8 +126,12 @@ class PPODiffusionBLogger:
         self.result_ppo = self.result_ppo | self._stats(advantages_ext.float(), "advantages_ext", dp)
         self.result_ppo = self.result_ppo | self._stats(advantages_int.float(), "advantages_int", dp)
 
-        self.result_ssl  = ssl_metrics
+        self.result_ssl  = ssl_metrics  
         self.result_im   = im_metrics
+
+        self.result_episodic_rewards_stats = list(episodic_rewards_stats_buffer)
+
+        print(self.result_episodic_rewards_stats)
 
 
 

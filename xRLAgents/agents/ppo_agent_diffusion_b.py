@@ -229,7 +229,7 @@ class PPOAgentDiffusionB(PPOAgentBase):
         self.buffer.add(states_t, logits, value_ext, value_int, actions, rewards_ext_scaled, rewards_int_scaled, dones)
 
 
-        self.ppo_logger.update_step(actions, rewards_ext, rewards_int_a, rewards_int_b, dones, z_im.detach().float().cpu().numpy(), self.episodic_rewards_stats_buffer)
+        self.ppo_logger.update_step(actions, rewards_ext, rewards_int_a, rewards_int_b, dones, z_im.detach().float().cpu().numpy())
 
         if self.buffer.is_full():
             with torch.no_grad():
@@ -319,7 +319,7 @@ class PPOAgentDiffusionB(PPOAgentBase):
             
 
 
-        self.ppo_logger.update_training(loss_actor, loss_entropy, loss_critic, returns_ext, returns_int, advantages_ext, advantages_int, loss_ssl_metrics, loss_im_metrics)
+        self.ppo_logger.update_training(loss_actor, loss_entropy, loss_critic, returns_ext, returns_int, advantages_ext, advantages_int, loss_ssl_metrics, loss_im_metrics, self.episodic_rewards_stats_buffer)
 
 
     
