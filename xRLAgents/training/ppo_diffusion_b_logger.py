@@ -1,7 +1,7 @@
 import torch
 import numpy
 
-class PPODiffusionLoggerB:
+class PPODiffusionBLogger:
 
     def __init__(self, num_envs, num_actions, num_bins = 512, num_spectral_samples = 8192):
         self.num_envs       = num_envs
