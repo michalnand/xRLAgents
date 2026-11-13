@@ -149,7 +149,6 @@ class PPOAgentDiffusionB(PPOAgentBase):
         # non zero rewards are sparse, loop is fast
         for n in rewarded_indices:
             key = int(rewards_ext[n])
-            result[n] = self._expectation_reward(self.episodic_rewards_stats_buffer[n], key)
 
             if key in self.episodic_rewards_stats_buffer[n]:
                 # increment existing
@@ -157,6 +156,8 @@ class PPOAgentDiffusionB(PPOAgentBase):
             else:
                 # add new key
                 self.episodic_rewards_stats_buffer[n][key] = 1
+
+            result[n] = self._expectation_reward(self.episodic_rewards_stats_buffer[n], key)
 
             self.reward_buffer_ptr[n] = (self.reward_buffer_ptr[n] + 1)%self.episodic_rewards_stats_buffer.shape[0]
 
