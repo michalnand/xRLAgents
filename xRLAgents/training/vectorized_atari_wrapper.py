@@ -76,6 +76,7 @@ class VectorizedAtariWrapper:
         obs = numpy.array(obs/255.0, dtype=numpy.float32)
 
         if self.remove_doors:
+            print(rewards)
             rewards_clip = numpy.where(rewards == 300, 0.0, numpy.clip(rewards, 0.0, 1.0))
         else:
             rewards_clip = numpy.clip(rewards, 0.0, 1.0)
