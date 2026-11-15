@@ -4,7 +4,7 @@ import time
 
 
 class VectorizedAtariWrapper:
-    def __init__(self, env_name = "MontezumaRevenge-v5", num_envs=128, render_mode=None, remove_doors=False):
+    def __init__(self, env_name = "MontezumaRevenge-v5", num_envs=128, render_mode=None, log_scaling=False):
 
         self.num_envs    = num_envs
         
@@ -30,7 +30,7 @@ class VectorizedAtariWrapper:
         # The total number of discrete actions available (e.g., 18 for Atari)
         self.num_actions = int(self.envs.action_space.n)
 
-        self.remove_doors = remove_doors
+        self.log_scaling = log_scaling
 
         self._init_logs_vars()  
 
@@ -75,11 +75,11 @@ class VectorizedAtariWrapper:
 
         obs = numpy.array(obs/255.0, dtype=numpy.float32)
 
-        if self.remove_doors:
-            rewards_clip = numpy.where(rewards == 300, 0.0, numpy.clip(rewards, 0.0, 1.0))
+        if self.log_scaling:
+            rewards_clip = numpy.log1p(numpy.maximum(rewards, 0.0) / 100.0)
         else:
             rewards_clip = numpy.clip(rewards, 0.0, 1.0)
-
+        
         dones = numpy.array(terminated | truncated, dtype=numpy.bool)
        
         # raw score update
